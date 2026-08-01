@@ -9,7 +9,7 @@
   },
   "scripts": {
     "verify": "pnpm run typecheck && pnpm run lint && pnpm run test",
-    "typecheck": "pnpm -r run typecheck",
+    "typecheck": "pnpm -r run typecheck && tsc -p tools",
     "lint": "eslint .",
     "test": "vitest run",
     "test:e2e": "node scripts/test-e2e.mjs",
