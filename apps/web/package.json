@@ -1,0 +1,13 @@
+{
+  "name": "@fx/web",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@fx/domain": "workspace:*",
+    "@fx/protocol": "workspace:*"
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "name": "fx-ladder",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@11.18.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "verify": "pnpm run typecheck && pnpm run lint && pnpm run test",
+    "typecheck": "pnpm -r run typecheck",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "test:e2e": "node scripts/test-e2e.mjs",
+    "gate:perf": "node scripts/gate-perf.mjs",
+    "dev": "pnpm -r --parallel run dev",
+    "build": "pnpm -r --if-present run build"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.20.0",
+    "@types/node": "^22.13.0",
+    "eslint": "^9.20.0",
+    "globals": "^17.8.0",
+    "typescript": "^5.8.0",
+    "typescript-eslint": "^8.24.0",
+    "vitest": "^3.2.0"
+  }
+}
