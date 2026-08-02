@@ -439,6 +439,112 @@ describe('/sim/blotter (done-when of T-0.4.6, server half)', () => {
   });
 });
 
+describe('/sim/scenario (done-when of T-0.4.7)', () => {
+  // Spec §8 read from stats: calm → spike → naive → batched again →
+  // (crash on the wire) → calm after recovery → last look armed.
+  const CANONICAL = [
+    '300/true/40/0',
+    '50000/true/40/0',
+    '50000/false/40/0',
+    '50000/true/40/0',
+    '2000/true/40/0',
+    '2000/true/80/0.3',
+  ];
+
+  /** Sampling may MISS a short-lived posture, never invent or reorder one. */
+  function isSubsequence(observed: string[], canonical: string[]): boolean {
+    let at = 0;
+    for (const seen of observed) {
+      while (at < canonical.length && canonical[at] !== seen) at += 1;
+      if (at === canonical.length) return false;
+      at += 1;
+    }
+    return true;
+  }
+
+  it('demo-5min plays the full §8 sequence — asserted from /sim/stats — identically twice from the same seed', { timeout: 40_000 }, async () => {
+    const port = await startServer({ updatesPerSec: 1000 });
+
+    const posture = (s: SimStats): string =>
+      `${s.updatesPerSec}/${s.batch}/${s.executions.lastLook.holdMs}/${s.executions.lastLook.rejectRate}`;
+
+    async function play(): Promise<{ observed: string[]; applied: number; closeCode: number }> {
+      expect((await post(port, '/sim/seed', { seed: 11 })).status).toBe(200);
+      const { ws } = await openFeed(port);
+      const closeCode = new Promise<number>((resolve) => ws.on('close', resolve));
+
+      const res = await post(port, '/sim/scenario', { name: 'demo-5min', speed: 50 });
+      expect(res.status).toBe(200);
+      const body = (await res.json()) as { ok: boolean; steps: number; durationMs: number };
+      expect(body).toEqual({ ok: true, steps: 11, durationMs: 4800 });
+
+      // Sample the stats-visible posture while the play runs; the applied
+      // counter — not the sampling — decides when the play is over, so a
+      // slow poll can shorten the observation but never hang the test.
+      const observed: string[] = [];
+      let applied = 0;
+      const deadline = Date.now() + body.durationMs + 8000;
+      for (;;) {
+        const stats = await getStats(port);
+        const seen = posture(stats);
+        if (observed[observed.length - 1] !== seen) observed.push(seen);
+        applied = stats.scenario?.applied ?? 0;
+        if (applied === body.steps && seen === CANONICAL[CANONICAL.length - 1]) break;
+        if (Date.now() > deadline) throw new Error(`play stalled: applied ${applied}, saw ${observed.join(' → ')}`);
+        await settle(15);
+      }
+      // Drop whatever pre-scenario posture the first samples caught.
+      const start = observed.indexOf(CANONICAL[0]!);
+      expect(start).toBeGreaterThanOrEqual(0);
+      return { observed: observed.slice(start), applied, closeCode: await closeCode };
+    }
+
+    const first = await play();
+    const second = await play();
+
+    for (const run of [first, second]) {
+      // Every step fired, exactly once, in data order — the server counted.
+      expect(run.applied).toBe(11);
+      // The sampled view is a faithful subsequence of the canonical story…
+      expect(isSubsequence(run.observed, CANONICAL)).toBe(true);
+      // …and the wide-window anchors are guaranteed catches: the spike holds
+      // for 1.2 s and the post-recovery calm for 2 s at this speed.
+      expect(run.observed[0]).toBe(CANONICAL[0]);
+      expect(run.observed).toContain('50000/true/40/0');
+      expect(run.observed).toContain('2000/true/40/0');
+      expect(run.observed[run.observed.length - 1]).toBe(CANONICAL[CANONICAL.length - 1]);
+      // The scripted crash reached the wire.
+      expect(run.closeCode).toBe(4000);
+    }
+    expect(second.applied).toBe(first.applied);
+    expect(second.observed[second.observed.length - 1]).toBe(first.observed[first.observed.length - 1]);
+  });
+
+  it('a new scenario cancels the previous one’s pending steps', { timeout: 15_000 }, async () => {
+    const port = await startServer();
+    // Slow play: its spike would land at 30 s ÷ 20 = 1.5 s…
+    expect((await post(port, '/sim/scenario', { name: 'demo-5min', speed: 20 })).status).toBe(200);
+    // …but the replacement takes the stage before that.
+    expect((await post(port, '/sim/scenario', { name: 'demo-5min', speed: 600 })).status).toBe(200);
+
+    await settle(900); // 300 s ÷ 600 = 500 ms — the fast play has finished
+    const after = await getStats(port);
+    expect(after.updatesPerSec).toBe(2000);
+    expect(after.executions.lastLook).toEqual({ holdMs: 80, rejectRate: 0.3 });
+
+    await settle(900); // past the slow play's spike time: nothing fires
+    expect((await getStats(port)).updatesPerSec).toBe(2000);
+  });
+
+  it('unknown names and out-of-range speeds die at the border', async () => {
+    const port = await startServer();
+    expect((await post(port, '/sim/scenario', { name: 'nope' })).status).toBe(400);
+    expect((await post(port, '/sim/scenario', { name: 'demo-5min', speed: 0 })).status).toBe(400);
+    expect((await post(port, '/sim/scenario', { name: 'demo-5min', speed: 601 })).status).toBe(400);
+    expect((await post(port, '/sim/scenario', { name: 'demo-5min', extra: 1 })).status).toBe(400);
+  });
+});
+
 describe('CORS preflight (the docs page posts cross-origin)', () => {
   it('answers OPTIONS with the method/header grant for an allowed origin', async () => {
     const port = await startServer();

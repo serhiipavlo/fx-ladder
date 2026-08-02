@@ -8,6 +8,7 @@ import {
   simNewsBodySchema,
   simOrderBodySchema,
   simRateBodySchema,
+  simScenarioBodySchema,
   simSeedBodySchema,
 } from '@fx/domain';
 import { frameEnvelopeSchema, FX_SUBPROTOCOL, wireRecordSchema } from '@fx/protocol';
@@ -183,6 +184,16 @@ export function buildOpenApi(): JsonSchema {
           'field-level 400.',
         'SimBlotterBody',
       ),
+      '/sim/scenario': controlPost(
+        'Play a scripted demo',
+        'The demo as data (architecture §8): a named timeline of control commands — the whole spec ' +
+          '§8 in one call. `demo-5min` runs calm → spike → unbatched-and-back → crash → recovery → ' +
+          'freeze → news → last look armed, identically every time. `speed` compresses the timeline ' +
+          '(offset ÷ speed): ×1 is the live five-minute demo, E2E suites replay it in seconds. A new ' +
+          'scenario cancels whatever the previous one had pending. Responds with `steps` and ' +
+          '`durationMs` of the compressed play.',
+        'SimScenarioBody',
+      ),
       '/sim/stats': {
         get: {
           summary: 'Simulator telemetry',
@@ -209,6 +220,7 @@ export function buildOpenApi(): JsonSchema {
         SimLastLookBody: fromZod(simLastLookBodySchema),
         SimOrderBody: fromZod(simOrderBodySchema),
         SimBlotterBody: fromZod(simBlotterBodySchema),
+        SimScenarioBody: fromZod(simScenarioBodySchema),
         Instrument: {
           type: 'object',
           additionalProperties: false,
@@ -228,7 +240,7 @@ export function buildOpenApi(): JsonSchema {
           type: 'object',
           description:
             'Endpoint-specific fields may accompany `ok`: `clOrdId`/`immediate` on /sim/order, ' +
-            '`submitted` on /sim/blotter.',
+            '`submitted` on /sim/blotter, `steps`/`durationMs` on /sim/scenario.',
           required: ['ok'],
           properties: { ok: { type: 'boolean', const: true } },
         },
@@ -296,6 +308,22 @@ export function buildOpenApi(): JsonSchema {
             updatesPerSec: { type: 'integer', minimum: 1 },
             clients: { type: 'integer', minimum: 0 },
             uptimeMs: { type: 'integer', minimum: 0 },
+            scenario: {
+              description: 'Telemetry of the last /sim/scenario play; null before the first one.',
+              oneOf: [
+                { type: 'null' },
+                {
+                  type: 'object',
+                  additionalProperties: false,
+                  required: ['name', 'applied', 'steps'],
+                  properties: {
+                    name: { type: 'string' },
+                    applied: { type: 'integer', minimum: 0, description: 'Steps fired so far.' },
+                    steps: { type: 'integer', minimum: 0 },
+                  },
+                },
+              ],
+            },
             tick: {
               type: 'object',
               additionalProperties: false,

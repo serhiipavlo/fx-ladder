@@ -11,8 +11,10 @@ import {
   simNewsBodySchema,
   simOrderBodySchema,
   simRateBodySchema,
+  simScenarioBodySchema,
   simSeedBodySchema,
   type ExecutionReport,
+  type ScenarioName,
   type SimOrderBody,
 } from '@fx/domain';
 
@@ -48,6 +50,8 @@ export interface SimStats {
   clients: number;
   uptimeMs: number;
   executions: ExecutionStatsOut;
+  /** Telemetry of the last /sim/scenario play; null before the first one. */
+  scenario: { name: string; applied: number; steps: number } | null;
   tick: TickStats;
 }
 
@@ -63,6 +67,7 @@ export interface ControlDeps {
   setLastLook(holdMs: number, rejectRate: number): void;
   submitOrder(input: SimOrderBody & { pairId: number }): { clOrdId: string; immediate: ExecutionReport[] };
   blotter(rows: number): { submitted: number };
+  scenario(name: ScenarioName, speed: number): { steps: number; durationMs: number };
   stats(): SimStats;
 }
 
@@ -200,6 +205,11 @@ export function handleSimRequest(
       return;
     case '/sim/blotter':
       route('POST', () => void handlePost(req, res, simBlotterBodySchema, (body) => deps.blotter(body.rows)));
+      return;
+    case '/sim/scenario':
+      route('POST', () =>
+        void handlePost(req, res, simScenarioBodySchema, (body) => deps.scenario(body.name, body.speed)),
+      );
       return;
     case '/sim/disconnect':
       route('POST', () =>

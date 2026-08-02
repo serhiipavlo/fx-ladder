@@ -138,6 +138,14 @@ export function Panel({ store, instruments, pollMs = 1000 }: PanelProps): React.
         >
           burst 5000 orders
         </button>
+        <span style={{ marginLeft: '1rem' }}>scenario:</span>
+        <button
+          style={button}
+          data-testid="scenario"
+          onClick={() => run(post('/sim/scenario', { name: 'demo-5min' }))}
+        >
+          demo-5min
+        </button>
       </div>
 
       <div style={{ ...row, marginTop: '0.5rem' }}>

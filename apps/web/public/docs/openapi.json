@@ -486,6 +486,47 @@
         }
       }
     },
+    "/sim/scenario": {
+      "post": {
+        "summary": "Play a scripted demo",
+        "description": "The demo as data (architecture §8): a named timeline of control commands — the whole spec §8 in one call. `demo-5min` runs calm → spike → unbatched-and-back → crash → recovery → freeze → news → last look armed, identically every time. `speed` compresses the timeline (offset ÷ speed): ×1 is the live five-minute demo, E2E suites replay it in seconds. A new scenario cancels whatever the previous one had pending. Responds with `steps` and `durationMs` of the compressed play.",
+        "tags": [
+          "control plane"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SimScenarioBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Applied.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Body failed the shared domain schema; nothing reached the simulator.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/sim/stats": {
       "get": {
         "summary": "Simulator telemetry",
@@ -702,6 +743,28 @@
         ],
         "additionalProperties": false
       },
+      "SimScenarioBody": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "enum": [
+              "demo-5min"
+            ]
+          },
+          "speed": {
+            "default": 1,
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 600
+          }
+        },
+        "required": [
+          "name",
+          "speed"
+        ],
+        "additionalProperties": false
+      },
       "Instrument": {
         "type": "object",
         "additionalProperties": false,
@@ -753,7 +816,7 @@
       },
       "Ok": {
         "type": "object",
-        "description": "Endpoint-specific fields may accompany `ok`: `clOrdId`/`immediate` on /sim/order, `submitted` on /sim/blotter.",
+        "description": "Endpoint-specific fields may accompany `ok`: `clOrdId`/`immediate` on /sim/order, `submitted` on /sim/blotter, `steps`/`durationMs` on /sim/scenario.",
         "required": [
           "ok"
         ],
@@ -920,6 +983,37 @@
           "uptimeMs": {
             "type": "integer",
             "minimum": 0
+          },
+          "scenario": {
+            "description": "Telemetry of the last /sim/scenario play; null before the first one.",
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "name",
+                  "applied",
+                  "steps"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "applied": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "description": "Steps fired so far."
+                  },
+                  "steps": {
+                    "type": "integer",
+                    "minimum": 0
+                  }
+                }
+              }
+            ]
           },
           "tick": {
             "type": "object",
