@@ -1,0 +1,4490 @@
+[
+  {
+    "frameType": "SNAPSHOT",
+    "count": 40,
+    "firstSeq": 0,
+    "serverTs": 0,
+    "records": [
+      {
+        "pairId": 0,
+        "side": "bid",
+        "level": 0,
+        "price": 108497,
+        "size": 821,
+        "seq": 0
+      },
+      {
+        "pairId": 0,
+        "side": "ask",
+        "level": 0,
+        "price": 108503,
+        "size": 756,
+        "seq": 1
+      },
+      {
+        "pairId": 0,
+        "side": "bid",
+        "level": 1,
+        "price": 108489,
+        "size": 1432,
+        "seq": 2
+      },
+      {
+        "pairId": 0,
+        "side": "ask",
+        "level": 1,
+        "price": 108511,
+        "size": 1577,
+        "seq": 3
+      },
+      {
+        "pairId": 0,
+        "side": "bid",
+        "level": 2,
+        "price": 108481,
+        "size": 2126,
+        "seq": 4
+      },
+      {
+        "pairId": 0,
+        "side": "ask",
+        "level": 2,
+        "price": 108519,
+        "size": 2264,
+        "seq": 5
+      },
+      {
+        "pairId": 0,
+        "side": "bid",
+        "level": 3,
+        "price": 108473,
+        "size": 2733,
+        "seq": 6
+      },
+      {
+        "pairId": 0,
+        "side": "ask",
+        "level": 3,
+        "price": 108527,
+        "size": 2776,
+        "seq": 7
+      },
+      {
+        "pairId": 1,
+        "side": "bid",
+        "level": 0,
+        "price": 126995,
+        "size": 711,
+        "seq": 8
+      },
+      {
+        "pairId": 1,
+        "side": "ask",
+        "level": 0,
+        "price": 127004,
+        "size": 937,
+        "seq": 9
+      },
+      {
+        "pairId": 1,
+        "side": "bid",
+        "level": 1,
+        "price": 126985,
+        "size": 1539,
+        "seq": 10
+      },
+      {
+        "pairId": 1,
+        "side": "ask",
+        "level": 1,
+        "price": 127014,
+        "size": 1658,
+        "seq": 11
+      },
+      {
+        "pairId": 1,
+        "side": "bid",
+        "level": 2,
+        "price": 126975,
+        "size": 2167,
+        "seq": 12
+      },
+      {
+        "pairId": 1,
+        "side": "ask",
+        "level": 2,
+        "price": 127024,
+        "size": 2075,
+        "seq": 13
+      },
+      {
+        "pairId": 1,
+        "side": "bid",
+        "level": 3,
+        "price": 126965,
+        "size": 2882,
+        "seq": 14
+      },
+      {
+        "pairId": 1,
+        "side": "ask",
+        "level": 3,
+        "price": 127034,
+        "size": 3098,
+        "seq": 15
+      },
+      {
+        "pairId": 2,
+        "side": "bid",
+        "level": 0,
+        "price": 156996,
+        "size": 773,
+        "seq": 16
+      },
+      {
+        "pairId": 2,
+        "side": "ask",
+        "level": 0,
+        "price": 157004,
+        "size": 692,
+        "seq": 17
+      },
+      {
+        "pairId": 2,
+        "side": "bid",
+        "level": 1,
+        "price": 156986,
+        "size": 1610,
+        "seq": 18
+      },
+      {
+        "pairId": 2,
+        "side": "ask",
+        "level": 1,
+        "price": 157014,
+        "size": 1388,
+        "seq": 19
+      },
+      {
+        "pairId": 2,
+        "side": "bid",
+        "level": 2,
+        "price": 156976,
+        "size": 2340,
+        "seq": 20
+      },
+      {
+        "pairId": 2,
+        "side": "ask",
+        "level": 2,
+        "price": 157024,
+        "size": 2363,
+        "seq": 21
+      },
+      {
+        "pairId": 2,
+        "side": "bid",
+        "level": 3,
+        "price": 156966,
+        "size": 2932,
+        "seq": 22
+      },
+      {
+        "pairId": 2,
+        "side": "ask",
+        "level": 3,
+        "price": 157034,
+        "size": 2807,
+        "seq": 23
+      },
+      {
+        "pairId": 3,
+        "side": "bid",
+        "level": 0,
+        "price": 90495,
+        "size": 847,
+        "seq": 24
+      },
+      {
+        "pairId": 3,
+        "side": "ask",
+        "level": 0,
+        "price": 90505,
+        "size": 682,
+        "seq": 25
+      },
+      {
+        "pairId": 3,
+        "side": "bid",
+        "level": 1,
+        "price": 90485,
+        "size": 1430,
+        "seq": 26
+      },
+      {
+        "pairId": 3,
+        "side": "ask",
+        "level": 1,
+        "price": 90515,
+        "size": 1369,
+        "seq": 27
+      },
+      {
+        "pairId": 3,
+        "side": "bid",
+        "level": 2,
+        "price": 90475,
+        "size": 2167,
+        "seq": 28
+      },
+      {
+        "pairId": 3,
+        "side": "ask",
+        "level": 2,
+        "price": 90525,
+        "size": 2063,
+        "seq": 29
+      },
+      {
+        "pairId": 3,
+        "side": "bid",
+        "level": 3,
+        "price": 90465,
+        "size": 2793,
+        "seq": 30
+      },
+      {
+        "pairId": 3,
+        "side": "ask",
+        "level": 3,
+        "price": 90535,
+        "size": 2800,
+        "seq": 31
+      },
+      {
+        "pairId": 4,
+        "side": "bid",
+        "level": 0,
+        "price": 66495,
+        "size": 773,
+        "seq": 32
+      },
+      {
+        "pairId": 4,
+        "side": "ask",
+        "level": 0,
+        "price": 66504,
+        "size": 876,
+        "seq": 33
+      },
+      {
+        "pairId": 4,
+        "side": "bid",
+        "level": 1,
+        "price": 66485,
+        "size": 1356,
+        "seq": 34
+      },
+      {
+        "pairId": 4,
+        "side": "ask",
+        "level": 1,
+        "price": 66514,
+        "size": 1686,
+        "seq": 35
+      },
+      {
+        "pairId": 4,
+        "side": "bid",
+        "level": 2,
+        "price": 66475,
+        "size": 2317,
+        "seq": 36
+      },
+      {
+        "pairId": 4,
+        "side": "ask",
+        "level": 2,
+        "price": 66524,
+        "size": 2154,
+        "seq": 37
+      },
+      {
+        "pairId": 4,
+        "side": "bid",
+        "level": 3,
+        "price": 66465,
+        "size": 2960,
+        "seq": 38
+      },
+      {
+        "pairId": 4,
+        "side": "ask",
+        "level": 3,
+        "price": 66534,
+        "size": 2991,
+        "seq": 39
+      }
+    ]
+  },
+  {
+    "frameType": "DELTA",
+    "count": 27,
+    "firstSeq": 40,
+    "serverTs": 50,
+    "records": [
+      {
+        "pairId": 2,
+        "side": "bid",
+        "level": 0,
+        "price": 156999,
+        "size": 773,
+        "seq": 40
+      },
+      {
+        "pairId": 2,
+        "side": "ask",
+        "level": 0,
+        "price": 157007,
+        "size": 692,
+        "seq": 41
+      },
+      {
+        "pairId": 2,
+        "side": "bid",
+        "level": 1,
+        "price": 156989,
+        "size": 1610,
+        "seq": 42
+      },
+      {
+        "pairId": 2,
+        "side": "ask",
+        "level": 1,
+        "price": 157017,
+        "size": 1388,
+        "seq": 43
+      },
+      {
+        "pairId": 2,
+        "side": "bid",
+        "level": 2,
+        "price": 156979,
+        "size": 2340,
+        "seq": 44
+      },
+      {
+        "pairId": 2,
+        "side": "ask",
+        "level": 2,
+        "price": 157027,
+        "size": 2363,
+        "seq": 45
+      },
+      {
+        "pairId": 2,
+        "side": "bid",
+        "level": 3,
+        "price": 156969,
+        "size": 2932,
+        "seq": 46
+      },
+      {
+        "pairId": 2,
+        "side": "ask",
+        "level": 3,
+        "price": 157037,
+        "size": 2807,
+        "seq": 47
+      },
+      {
+        "pairId": 1,
+        "side": "bid",
+        "level": 0,
+        "price": 126995,
+        "size": 790,
+        "seq": 48
+      },
+      {
+        "pairId": 2,
+        "side": "ask",
+        "level": 0,
+        "price": 157007,
+        "size": 657,
+        "seq": 49
+      },
+      {
+        "pairId": 1,
+        "side": "bid",
+        "level": 0,
+        "price": 126998,
+        "size": 790,
+        "seq": 50
+      },
+      {
+        "pairId": 1,
+        "side": "ask",
+        "level": 0,
+        "price": 127007,
+        "size": 937,
+        "seq": 51
+      },
+      {
+        "pairId": 1,
+        "side": "bid",
+        "level": 1,
+        "price": 126988,
+        "size": 1539,
+        "seq": 52
+      },
+      {
+        "pairId": 1,
+        "side": "ask",
+        "level": 1,
+        "price": 127017,
+        "size": 1658,
+        "seq": 53
+      },
+      {
+        "pairId": 1,
+        "side": "bid",
+        "level": 2,
+        "price": 126978,
+        "size": 2167,
+        "seq": 54
+      },
+      {
+        "pairId": 1,
+        "side": "ask",
+        "level": 2,
+        "price": 127027,
+        "size": 2075,
+        "seq": 55
+      },
+      {
+        "pairId": 1,
+        "side": "bid",
+        "level": 3,
+        "price": 126968,
+        "size": 2882,
+        "seq": 56
+      },
+      {
+        "pairId": 1,
+        "side": "ask",
+        "level": 3,
+        "price": 127037,
+        "size": 3098,
+        "seq": 57
+      },
+      {
+        "pairId": 0,
+        "side": "bid",
+        "level": 3,
+        "price": 108473,
+        "size": 2826,
+        "seq": 58
+      },
+      {
+        "pairId": 1,
+        "side": "bid",
+        "level": 0,
+        "price": 127001,
+        "size": 790,
+        "seq": 59
+      },
+      {
+        "pairId": 1,
+        "side": "ask",
+        "level": 0,
+        "price": 127010,
+        "size": 937,
+        "seq": 60
+      },
+      {
+        "pairId": 1,
+        "side": "bid",
+        "level": 1,
+        "price": 126991,
+        "size": 1539,
+        "seq": 61
+      },
+      {
+        "pairId": 1,
+        "side": "ask",
+        "level": 1,
+        "price": 127020,
+        "size": 1658,
+        "seq": 62
+      },
+      {
+        "pairId": 1,
+        "side": "bid",
+        "level": 2,
+        "price": 126981,
+        "size": 2167,
+        "seq": 63
+      },
+      {
+        "pairId": 1,
+        "side": "ask",
+        "level": 2,
+        "price": 127030,
+        "size": 2075,
+        "seq": 64
+      },
+      {
+        "pairId": 1,
+        "side": "bid",
+        "level": 3,
+        "price": 126971,
+        "size": 2882,
+        "seq": 65
+      },
+      {
+        "pairId": 1,
+        "side": "ask",
+        "level": 3,
+        "price": 127040,
+        "size": 3098,
+        "seq": 66
+      }
+    ]
+  },
+  {
+    "frameType": "DELTA",
+    "count": 23,
+    "firstSeq": 67,
+    "serverTs": 100,
+    "records": [
+      {
+        "pairId": 2,
+        "side": "bid",
+        "level": 0,
+        "price": 156996,
+        "size": 773,
+        "seq": 67
+      },
+      {
+        "pairId": 2,
+        "side": "ask",
+        "level": 0,
+        "price": 157004,
+        "size": 657,
+        "seq": 68
+      },
+      {
+        "pairId": 2,
+        "side": "bid",
+        "level": 1,
+        "price": 156986,
+        "size": 1610,
+        "seq": 69
+      },
+      {
+        "pairId": 2,
+        "side": "ask",
+        "level": 1,
+        "price": 157014,
+        "size": 1388,
+        "seq": 70
+      },
+      {
+        "pairId": 2,
+        "side": "bid",
+        "level": 2,
+        "price": 156976,
+        "size": 2340,
+        "seq": 71
+      },
+      {
+        "pairId": 2,
+        "side": "ask",
+        "level": 2,
+        "price": 157024,
+        "size": 2363,
+        "seq": 72
+      },
+      {
+        "pairId": 2,
+        "side": "bid",
+        "level": 3,
+        "price": 156966,
+        "size": 2932,
+        "seq": 73
+      },
+      {
+        "pairId": 2,
+        "side": "ask",
+        "level": 3,
+        "price": 157034,
+        "size": 2807,
+        "seq": 74
+      },
+      {
+        "pairId": 3,
+        "side": "ask",
+        "level": 0,
+        "price": 90505,
+        "size": 600,
+        "seq": 75
+      },
+      {
+        "pairId": 0,
+        "side": "bid",
+        "level": 3,
+        "price": 108473,
+        "size": 2681,
+        "seq": 76
+      },
+      {
+        "pairId": 4,
+        "side": "bid",
+        "level": 0,
+        "price": 66495,
+        "size": 891,
+        "seq": 77
+      },
+      {
+        "pairId": 1,
+        "side": "ask",
+        "level": 0,
+        "price": 127010,
+        "size": 1013,
+        "seq": 78
+      },
+      {
+        "pairId": 2,
+        "side": "bid",
+        "level": 0,
+        "price": 156996,
+        "size": 653,
+        "seq": 79
+      },
+      {
+        "pairId": 3,
+        "side": "ask",
+        "level": 0,
+        "price": 90505,
+        "size": 503,
+        "seq": 80
+      },
+      {
+        "pairId": 4,
+        "side": "bid",
+        "level": 0,
+        "price": 66495,
+        "size": 977,
+        "seq": 81
+      },
+      {
+        "pairId": 1,
+        "side": "bid",
+        "level": 0,
+        "price": 127004,
+        "size": 790,
+        "seq": 82
+      },
+      {
+        "pairId": 1,
+        "side": "ask",
+        "level": 0,
+        "price": 127013,
+        "size": 1013,
+        "seq": 83
+      },
+      {
+        "pairId": 1,
+        "side": "bid",
+        "level": 1,
+        "price": 126994,
+        "size": 1539,
+        "seq": 84
+      },
+      {
+        "pairId": 1,
+        "side": "ask",
+        "level": 1,
+        "price": 127023,
+        "size": 1658,
+        "seq": 85
+      },
+      {
+        "pairId": 1,
+        "side": "bid",
+        "level": 2,
+        "price": 126984,
+        "size": 2167,
+        "seq": 86
+      },
+      {
+        "pairId": 1,
+        "side": "ask",
+        "level": 2,
+        "price": 127033,
+        "size": 2075,
+        "seq": 87
+      },
+      {
+        "pairId": 1,
+        "side": "bid",
+        "level": 3,
+        "price": 126974,
+        "size": 2882,
+        "seq": 88
+      },
+      {
+        "pairId": 1,
+        "side": "ask",
+        "level": 3,
+        "price": 127043,
+        "size": 3098,
+        "seq": 89
+      }
+    ]
+  },
+  {
+    "frameType": "DELTA",
+    "count": 25,
+    "firstSeq": 90,
+    "serverTs": 150,
+    "records": [
+      {
+        "pairId": 3,
+        "side": "bid",
+        "level": 1,
+        "price": 90485,
+        "size": 1572,
+        "seq": 90
+      },
+      {
+        "pairId": 4,
+        "side": "bid",
+        "level": 0,
+        "price": 66495,
+        "size": 1088,
+        "seq": 91
+      },
+      {
+        "pairId": 4,
+        "side": "ask",
+        "level": 3,
+        "price": 66534,
+        "size": 3053,
+        "seq": 92
+      },
+      {
+        "pairId": 0,
+        "side": "ask",
+        "level": 0,
+        "price": 108503,
+        "size": 886,
+        "seq": 93
+      },
+      {
+        "pairId": 4,
+        "side": "bid",
+        "level": 0,
+        "price": 66498,
+        "size": 1088,
+        "seq": 94
+      },
+      {
+        "pairId": 4,
+        "side": "ask",
+        "level": 0,
+        "price": 66507,
+        "size": 876,
+        "seq": 95
+      },
+      {
+        "pairId": 4,
+        "side": "bid",
+        "level": 1,
+        "price": 66488,
+        "size": 1356,
+        "seq": 96
+      },
+      {
+        "pairId": 4,
+        "side": "ask",
+        "level": 1,
+        "price": 66517,
+        "size": 1686,
+        "seq": 97
+      },
+      {
+        "pairId": 4,
+        "side": "bid",
+        "level": 2,
+        "price": 66478,
+        "size": 2317,
+        "seq": 98
+      },
+      {
+        "pairId": 4,
+        "side": "ask",
+        "level": 2,
+        "price": 66527,
+        "size": 2154,
+        "seq": 99
+      },
+      {
+        "pairId": 4,
+        "side": "bid",
+        "level": 3,
+        "price": 66468,
+        "size": 2960,
+        "seq": 100
+      },
+      {
+        "pairId": 4,
+        "side": "ask",
+        "level": 3,
+        "price": 66537,
+        "size": 3053,
+        "seq": 101
+      },
+      {
+        "pairId": 0,
+        "side": "ask",
+        "level": 2,
+        "price": 108519,
+        "size": 2383,
+        "seq": 102
+      },
+      {
+        "pairId": 2,
+        "side": "bid",
+        "level": 1,
+        "price": 156986,
+        "size": 1568,
+        "seq": 103
+      },
+      {
+        "pairId": 4,
+        "side": "ask",
+        "level": 0,
+        "price": 66507,
+        "size": 994,
+        "seq": 104
+      },
+      {
+        "pairId": 3,
+        "side": "bid",
+        "level": 0,
+        "price": 90497,
+        "size": 847,
+        "seq": 105
+      },
+      {
+        "pairId": 3,
+        "side": "ask",
+        "level": 0,
+        "price": 90507,
+        "size": 503,
+        "seq": 106
+      },
+      {
+        "pairId": 3,
+        "side": "bid",
+        "level": 1,
+        "price": 90487,
+        "size": 1572,
+        "seq": 107
+      },
+      {
+        "pairId": 3,
+        "side": "ask",
+        "level": 1,
+        "price": 90517,
+        "size": 1369,
+        "seq": 108
+      },
+      {
+        "pairId": 3,
+        "side": "bid",
+        "level": 2,
+        "price": 90477,
+        "size": 2167,
+        "seq": 109
+      },
+      {
+        "pairId": 3,
+        "side": "ask",
+        "level": 2,
+        "price": 90527,
+        "size": 2063,
+        "seq": 110
+      },
+      {
+        "pairId": 3,
+        "side": "bid",
+        "level": 3,
+        "price": 90467,
+        "size": 2793,
+        "seq": 111
+      },
+      {
+        "pairId": 3,
+        "side": "ask",
+        "level": 3,
+        "price": 90537,
+        "size": 2800,
+        "seq": 112
+      },
+      {
+        "pairId": 4,
+        "side": "bid",
+        "level": 0,
+        "price": 66498,
+        "size": 1155,
+        "seq": 113
+      },
+      {
+        "pairId": 3,
+        "side": "ask",
+        "level": 1,
+        "price": 90517,
+        "size": 1461,
+        "seq": 114
+      }
+    ]
+  },
+  {
+    "frameType": "DELTA",
+    "count": 26,
+    "firstSeq": 115,
+    "serverTs": 200,
+    "records": [
+      {
+        "pairId": 3,
+        "side": "bid",
+        "level": 0,
+        "price": 90499,
+        "size": 847,
+        "seq": 115
+      },
+      {
+        "pairId": 3,
+        "side": "ask",
+        "level": 0,
+        "price": 90509,
+        "size": 503,
+        "seq": 116
+      },
+      {
+        "pairId": 3,
+        "side": "bid",
+        "level": 1,
+        "price": 90489,
+        "size": 1572,
+        "seq": 117
+      },
+      {
+        "pairId": 3,
+        "side": "ask",
+        "level": 1,
+        "price": 90519,
+        "size": 1461,
+        "seq": 118
+      },
+      {
+        "pairId": 3,
+        "side": "bid",
+        "level": 2,
+        "price": 90479,
+        "size": 2167,
+        "seq": 119
+      },
+      {
+        "pairId": 3,
+        "side": "ask",
+        "level": 2,
+        "price": 90529,
+        "size": 2063,
+        "seq": 120
+      },
+      {
+        "pairId": 3,
+        "side": "bid",
+        "level": 3,
+        "price": 90469,
+        "size": 2793,
+        "seq": 121
+      },
+      {
+        "pairId": 3,
+        "side": "ask",
+        "level": 3,
+        "price": 90539,
+        "size": 2800,
+        "seq": 122
+      },
+      {
+        "pairId": 0,
+        "side": "ask",
+        "level": 0,
+        "price": 108503,
+        "size": 758,
+        "seq": 123
+      },
+      {
+        "pairId": 0,
+        "side": "bid",
+        "level": 0,
+        "price": 108499,
+        "size": 821,
+        "seq": 124
+      },
+      {
+        "pairId": 0,
+        "side": "ask",
+        "level": 0,
+        "price": 108505,
+        "size": 758,
+        "seq": 125
+      },
+      {
+        "pairId": 0,
+        "side": "bid",
+        "level": 1,
+        "price": 108491,
+        "size": 1432,
+        "seq": 126
+      },
+      {
+        "pairId": 0,
+        "side": "ask",
+        "level": 1,
+        "price": 108513,
+        "size": 1577,
+        "seq": 127
+      },
+      {
+        "pairId": 0,
+        "side": "bid",
+        "level": 2,
+        "price": 108483,
+        "size": 2126,
+        "seq": 128
+      },
+      {
+        "pairId": 0,
+        "side": "ask",
+        "level": 2,
+        "price": 108521,
+        "size": 2383,
+        "seq": 129
+      },
+      {
+        "pairId": 0,
+        "side": "bid",
+        "level": 3,
+        "price": 108475,
+        "size": 2681,
+        "seq": 130
+      },
+      {
+        "pairId": 0,
+        "side": "ask",
+        "level": 3,
+        "price": 108529,
+        "size": 2776,
+        "seq": 131
+      },
+      {
+        "pairId": 4,
+        "side": "ask",
+        "level": 0,
+        "price": 66507,
+        "size": 1013,
+        "seq": 132
+      },
+      {
+        "pairId": 0,
+        "side": "bid",
+        "level": 0,
+        "price": 108501,
+        "size": 821,
+        "seq": 133
+      },
+      {
+        "pairId": 0,
+        "side": "ask",
+        "level": 0,
+        "price": 108507,
+        "size": 758,
+        "seq": 134
+      },
+      {
+        "pairId": 0,
+        "side": "bid",
+        "level": 1,
+        "price": 108493,
+        "size": 1432,
+        "seq": 135
+      },
+      {
+        "pairId": 0,
+        "side": "ask",
+        "level": 1,
+        "price": 108515,
+        "size": 1577,
+        "seq": 136
+      },
+      {
+        "pairId": 0,
+        "side": "bid",
+        "level": 2,
+        "price": 108485,
+        "size": 2126,
+        "seq": 137
+      },
+      {
+        "pairId": 0,
+        "side": "ask",
+        "level": 2,
+        "price": 108523,
+        "size": 2383,
+        "seq": 138
+      },
+      {
+        "pairId": 0,
+        "side": "bid",
+        "level": 3,
+        "price": 108477,
+        "size": 2681,
+        "seq": 139
+      },
+      {
+        "pairId": 0,
+        "side": "ask",
+        "level": 3,
+        "price": 108531,
+        "size": 2776,
+        "seq": 140
+      }
+    ]
+  },
+  {
+    "frameType": "DELTA",
+    "count": 29,
+    "firstSeq": 141,
+    "serverTs": 250,
+    "records": [
+      {
+        "pairId": 4,
+        "side": "bid",
+        "level": 0,
+        "price": 66495,
+        "size": 1155,
+        "seq": 141
+      },
+      {
+        "pairId": 4,
+        "side": "ask",
+        "level": 0,
+        "price": 66504,
+        "size": 1013,
+        "seq": 142
+      },
+      {
+        "pairId": 4,
+        "side": "bid",
+        "level": 1,
+        "price": 66485,
+        "size": 1356,
+        "seq": 143
+      },
+      {
+        "pairId": 4,
+        "side": "ask",
+        "level": 1,
+        "price": 66514,
+        "size": 1686,
+        "seq": 144
+      },
+      {
+        "pairId": 4,
+        "side": "bid",
+        "level": 2,
+        "price": 66475,
+        "size": 2317,
+        "seq": 145
+      },
+      {
+        "pairId": 4,
+        "side": "ask",
+        "level": 2,
+        "price": 66524,
+        "size": 2154,
+        "seq": 146
+      },
+      {
+        "pairId": 4,
+        "side": "bid",
+        "level": 3,
+        "price": 66465,
+        "size": 2960,
+        "seq": 147
+      },
+      {
+        "pairId": 4,
+        "side": "ask",
+        "level": 3,
+        "price": 66534,
+        "size": 3053,
+        "seq": 148
+      },
+      {
+        "pairId": 0,
+        "side": "bid",
+        "level": 1,
+        "price": 108493,
+        "size": 1456,
+        "seq": 149
+      },
+      {
+        "pairId": 1,
+        "side": "bid",
+        "level": 0,
+        "price": 127007,
+        "size": 790,
+        "seq": 150
+      },
+      {
+        "pairId": 1,
+        "side": "ask",
+        "level": 0,
+        "price": 127016,
+        "size": 1013,
+        "seq": 151
+      },
+      {
+        "pairId": 1,
+        "side": "bid",
+        "level": 1,
+        "price": 126997,
+        "size": 1539,
+        "seq": 152
+      },
+      {
+        "pairId": 1,
+        "side": "ask",
+        "level": 1,
+        "price": 127026,
+        "size": 1658,
+        "seq": 153
+      },
+      {
+        "pairId": 1,
+        "side": "bid",
+        "level": 2,
+        "price": 126987,
+        "size": 2167,
+        "seq": 154
+      },
+      {
+        "pairId": 1,
+        "side": "ask",
+        "level": 2,
+        "price": 127036,
+        "size": 2075,
+        "seq": 155
+      },
+      {
+        "pairId": 1,
+        "side": "bid",
+        "level": 3,
+        "price": 126977,
+        "size": 2882,
+        "seq": 156
+      },
+      {
+        "pairId": 1,
+        "side": "ask",
+        "level": 3,
+        "price": 127046,
+        "size": 3098,
+        "seq": 157
+      },
+      {
+        "pairId": 0,
+        "side": "ask",
+        "level": 3,
+        "price": 108531,
+        "size": 2891,
+        "seq": 158
+      },
+      {
+        "pairId": 4,
+        "side": "bid",
+        "level": 0,
+        "price": 66495,
+        "size": 1039,
+        "seq": 159
+      },
+      {
+        "pairId": 4,
+        "side": "bid",
+        "level": 0,
+        "price": 66495,
+        "size": 905,
+        "seq": 160
+      },
+      {
+        "pairId": 0,
+        "side": "bid",
+        "level": 2,
+        "price": 108485,
+        "size": 2168,
+        "seq": 161
+      },
+      {
+        "pairId": 3,
+        "side": "bid",
+        "level": 0,
+        "price": 90501,
+        "size": 847,
+        "seq": 162
+      },
+      {
+        "pairId": 3,
+        "side": "ask",
+        "level": 0,
+        "price": 90511,
+        "size": 503,
+        "seq": 163
+      },
+      {
+        "pairId": 3,
+        "side": "bid",
+        "level": 1,
+        "price": 90491,
+        "size": 1572,
+        "seq": 164
+      },
+      {
+        "pairId": 3,
+        "side": "ask",
+        "level": 1,
+        "price": 90521,
+        "size": 1461,
+        "seq": 165
+      },
+      {
+        "pairId": 3,
+        "side": "bid",
+        "level": 2,
+        "price": 90481,
+        "size": 2167,
+        "seq": 166
+      },
+      {
+        "pairId": 3,
+        "side": "ask",
+        "level": 2,
+        "price": 90531,
+        "size": 2063,
+        "seq": 167
+      },
+      {
+        "pairId": 3,
+        "side": "bid",
+        "level": 3,
+        "price": 90471,
+        "size": 2793,
+        "seq": 168
+      },
+      {
+        "pairId": 3,
+        "side": "ask",
+        "level": 3,
+        "price": 90541,
+        "size": 2800,
+        "seq": 169
+      }
+    ]
+  },
+  {
+    "frameType": "DELTA",
+    "count": 25,
+    "firstSeq": 170,
+    "serverTs": 300,
+    "records": [
+      {
+        "pairId": 2,
+        "side": "bid",
+        "level": 1,
+        "price": 156986,
+        "size": 1432,
+        "seq": 170
+      },
+      {
+        "pairId": 0,
+        "side": "bid",
+        "level": 0,
+        "price": 108499,
+        "size": 821,
+        "seq": 171
+      },
+      {
+        "pairId": 0,
+        "side": "ask",
+        "level": 0,
+        "price": 108505,
+        "size": 758,
+        "seq": 172
+      },
+      {
+        "pairId": 0,
+        "side": "bid",
+        "level": 1,
+        "price": 108491,
+        "size": 1456,
+        "seq": 173
+      },
+      {
+        "pairId": 0,
+        "side": "ask",
+        "level": 1,
+        "price": 108513,
+        "size": 1577,
+        "seq": 174
+      },
+      {
+        "pairId": 0,
+        "side": "bid",
+        "level": 2,
+        "price": 108483,
+        "size": 2168,
+        "seq": 175
+      },
+      {
+        "pairId": 0,
+        "side": "ask",
+        "level": 2,
+        "price": 108521,
+        "size": 2383,
+        "seq": 176
+      },
+      {
+        "pairId": 0,
+        "side": "bid",
+        "level": 3,
+        "price": 108475,
+        "size": 2681,
+        "seq": 177
+      },
+      {
+        "pairId": 0,
+        "side": "ask",
+        "level": 3,
+        "price": 108529,
+        "size": 2891,
+        "seq": 178
+      },
+      {
+        "pairId": 1,
+        "side": "bid",
+        "level": 0,
+        "price": 127004,
+        "size": 790,
+        "seq": 179
+      },
+      {
+        "pairId": 1,
+        "side": "ask",
+        "level": 0,
+        "price": 127013,
+        "size": 1013,
+        "seq": 180
+      },
+      {
+        "pairId": 1,
+        "side": "bid",
+        "level": 1,
+        "price": 126994,
+        "size": 1539,
+        "seq": 181
+      },
+      {
+        "pairId": 1,
+        "side": "ask",
+        "level": 1,
+        "price": 127023,
+        "size": 1658,
+        "seq": 182
+      },
+      {
+        "pairId": 1,
+        "side": "bid",
+        "level": 2,
+        "price": 126984,
+        "size": 2167,
+        "seq": 183
+      },
+      {
+        "pairId": 1,
+        "side": "ask",
+        "level": 2,
+        "price": 127033,
+        "size": 2075,
+        "seq": 184
+      },
+      {
+        "pairId": 1,
+        "side": "bid",
+        "level": 3,
+        "price": 126974,
+        "size": 2882,
+        "seq": 185
+      },
+      {
+        "pairId": 1,
+        "side": "ask",
+        "level": 3,
+        "price": 127043,
+        "size": 3098,
+        "seq": 186
+      },
+      {
+        "pairId": 3,
+        "side": "bid",
+        "level": 0,
+        "price": 90499,
+        "size": 847,
+        "seq": 187
+      },
+      {
+        "pairId": 3,
+        "side": "ask",
+        "level": 0,
+        "price": 90509,
+        "size": 503,
+        "seq": 188
+      },
+      {
+        "pairId": 3,
+        "side": "bid",
+        "level": 1,
+        "price": 90489,
+        "size": 1572,
+        "seq": 189
+      },
+      {
+        "pairId": 3,
+        "side": "ask",
+        "level": 1,
+        "price": 90519,
+        "size": 1461,
+        "seq": 190
+      },
+      {
+        "pairId": 3,
+        "side": "bid",
+        "level": 2,
+        "price": 90479,
+        "size": 2167,
+        "seq": 191
+      },
+      {
+        "pairId": 3,
+        "side": "ask",
+        "level": 2,
+        "price": 90529,
+        "size": 2063,
+        "seq": 192
+      },
+      {
+        "pairId": 3,
+        "side": "bid",
+        "level": 3,
+        "price": 90469,
+        "size": 2793,
+        "seq": 193
+      },
+      {
+        "pairId": 3,
+        "side": "ask",
+        "level": 3,
+        "price": 90539,
+        "size": 2800,
+        "seq": 194
+      }
+    ]
+  },
+  {
+    "frameType": "DELTA",
+    "count": 20,
+    "firstSeq": 195,
+    "serverTs": 350,
+    "records": [
+      {
+        "pairId": 0,
+        "side": "bid",
+        "level": 0,
+        "price": 108497,
+        "size": 821,
+        "seq": 195
+      },
+      {
+        "pairId": 0,
+        "side": "ask",
+        "level": 0,
+        "price": 108503,
+        "size": 758,
+        "seq": 196
+      },
+      {
+        "pairId": 0,
+        "side": "bid",
+        "level": 1,
+        "price": 108489,
+        "size": 1456,
+        "seq": 197
+      },
+      {
+        "pairId": 0,
+        "side": "ask",
+        "level": 1,
+        "price": 108511,
+        "size": 1577,
+        "seq": 198
+      },
+      {
+        "pairId": 0,
+        "side": "bid",
+        "level": 2,
+        "price": 108481,
+        "size": 2168,
+        "seq": 199
+      },
+      {
+        "pairId": 0,
+        "side": "ask",
+        "level": 2,
+        "price": 108519,
+        "size": 2383,
+        "seq": 200
+      },
+      {
+        "pairId": 0,
+        "side": "bid",
+        "level": 3,
+        "price": 108473,
+        "size": 2681,
+        "seq": 201
+      },
+      {
+        "pairId": 0,
+        "side": "ask",
+        "level": 3,
+        "price": 108527,
+        "size": 2891,
+        "seq": 202
+      },
+      {
+        "pairId": 2,
+        "side": "bid",
+        "level": 1,
+        "price": 156986,
+        "size": 1302,
+        "seq": 203
+      },
+      {
+        "pairId": 0,
+        "side": "bid",
+        "level": 1,
+        "price": 108489,
+        "size": 1593,
+        "seq": 204
+      },
+      {
+        "pairId": 0,
+        "side": "bid",
+        "level": 0,
+        "price": 108497,
+        "size": 782,
+        "seq": 205
+      },
+      {
+        "pairId": 0,
+        "side": "bid",
+        "level": 0,
+        "price": 108499,
+        "size": 782,
+        "seq": 206
+      },
+      {
+        "pairId": 0,
+        "side": "ask",
+        "level": 0,
+        "price": 108505,
+        "size": 758,
+        "seq": 207
+      },
+      {
+        "pairId": 0,
+        "side": "bid",
+        "level": 1,
+        "price": 108491,
+        "size": 1593,
+        "seq": 208
+      },
+      {
+        "pairId": 0,
+        "side": "ask",
+        "level": 1,
+        "price": 108513,
+        "size": 1577,
+        "seq": 209
+      },
+      {
+        "pairId": 0,
+        "side": "bid",
+        "level": 2,
+        "price": 108483,
+        "size": 2168,
+        "seq": 210
+      },
+      {
+        "pairId": 0,
+        "side": "ask",
+        "level": 2,
+        "price": 108521,
+        "size": 2383,
+        "seq": 211
+      },
+      {
+        "pairId": 0,
+        "side": "bid",
+        "level": 3,
+        "price": 108475,
+        "size": 2681,
+        "seq": 212
+      },
+      {
+        "pairId": 0,
+        "side": "ask",
+        "level": 3,
+        "price": 108529,
+        "size": 2891,
+        "seq": 213
+      },
+      {
+        "pairId": 0,
+        "side": "ask",
+        "level": 3,
+        "price": 108529,
+        "size": 3005,
+        "seq": 214
+      }
+    ]
+  },
+  {
+    "frameType": "DELTA",
+    "count": 27,
+    "firstSeq": 215,
+    "serverTs": 400,
+    "records": [
+      {
+        "pairId": 3,
+        "side": "ask",
+        "level": 0,
+        "price": 90509,
+        "size": 475,
+        "seq": 215
+      },
+      {
+        "pairId": 3,
+        "side": "ask",
+        "level": 0,
+        "price": 90509,
+        "size": 392,
+        "seq": 216
+      },
+      {
+        "pairId": 1,
+        "side": "bid",
+        "level": 0,
+        "price": 127001,
+        "size": 790,
+        "seq": 217
+      },
+      {
+        "pairId": 1,
+        "side": "ask",
+        "level": 0,
+        "price": 127010,
+        "size": 1013,
+        "seq": 218
+      },
+      {
+        "pairId": 1,
+        "side": "bid",
+        "level": 1,
+        "price": 126991,
+        "size": 1539,
+        "seq": 219
+      },
+      {
+        "pairId": 1,
+        "side": "ask",
+        "level": 1,
+        "price": 127020,
+        "size": 1658,
+        "seq": 220
+      },
+      {
+        "pairId": 1,
+        "side": "bid",
+        "level": 2,
+        "price": 126981,
+        "size": 2167,
+        "seq": 221
+      },
+      {
+        "pairId": 1,
+        "side": "ask",
+        "level": 2,
+        "price": 127030,
+        "size": 2075,
+        "seq": 222
+      },
+      {
+        "pairId": 1,
+        "side": "bid",
+        "level": 3,
+        "price": 126971,
+        "size": 2882,
+        "seq": 223
+      },
+      {
+        "pairId": 1,
+        "side": "ask",
+        "level": 3,
+        "price": 127040,
+        "size": 3098,
+        "seq": 224
+      },
+      {
+        "pairId": 2,
+        "side": "bid",
+        "level": 0,
+        "price": 156993,
+        "size": 653,
+        "seq": 225
+      },
+      {
+        "pairId": 2,
+        "side": "ask",
+        "level": 0,
+        "price": 157001,
+        "size": 657,
+        "seq": 226
+      },
+      {
+        "pairId": 2,
+        "side": "bid",
+        "level": 1,
+        "price": 156983,
+        "size": 1302,
+        "seq": 227
+      },
+      {
+        "pairId": 2,
+        "side": "ask",
+        "level": 1,
+        "price": 157011,
+        "size": 1388,
+        "seq": 228
+      },
+      {
+        "pairId": 2,
+        "side": "bid",
+        "level": 2,
+        "price": 156973,
+        "size": 2340,
+        "seq": 229
+      },
+      {
+        "pairId": 2,
+        "side": "ask",
+        "level": 2,
+        "price": 157021,
+        "size": 2363,
+        "seq": 230
+      },
+      {
+        "pairId": 2,
+        "side": "bid",
+        "level": 3,
+        "price": 156963,
+        "size": 2932,
+        "seq": 231
+      },
+      {
+        "pairId": 2,
+        "side": "ask",
+        "level": 3,
+        "price": 157031,
+        "size": 2807,
+        "seq": 232
+      },
+      {
+        "pairId": 4,
+        "side": "ask",
+        "level": 0,
+        "price": 66504,
+        "size": 894,
+        "seq": 233
+      },
+      {
+        "pairId": 4,
+        "side": "bid",
+        "level": 0,
+        "price": 66498,
+        "size": 905,
+        "seq": 234
+      },
+      {
+        "pairId": 4,
+        "side": "ask",
+        "level": 0,
+        "price": 66507,
+        "size": 894,
+        "seq": 235
+      },
+      {
+        "pairId": 4,
+        "side": "bid",
+        "level": 1,
+        "price": 66488,
+        "size": 1356,
+        "seq": 236
+      },
+      {
+        "pairId": 4,
+        "side": "ask",
+        "level": 1,
+        "price": 66517,
+        "size": 1686,
+        "seq": 237
+      },
+      {
+        "pairId": 4,
+        "side": "bid",
+        "level": 2,
+        "price": 66478,
+        "size": 2317,
+        "seq": 238
+      },
+      {
+        "pairId": 4,
+        "side": "ask",
+        "level": 2,
+        "price": 66527,
+        "size": 2154,
+        "seq": 239
+      },
+      {
+        "pairId": 4,
+        "side": "bid",
+        "level": 3,
+        "price": 66468,
+        "size": 2960,
+        "seq": 240
+      },
+      {
+        "pairId": 4,
+        "side": "ask",
+        "level": 3,
+        "price": 66537,
+        "size": 3053,
+        "seq": 241
+      }
+    ]
+  },
+  {
+    "frameType": "DELTA",
+    "count": 27,
+    "firstSeq": 242,
+    "serverTs": 450,
+    "records": [
+      {
+        "pairId": 3,
+        "side": "bid",
+        "level": 0,
+        "price": 90499,
+        "size": 881,
+        "seq": 242
+      },
+      {
+        "pairId": 3,
+        "side": "bid",
+        "level": 3,
+        "price": 90469,
+        "size": 2657,
+        "seq": 243
+      },
+      {
+        "pairId": 1,
+        "side": "bid",
+        "level": 0,
+        "price": 126998,
+        "size": 790,
+        "seq": 244
+      },
+      {
+        "pairId": 1,
+        "side": "ask",
+        "level": 0,
+        "price": 127007,
+        "size": 1013,
+        "seq": 245
+      },
+      {
+        "pairId": 1,
+        "side": "bid",
+        "level": 1,
+        "price": 126988,
+        "size": 1539,
+        "seq": 246
+      },
+      {
+        "pairId": 1,
+        "side": "ask",
+        "level": 1,
+        "price": 127017,
+        "size": 1658,
+        "seq": 247
+      },
+      {
+        "pairId": 1,
+        "side": "bid",
+        "level": 2,
+        "price": 126978,
+        "size": 2167,
+        "seq": 248
+      },
+      {
+        "pairId": 1,
+        "side": "ask",
+        "level": 2,
+        "price": 127027,
+        "size": 2075,
+        "seq": 249
+      },
+      {
+        "pairId": 1,
+        "side": "bid",
+        "level": 3,
+        "price": 126968,
+        "size": 2882,
+        "seq": 250
+      },
+      {
+        "pairId": 1,
+        "side": "ask",
+        "level": 3,
+        "price": 127037,
+        "size": 3098,
+        "seq": 251
+      },
+      {
+        "pairId": 0,
+        "side": "bid",
+        "level": 0,
+        "price": 108499,
+        "size": 804,
+        "seq": 252
+      },
+      {
+        "pairId": 3,
+        "side": "bid",
+        "level": 0,
+        "price": 90497,
+        "size": 881,
+        "seq": 253
+      },
+      {
+        "pairId": 3,
+        "side": "ask",
+        "level": 0,
+        "price": 90507,
+        "size": 392,
+        "seq": 254
+      },
+      {
+        "pairId": 3,
+        "side": "bid",
+        "level": 1,
+        "price": 90487,
+        "size": 1572,
+        "seq": 255
+      },
+      {
+        "pairId": 3,
+        "side": "ask",
+        "level": 1,
+        "price": 90517,
+        "size": 1461,
+        "seq": 256
+      },
+      {
+        "pairId": 3,
+        "side": "bid",
+        "level": 2,
+        "price": 90477,
+        "size": 2167,
+        "seq": 257
+      },
+      {
+        "pairId": 3,
+        "side": "ask",
+        "level": 2,
+        "price": 90527,
+        "size": 2063,
+        "seq": 258
+      },
+      {
+        "pairId": 3,
+        "side": "bid",
+        "level": 3,
+        "price": 90467,
+        "size": 2657,
+        "seq": 259
+      },
+      {
+        "pairId": 3,
+        "side": "ask",
+        "level": 3,
+        "price": 90537,
+        "size": 2800,
+        "seq": 260
+      },
+      {
+        "pairId": 4,
+        "side": "bid",
+        "level": 0,
+        "price": 66501,
+        "size": 905,
+        "seq": 261
+      },
+      {
+        "pairId": 4,
+        "side": "ask",
+        "level": 0,
+        "price": 66510,
+        "size": 894,
+        "seq": 262
+      },
+      {
+        "pairId": 4,
+        "side": "bid",
+        "level": 1,
+        "price": 66491,
+        "size": 1356,
+        "seq": 263
+      },
+      {
+        "pairId": 4,
+        "side": "ask",
+        "level": 1,
+        "price": 66520,
+        "size": 1686,
+        "seq": 264
+      },
+      {
+        "pairId": 4,
+        "side": "bid",
+        "level": 2,
+        "price": 66481,
+        "size": 2317,
+        "seq": 265
+      },
+      {
+        "pairId": 4,
+        "side": "ask",
+        "level": 2,
+        "price": 66530,
+        "size": 2154,
+        "seq": 266
+      },
+      {
+        "pairId": 4,
+        "side": "bid",
+        "level": 3,
+        "price": 66471,
+        "size": 2960,
+        "seq": 267
+      },
+      {
+        "pairId": 4,
+        "side": "ask",
+        "level": 3,
+        "price": 66540,
+        "size": 3053,
+        "seq": 268
+      }
+    ]
+  },
+  {
+    "frameType": "DELTA",
+    "count": 26,
+    "firstSeq": 269,
+    "serverTs": 500,
+    "records": [
+      {
+        "pairId": 3,
+        "side": "bid",
+        "level": 1,
+        "price": 90487,
+        "size": 1508,
+        "seq": 269
+      },
+      {
+        "pairId": 3,
+        "side": "ask",
+        "level": 0,
+        "price": 90507,
+        "size": 466,
+        "seq": 270
+      },
+      {
+        "pairId": 4,
+        "side": "ask",
+        "level": 1,
+        "price": 66520,
+        "size": 1816,
+        "seq": 271
+      },
+      {
+        "pairId": 1,
+        "side": "bid",
+        "level": 0,
+        "price": 127001,
+        "size": 790,
+        "seq": 272
+      },
+      {
+        "pairId": 1,
+        "side": "ask",
+        "level": 0,
+        "price": 127010,
+        "size": 1013,
+        "seq": 273
+      },
+      {
+        "pairId": 1,
+        "side": "bid",
+        "level": 1,
+        "price": 126991,
+        "size": 1539,
+        "seq": 274
+      },
+      {
+        "pairId": 1,
+        "side": "ask",
+        "level": 1,
+        "price": 127020,
+        "size": 1658,
+        "seq": 275
+      },
+      {
+        "pairId": 1,
+        "side": "bid",
+        "level": 2,
+        "price": 126981,
+        "size": 2167,
+        "seq": 276
+      },
+      {
+        "pairId": 1,
+        "side": "ask",
+        "level": 2,
+        "price": 127030,
+        "size": 2075,
+        "seq": 277
+      },
+      {
+        "pairId": 1,
+        "side": "bid",
+        "level": 3,
+        "price": 126971,
+        "size": 2882,
+        "seq": 278
+      },
+      {
+        "pairId": 1,
+        "side": "ask",
+        "level": 3,
+        "price": 127040,
+        "size": 3098,
+        "seq": 279
+      },
+      {
+        "pairId": 0,
+        "side": "bid",
+        "level": 1,
+        "price": 108491,
+        "size": 1513,
+        "seq": 280
+      },
+      {
+        "pairId": 1,
+        "side": "bid",
+        "level": 1,
+        "price": 126991,
+        "size": 1679,
+        "seq": 281
+      },
+      {
+        "pairId": 1,
+        "side": "ask",
+        "level": 0,
+        "price": 127010,
+        "size": 1013,
+        "seq": 282
+      },
+      {
+        "pairId": 0,
+        "side": "ask",
+        "level": 0,
+        "price": 108505,
+        "size": 763,
+        "seq": 283
+      },
+      {
+        "pairId": 0,
+        "side": "ask",
+        "level": 2,
+        "price": 108521,
+        "size": 2334,
+        "seq": 284
+      },
+      {
+        "pairId": 0,
+        "side": "bid",
+        "level": 1,
+        "price": 108491,
+        "size": 1550,
+        "seq": 285
+      },
+      {
+        "pairId": 4,
+        "side": "ask",
+        "level": 0,
+        "price": 66510,
+        "size": 962,
+        "seq": 286
+      },
+      {
+        "pairId": 2,
+        "side": "bid",
+        "level": 0,
+        "price": 156990,
+        "size": 653,
+        "seq": 287
+      },
+      {
+        "pairId": 2,
+        "side": "ask",
+        "level": 0,
+        "price": 156998,
+        "size": 657,
+        "seq": 288
+      },
+      {
+        "pairId": 2,
+        "side": "bid",
+        "level": 1,
+        "price": 156980,
+        "size": 1302,
+        "seq": 289
+      },
+      {
+        "pairId": 2,
+        "side": "ask",
+        "level": 1,
+        "price": 157008,
+        "size": 1388,
+        "seq": 290
+      },
+      {
+        "pairId": 2,
+        "side": "bid",
+        "level": 2,
+        "price": 156970,
+        "size": 2340,
+        "seq": 291
+      },
+      {
+        "pairId": 2,
+        "side": "ask",
+        "level": 2,
+        "price": 157018,
+        "size": 2363,
+        "seq": 292
+      },
+      {
+        "pairId": 2,
+        "side": "bid",
+        "level": 3,
+        "price": 156960,
+        "size": 2932,
+        "seq": 293
+      },
+      {
+        "pairId": 2,
+        "side": "ask",
+        "level": 3,
+        "price": 157028,
+        "size": 2807,
+        "seq": 294
+      }
+    ]
+  },
+  {
+    "frameType": "DELTA",
+    "count": 25,
+    "firstSeq": 295,
+    "serverTs": 550,
+    "records": [
+      {
+        "pairId": 2,
+        "side": "ask",
+        "level": 1,
+        "price": 157008,
+        "size": 1384,
+        "seq": 295
+      },
+      {
+        "pairId": 0,
+        "side": "bid",
+        "level": 1,
+        "price": 108491,
+        "size": 1604,
+        "seq": 296
+      },
+      {
+        "pairId": 3,
+        "side": "ask",
+        "level": 0,
+        "price": 90507,
+        "size": 485,
+        "seq": 297
+      },
+      {
+        "pairId": 3,
+        "side": "ask",
+        "level": 2,
+        "price": 90527,
+        "size": 2061,
+        "seq": 298
+      },
+      {
+        "pairId": 4,
+        "side": "bid",
+        "level": 3,
+        "price": 66471,
+        "size": 3030,
+        "seq": 299
+      },
+      {
+        "pairId": 0,
+        "side": "ask",
+        "level": 0,
+        "price": 108505,
+        "size": 796,
+        "seq": 300
+      },
+      {
+        "pairId": 0,
+        "side": "bid",
+        "level": 0,
+        "price": 108497,
+        "size": 804,
+        "seq": 301
+      },
+      {
+        "pairId": 0,
+        "side": "ask",
+        "level": 0,
+        "price": 108503,
+        "size": 796,
+        "seq": 302
+      },
+      {
+        "pairId": 0,
+        "side": "bid",
+        "level": 1,
+        "price": 108489,
+        "size": 1604,
+        "seq": 303
+      },
+      {
+        "pairId": 0,
+        "side": "ask",
+        "level": 1,
+        "price": 108511,
+        "size": 1577,
+        "seq": 304
+      },
+      {
+        "pairId": 0,
+        "side": "bid",
+        "level": 2,
+        "price": 108481,
+        "size": 2168,
+        "seq": 305
+      },
+      {
+        "pairId": 0,
+        "side": "ask",
+        "level": 2,
+        "price": 108519,
+        "size": 2334,
+        "seq": 306
+      },
+      {
+        "pairId": 0,
+        "side": "bid",
+        "level": 3,
+        "price": 108473,
+        "size": 2681,
+        "seq": 307
+      },
+      {
+        "pairId": 0,
+        "side": "ask",
+        "level": 3,
+        "price": 108527,
+        "size": 3005,
+        "seq": 308
+      },
+      {
+        "pairId": 2,
+        "side": "bid",
+        "level": 0,
+        "price": 156990,
+        "size": 761,
+        "seq": 309
+      },
+      {
+        "pairId": 2,
+        "side": "bid",
+        "level": 3,
+        "price": 156960,
+        "size": 2943,
+        "seq": 310
+      },
+      {
+        "pairId": 2,
+        "side": "bid",
+        "level": 1,
+        "price": 156980,
+        "size": 1173,
+        "seq": 311
+      },
+      {
+        "pairId": 2,
+        "side": "bid",
+        "level": 0,
+        "price": 156987,
+        "size": 761,
+        "seq": 312
+      },
+      {
+        "pairId": 2,
+        "side": "ask",
+        "level": 0,
+        "price": 156995,
+        "size": 657,
+        "seq": 313
+      },
+      {
+        "pairId": 2,
+        "side": "bid",
+        "level": 1,
+        "price": 156977,
+        "size": 1173,
+        "seq": 314
+      },
+      {
+        "pairId": 2,
+        "side": "ask",
+        "level": 1,
+        "price": 157005,
+        "size": 1384,
+        "seq": 315
+      },
+      {
+        "pairId": 2,
+        "side": "bid",
+        "level": 2,
+        "price": 156967,
+        "size": 2340,
+        "seq": 316
+      },
+      {
+        "pairId": 2,
+        "side": "ask",
+        "level": 2,
+        "price": 157015,
+        "size": 2363,
+        "seq": 317
+      },
+      {
+        "pairId": 2,
+        "side": "bid",
+        "level": 3,
+        "price": 156957,
+        "size": 2943,
+        "seq": 318
+      },
+      {
+        "pairId": 2,
+        "side": "ask",
+        "level": 3,
+        "price": 157025,
+        "size": 2807,
+        "seq": 319
+      }
+    ]
+  },
+  {
+    "frameType": "DELTA",
+    "count": 20,
+    "firstSeq": 320,
+    "serverTs": 600,
+    "records": [
+      {
+        "pairId": 2,
+        "side": "ask",
+        "level": 3,
+        "price": 157025,
+        "size": 2931,
+        "seq": 320
+      },
+      {
+        "pairId": 0,
+        "side": "ask",
+        "level": 1,
+        "price": 108511,
+        "size": 1524,
+        "seq": 321
+      },
+      {
+        "pairId": 0,
+        "side": "bid",
+        "level": 0,
+        "price": 108495,
+        "size": 804,
+        "seq": 322
+      },
+      {
+        "pairId": 0,
+        "side": "ask",
+        "level": 0,
+        "price": 108501,
+        "size": 796,
+        "seq": 323
+      },
+      {
+        "pairId": 0,
+        "side": "bid",
+        "level": 1,
+        "price": 108487,
+        "size": 1604,
+        "seq": 324
+      },
+      {
+        "pairId": 0,
+        "side": "ask",
+        "level": 1,
+        "price": 108509,
+        "size": 1524,
+        "seq": 325
+      },
+      {
+        "pairId": 0,
+        "side": "bid",
+        "level": 2,
+        "price": 108479,
+        "size": 2168,
+        "seq": 326
+      },
+      {
+        "pairId": 0,
+        "side": "ask",
+        "level": 2,
+        "price": 108517,
+        "size": 2334,
+        "seq": 327
+      },
+      {
+        "pairId": 0,
+        "side": "bid",
+        "level": 3,
+        "price": 108471,
+        "size": 2681,
+        "seq": 328
+      },
+      {
+        "pairId": 0,
+        "side": "ask",
+        "level": 3,
+        "price": 108525,
+        "size": 3005,
+        "seq": 329
+      },
+      {
+        "pairId": 3,
+        "side": "bid",
+        "level": 0,
+        "price": 90499,
+        "size": 881,
+        "seq": 330
+      },
+      {
+        "pairId": 3,
+        "side": "ask",
+        "level": 0,
+        "price": 90509,
+        "size": 485,
+        "seq": 331
+      },
+      {
+        "pairId": 3,
+        "side": "bid",
+        "level": 1,
+        "price": 90489,
+        "size": 1508,
+        "seq": 332
+      },
+      {
+        "pairId": 3,
+        "side": "ask",
+        "level": 1,
+        "price": 90519,
+        "size": 1461,
+        "seq": 333
+      },
+      {
+        "pairId": 3,
+        "side": "bid",
+        "level": 2,
+        "price": 90479,
+        "size": 2167,
+        "seq": 334
+      },
+      {
+        "pairId": 3,
+        "side": "ask",
+        "level": 2,
+        "price": 90529,
+        "size": 2061,
+        "seq": 335
+      },
+      {
+        "pairId": 3,
+        "side": "bid",
+        "level": 3,
+        "price": 90469,
+        "size": 2657,
+        "seq": 336
+      },
+      {
+        "pairId": 3,
+        "side": "ask",
+        "level": 3,
+        "price": 90539,
+        "size": 2800,
+        "seq": 337
+      },
+      {
+        "pairId": 3,
+        "side": "ask",
+        "level": 0,
+        "price": 90509,
+        "size": 579,
+        "seq": 338
+      },
+      {
+        "pairId": 3,
+        "side": "bid",
+        "level": 3,
+        "price": 90469,
+        "size": 2662,
+        "seq": 339
+      }
+    ]
+  },
+  {
+    "frameType": "DELTA",
+    "count": 25,
+    "firstSeq": 340,
+    "serverTs": 650,
+    "records": [
+      {
+        "pairId": 4,
+        "side": "ask",
+        "level": 2,
+        "price": 66530,
+        "size": 2218,
+        "seq": 340
+      },
+      {
+        "pairId": 0,
+        "side": "ask",
+        "level": 0,
+        "price": 108501,
+        "size": 771,
+        "seq": 341
+      },
+      {
+        "pairId": 3,
+        "side": "ask",
+        "level": 0,
+        "price": 90509,
+        "size": 524,
+        "seq": 342
+      },
+      {
+        "pairId": 1,
+        "side": "bid",
+        "level": 2,
+        "price": 126981,
+        "size": 2086,
+        "seq": 343
+      },
+      {
+        "pairId": 1,
+        "side": "bid",
+        "level": 3,
+        "price": 126971,
+        "size": 2909,
+        "seq": 344
+      },
+      {
+        "pairId": 0,
+        "side": "ask",
+        "level": 0,
+        "price": 108501,
+        "size": 790,
+        "seq": 345
+      },
+      {
+        "pairId": 0,
+        "side": "bid",
+        "level": 0,
+        "price": 108493,
+        "size": 804,
+        "seq": 346
+      },
+      {
+        "pairId": 0,
+        "side": "ask",
+        "level": 0,
+        "price": 108499,
+        "size": 790,
+        "seq": 347
+      },
+      {
+        "pairId": 0,
+        "side": "bid",
+        "level": 1,
+        "price": 108485,
+        "size": 1604,
+        "seq": 348
+      },
+      {
+        "pairId": 0,
+        "side": "ask",
+        "level": 1,
+        "price": 108507,
+        "size": 1524,
+        "seq": 349
+      },
+      {
+        "pairId": 0,
+        "side": "bid",
+        "level": 2,
+        "price": 108477,
+        "size": 2168,
+        "seq": 350
+      },
+      {
+        "pairId": 0,
+        "side": "ask",
+        "level": 2,
+        "price": 108515,
+        "size": 2334,
+        "seq": 351
+      },
+      {
+        "pairId": 0,
+        "side": "bid",
+        "level": 3,
+        "price": 108469,
+        "size": 2681,
+        "seq": 352
+      },
+      {
+        "pairId": 0,
+        "side": "ask",
+        "level": 3,
+        "price": 108523,
+        "size": 3005,
+        "seq": 353
+      },
+      {
+        "pairId": 1,
+        "side": "ask",
+        "level": 0,
+        "price": 127010,
+        "size": 1072,
+        "seq": 354
+      },
+      {
+        "pairId": 4,
+        "side": "ask",
+        "level": 1,
+        "price": 66520,
+        "size": 1704,
+        "seq": 355
+      },
+      {
+        "pairId": 4,
+        "side": "ask",
+        "level": 0,
+        "price": 66510,
+        "size": 1008,
+        "seq": 356
+      },
+      {
+        "pairId": 0,
+        "side": "bid",
+        "level": 0,
+        "price": 108491,
+        "size": 804,
+        "seq": 357
+      },
+      {
+        "pairId": 0,
+        "side": "ask",
+        "level": 0,
+        "price": 108497,
+        "size": 790,
+        "seq": 358
+      },
+      {
+        "pairId": 0,
+        "side": "bid",
+        "level": 1,
+        "price": 108483,
+        "size": 1604,
+        "seq": 359
+      },
+      {
+        "pairId": 0,
+        "side": "ask",
+        "level": 1,
+        "price": 108505,
+        "size": 1524,
+        "seq": 360
+      },
+      {
+        "pairId": 0,
+        "side": "bid",
+        "level": 2,
+        "price": 108475,
+        "size": 2168,
+        "seq": 361
+      },
+      {
+        "pairId": 0,
+        "side": "ask",
+        "level": 2,
+        "price": 108513,
+        "size": 2334,
+        "seq": 362
+      },
+      {
+        "pairId": 0,
+        "side": "bid",
+        "level": 3,
+        "price": 108467,
+        "size": 2681,
+        "seq": 363
+      },
+      {
+        "pairId": 0,
+        "side": "ask",
+        "level": 3,
+        "price": 108521,
+        "size": 3005,
+        "seq": 364
+      }
+    ]
+  },
+  {
+    "frameType": "DELTA",
+    "count": 25,
+    "firstSeq": 365,
+    "serverTs": 700,
+    "records": [
+      {
+        "pairId": 4,
+        "side": "bid",
+        "level": 3,
+        "price": 66471,
+        "size": 2912,
+        "seq": 365
+      },
+      {
+        "pairId": 0,
+        "side": "ask",
+        "level": 1,
+        "price": 108505,
+        "size": 1462,
+        "seq": 366
+      },
+      {
+        "pairId": 1,
+        "side": "bid",
+        "level": 0,
+        "price": 127001,
+        "size": 875,
+        "seq": 367
+      },
+      {
+        "pairId": 4,
+        "side": "bid",
+        "level": 0,
+        "price": 66504,
+        "size": 905,
+        "seq": 368
+      },
+      {
+        "pairId": 4,
+        "side": "ask",
+        "level": 0,
+        "price": 66513,
+        "size": 1008,
+        "seq": 369
+      },
+      {
+        "pairId": 4,
+        "side": "bid",
+        "level": 1,
+        "price": 66494,
+        "size": 1356,
+        "seq": 370
+      },
+      {
+        "pairId": 4,
+        "side": "ask",
+        "level": 1,
+        "price": 66523,
+        "size": 1704,
+        "seq": 371
+      },
+      {
+        "pairId": 4,
+        "side": "bid",
+        "level": 2,
+        "price": 66484,
+        "size": 2317,
+        "seq": 372
+      },
+      {
+        "pairId": 4,
+        "side": "ask",
+        "level": 2,
+        "price": 66533,
+        "size": 2218,
+        "seq": 373
+      },
+      {
+        "pairId": 4,
+        "side": "bid",
+        "level": 3,
+        "price": 66474,
+        "size": 2912,
+        "seq": 374
+      },
+      {
+        "pairId": 4,
+        "side": "ask",
+        "level": 3,
+        "price": 66543,
+        "size": 3053,
+        "seq": 375
+      },
+      {
+        "pairId": 4,
+        "side": "bid",
+        "level": 1,
+        "price": 66494,
+        "size": 1395,
+        "seq": 376
+      },
+      {
+        "pairId": 3,
+        "side": "ask",
+        "level": 0,
+        "price": 90509,
+        "size": 671,
+        "seq": 377
+      },
+      {
+        "pairId": 4,
+        "side": "ask",
+        "level": 0,
+        "price": 66513,
+        "size": 1130,
+        "seq": 378
+      },
+      {
+        "pairId": 0,
+        "side": "bid",
+        "level": 0,
+        "price": 108489,
+        "size": 804,
+        "seq": 379
+      },
+      {
+        "pairId": 0,
+        "side": "ask",
+        "level": 0,
+        "price": 108495,
+        "size": 790,
+        "seq": 380
+      },
+      {
+        "pairId": 0,
+        "side": "bid",
+        "level": 1,
+        "price": 108481,
+        "size": 1604,
+        "seq": 381
+      },
+      {
+        "pairId": 0,
+        "side": "ask",
+        "level": 1,
+        "price": 108503,
+        "size": 1462,
+        "seq": 382
+      },
+      {
+        "pairId": 0,
+        "side": "bid",
+        "level": 2,
+        "price": 108473,
+        "size": 2168,
+        "seq": 383
+      },
+      {
+        "pairId": 0,
+        "side": "ask",
+        "level": 2,
+        "price": 108511,
+        "size": 2334,
+        "seq": 384
+      },
+      {
+        "pairId": 0,
+        "side": "bid",
+        "level": 3,
+        "price": 108465,
+        "size": 2681,
+        "seq": 385
+      },
+      {
+        "pairId": 0,
+        "side": "ask",
+        "level": 3,
+        "price": 108519,
+        "size": 3005,
+        "seq": 386
+      },
+      {
+        "pairId": 2,
+        "side": "bid",
+        "level": 2,
+        "price": 156967,
+        "size": 2204,
+        "seq": 387
+      },
+      {
+        "pairId": 4,
+        "side": "ask",
+        "level": 0,
+        "price": 66513,
+        "size": 1162,
+        "seq": 388
+      },
+      {
+        "pairId": 0,
+        "side": "ask",
+        "level": 1,
+        "price": 108503,
+        "size": 1337,
+        "seq": 389
+      }
+    ]
+  },
+  {
+    "frameType": "DELTA",
+    "count": 26,
+    "firstSeq": 390,
+    "serverTs": 750,
+    "records": [
+      {
+        "pairId": 0,
+        "side": "bid",
+        "level": 1,
+        "price": 108481,
+        "size": 1546,
+        "seq": 390
+      },
+      {
+        "pairId": 2,
+        "side": "bid",
+        "level": 0,
+        "price": 156990,
+        "size": 761,
+        "seq": 391
+      },
+      {
+        "pairId": 2,
+        "side": "ask",
+        "level": 0,
+        "price": 156998,
+        "size": 657,
+        "seq": 392
+      },
+      {
+        "pairId": 2,
+        "side": "bid",
+        "level": 1,
+        "price": 156980,
+        "size": 1173,
+        "seq": 393
+      },
+      {
+        "pairId": 2,
+        "side": "ask",
+        "level": 1,
+        "price": 157008,
+        "size": 1384,
+        "seq": 394
+      },
+      {
+        "pairId": 2,
+        "side": "bid",
+        "level": 2,
+        "price": 156970,
+        "size": 2204,
+        "seq": 395
+      },
+      {
+        "pairId": 2,
+        "side": "ask",
+        "level": 2,
+        "price": 157018,
+        "size": 2363,
+        "seq": 396
+      },
+      {
+        "pairId": 2,
+        "side": "bid",
+        "level": 3,
+        "price": 156960,
+        "size": 2943,
+        "seq": 397
+      },
+      {
+        "pairId": 2,
+        "side": "ask",
+        "level": 3,
+        "price": 157028,
+        "size": 2931,
+        "seq": 398
+      },
+      {
+        "pairId": 2,
+        "side": "bid",
+        "level": 0,
+        "price": 156990,
+        "size": 617,
+        "seq": 399
+      },
+      {
+        "pairId": 1,
+        "side": "bid",
+        "level": 0,
+        "price": 127004,
+        "size": 875,
+        "seq": 400
+      },
+      {
+        "pairId": 1,
+        "side": "ask",
+        "level": 0,
+        "price": 127013,
+        "size": 1072,
+        "seq": 401
+      },
+      {
+        "pairId": 1,
+        "side": "bid",
+        "level": 1,
+        "price": 126994,
+        "size": 1679,
+        "seq": 402
+      },
+      {
+        "pairId": 1,
+        "side": "ask",
+        "level": 1,
+        "price": 127023,
+        "size": 1658,
+        "seq": 403
+      },
+      {
+        "pairId": 1,
+        "side": "bid",
+        "level": 2,
+        "price": 126984,
+        "size": 2086,
+        "seq": 404
+      },
+      {
+        "pairId": 1,
+        "side": "ask",
+        "level": 2,
+        "price": 127033,
+        "size": 2075,
+        "seq": 405
+      },
+      {
+        "pairId": 1,
+        "side": "bid",
+        "level": 3,
+        "price": 126974,
+        "size": 2909,
+        "seq": 406
+      },
+      {
+        "pairId": 1,
+        "side": "ask",
+        "level": 3,
+        "price": 127043,
+        "size": 3098,
+        "seq": 407
+      },
+      {
+        "pairId": 0,
+        "side": "bid",
+        "level": 0,
+        "price": 108487,
+        "size": 804,
+        "seq": 408
+      },
+      {
+        "pairId": 0,
+        "side": "ask",
+        "level": 0,
+        "price": 108493,
+        "size": 790,
+        "seq": 409
+      },
+      {
+        "pairId": 0,
+        "side": "bid",
+        "level": 1,
+        "price": 108479,
+        "size": 1546,
+        "seq": 410
+      },
+      {
+        "pairId": 0,
+        "side": "ask",
+        "level": 1,
+        "price": 108501,
+        "size": 1337,
+        "seq": 411
+      },
+      {
+        "pairId": 0,
+        "side": "bid",
+        "level": 2,
+        "price": 108471,
+        "size": 2168,
+        "seq": 412
+      },
+      {
+        "pairId": 0,
+        "side": "ask",
+        "level": 2,
+        "price": 108509,
+        "size": 2334,
+        "seq": 413
+      },
+      {
+        "pairId": 0,
+        "side": "bid",
+        "level": 3,
+        "price": 108463,
+        "size": 2681,
+        "seq": 414
+      },
+      {
+        "pairId": 0,
+        "side": "ask",
+        "level": 3,
+        "price": 108517,
+        "size": 3005,
+        "seq": 415
+      }
+    ]
+  },
+  {
+    "frameType": "DELTA",
+    "count": 24,
+    "firstSeq": 416,
+    "serverTs": 800,
+    "records": [
+      {
+        "pairId": 0,
+        "side": "bid",
+        "level": 0,
+        "price": 108487,
+        "size": 872,
+        "seq": 416
+      },
+      {
+        "pairId": 2,
+        "side": "ask",
+        "level": 1,
+        "price": 157008,
+        "size": 1362,
+        "seq": 417
+      },
+      {
+        "pairId": 4,
+        "side": "ask",
+        "level": 1,
+        "price": 66523,
+        "size": 1837,
+        "seq": 418
+      },
+      {
+        "pairId": 2,
+        "side": "ask",
+        "level": 2,
+        "price": 157018,
+        "size": 2425,
+        "seq": 419
+      },
+      {
+        "pairId": 3,
+        "side": "bid",
+        "level": 1,
+        "price": 90489,
+        "size": 1554,
+        "seq": 420
+      },
+      {
+        "pairId": 1,
+        "side": "bid",
+        "level": 0,
+        "price": 127007,
+        "size": 875,
+        "seq": 421
+      },
+      {
+        "pairId": 1,
+        "side": "ask",
+        "level": 0,
+        "price": 127016,
+        "size": 1072,
+        "seq": 422
+      },
+      {
+        "pairId": 1,
+        "side": "bid",
+        "level": 1,
+        "price": 126997,
+        "size": 1679,
+        "seq": 423
+      },
+      {
+        "pairId": 1,
+        "side": "ask",
+        "level": 1,
+        "price": 127026,
+        "size": 1658,
+        "seq": 424
+      },
+      {
+        "pairId": 1,
+        "side": "bid",
+        "level": 2,
+        "price": 126987,
+        "size": 2086,
+        "seq": 425
+      },
+      {
+        "pairId": 1,
+        "side": "ask",
+        "level": 2,
+        "price": 127036,
+        "size": 2075,
+        "seq": 426
+      },
+      {
+        "pairId": 1,
+        "side": "bid",
+        "level": 3,
+        "price": 126977,
+        "size": 2909,
+        "seq": 427
+      },
+      {
+        "pairId": 1,
+        "side": "ask",
+        "level": 3,
+        "price": 127046,
+        "size": 3098,
+        "seq": 428
+      },
+      {
+        "pairId": 3,
+        "side": "bid",
+        "level": 2,
+        "price": 90479,
+        "size": 2259,
+        "seq": 429
+      },
+      {
+        "pairId": 2,
+        "side": "bid",
+        "level": 0,
+        "price": 156987,
+        "size": 617,
+        "seq": 430
+      },
+      {
+        "pairId": 2,
+        "side": "ask",
+        "level": 0,
+        "price": 156995,
+        "size": 657,
+        "seq": 431
+      },
+      {
+        "pairId": 2,
+        "side": "bid",
+        "level": 1,
+        "price": 156977,
+        "size": 1173,
+        "seq": 432
+      },
+      {
+        "pairId": 2,
+        "side": "ask",
+        "level": 1,
+        "price": 157005,
+        "size": 1362,
+        "seq": 433
+      },
+      {
+        "pairId": 2,
+        "side": "bid",
+        "level": 2,
+        "price": 156967,
+        "size": 2204,
+        "seq": 434
+      },
+      {
+        "pairId": 2,
+        "side": "ask",
+        "level": 2,
+        "price": 157015,
+        "size": 2425,
+        "seq": 435
+      },
+      {
+        "pairId": 2,
+        "side": "bid",
+        "level": 3,
+        "price": 156957,
+        "size": 2943,
+        "seq": 436
+      },
+      {
+        "pairId": 2,
+        "side": "ask",
+        "level": 3,
+        "price": 157025,
+        "size": 2931,
+        "seq": 437
+      },
+      {
+        "pairId": 3,
+        "side": "ask",
+        "level": 0,
+        "price": 90509,
+        "size": 772,
+        "seq": 438
+      },
+      {
+        "pairId": 3,
+        "side": "ask",
+        "level": 3,
+        "price": 90539,
+        "size": 2917,
+        "seq": 439
+      }
+    ]
+  },
+  {
+    "frameType": "DELTA",
+    "count": 28,
+    "firstSeq": 440,
+    "serverTs": 850,
+    "records": [
+      {
+        "pairId": 2,
+        "side": "bid",
+        "level": 2,
+        "price": 156967,
+        "size": 2095,
+        "seq": 440
+      },
+      {
+        "pairId": 3,
+        "side": "ask",
+        "level": 0,
+        "price": 90509,
+        "size": 791,
+        "seq": 441
+      },
+      {
+        "pairId": 3,
+        "side": "bid",
+        "level": 2,
+        "price": 90479,
+        "size": 2194,
+        "seq": 442
+      },
+      {
+        "pairId": 0,
+        "side": "bid",
+        "level": 0,
+        "price": 108485,
+        "size": 872,
+        "seq": 443
+      },
+      {
+        "pairId": 0,
+        "side": "ask",
+        "level": 0,
+        "price": 108491,
+        "size": 790,
+        "seq": 444
+      },
+      {
+        "pairId": 0,
+        "side": "bid",
+        "level": 1,
+        "price": 108477,
+        "size": 1546,
+        "seq": 445
+      },
+      {
+        "pairId": 0,
+        "side": "ask",
+        "level": 1,
+        "price": 108499,
+        "size": 1337,
+        "seq": 446
+      },
+      {
+        "pairId": 0,
+        "side": "bid",
+        "level": 2,
+        "price": 108469,
+        "size": 2168,
+        "seq": 447
+      },
+      {
+        "pairId": 0,
+        "side": "ask",
+        "level": 2,
+        "price": 108507,
+        "size": 2334,
+        "seq": 448
+      },
+      {
+        "pairId": 0,
+        "side": "bid",
+        "level": 3,
+        "price": 108461,
+        "size": 2681,
+        "seq": 449
+      },
+      {
+        "pairId": 0,
+        "side": "ask",
+        "level": 3,
+        "price": 108515,
+        "size": 3005,
+        "seq": 450
+      },
+      {
+        "pairId": 4,
+        "side": "bid",
+        "level": 0,
+        "price": 66504,
+        "size": 784,
+        "seq": 451
+      },
+      {
+        "pairId": 1,
+        "side": "bid",
+        "level": 0,
+        "price": 127004,
+        "size": 875,
+        "seq": 452
+      },
+      {
+        "pairId": 1,
+        "side": "ask",
+        "level": 0,
+        "price": 127013,
+        "size": 1072,
+        "seq": 453
+      },
+      {
+        "pairId": 1,
+        "side": "bid",
+        "level": 1,
+        "price": 126994,
+        "size": 1679,
+        "seq": 454
+      },
+      {
+        "pairId": 1,
+        "side": "ask",
+        "level": 1,
+        "price": 127023,
+        "size": 1658,
+        "seq": 455
+      },
+      {
+        "pairId": 1,
+        "side": "bid",
+        "level": 2,
+        "price": 126984,
+        "size": 2086,
+        "seq": 456
+      },
+      {
+        "pairId": 1,
+        "side": "ask",
+        "level": 2,
+        "price": 127033,
+        "size": 2075,
+        "seq": 457
+      },
+      {
+        "pairId": 1,
+        "side": "bid",
+        "level": 3,
+        "price": 126974,
+        "size": 2909,
+        "seq": 458
+      },
+      {
+        "pairId": 1,
+        "side": "ask",
+        "level": 3,
+        "price": 127043,
+        "size": 3098,
+        "seq": 459
+      },
+      {
+        "pairId": 3,
+        "side": "bid",
+        "level": 0,
+        "price": 90501,
+        "size": 881,
+        "seq": 460
+      },
+      {
+        "pairId": 3,
+        "side": "ask",
+        "level": 0,
+        "price": 90511,
+        "size": 791,
+        "seq": 461
+      },
+      {
+        "pairId": 3,
+        "side": "bid",
+        "level": 1,
+        "price": 90491,
+        "size": 1554,
+        "seq": 462
+      },
+      {
+        "pairId": 3,
+        "side": "ask",
+        "level": 1,
+        "price": 90521,
+        "size": 1461,
+        "seq": 463
+      },
+      {
+        "pairId": 3,
+        "side": "bid",
+        "level": 2,
+        "price": 90481,
+        "size": 2194,
+        "seq": 464
+      },
+      {
+        "pairId": 3,
+        "side": "ask",
+        "level": 2,
+        "price": 90531,
+        "size": 2061,
+        "seq": 465
+      },
+      {
+        "pairId": 3,
+        "side": "bid",
+        "level": 3,
+        "price": 90471,
+        "size": 2662,
+        "seq": 466
+      },
+      {
+        "pairId": 3,
+        "side": "ask",
+        "level": 3,
+        "price": 90541,
+        "size": 2917,
+        "seq": 467
+      }
+    ]
+  },
+  {
+    "frameType": "DELTA",
+    "count": 29,
+    "firstSeq": 468,
+    "serverTs": 900,
+    "records": [
+      {
+        "pairId": 1,
+        "side": "ask",
+        "level": 0,
+        "price": 127013,
+        "size": 1175,
+        "seq": 468
+      },
+      {
+        "pairId": 0,
+        "side": "bid",
+        "level": 3,
+        "price": 108461,
+        "size": 2706,
+        "seq": 469
+      },
+      {
+        "pairId": 2,
+        "side": "bid",
+        "level": 3,
+        "price": 156957,
+        "size": 3023,
+        "seq": 470
+      },
+      {
+        "pairId": 4,
+        "side": "bid",
+        "level": 0,
+        "price": 66507,
+        "size": 784,
+        "seq": 471
+      },
+      {
+        "pairId": 4,
+        "side": "ask",
+        "level": 0,
+        "price": 66516,
+        "size": 1162,
+        "seq": 472
+      },
+      {
+        "pairId": 4,
+        "side": "bid",
+        "level": 1,
+        "price": 66497,
+        "size": 1395,
+        "seq": 473
+      },
+      {
+        "pairId": 4,
+        "side": "ask",
+        "level": 1,
+        "price": 66526,
+        "size": 1837,
+        "seq": 474
+      },
+      {
+        "pairId": 4,
+        "side": "bid",
+        "level": 2,
+        "price": 66487,
+        "size": 2317,
+        "seq": 475
+      },
+      {
+        "pairId": 4,
+        "side": "ask",
+        "level": 2,
+        "price": 66536,
+        "size": 2218,
+        "seq": 476
+      },
+      {
+        "pairId": 4,
+        "side": "bid",
+        "level": 3,
+        "price": 66477,
+        "size": 2912,
+        "seq": 477
+      },
+      {
+        "pairId": 4,
+        "side": "ask",
+        "level": 3,
+        "price": 66546,
+        "size": 3053,
+        "seq": 478
+      },
+      {
+        "pairId": 3,
+        "side": "bid",
+        "level": 0,
+        "price": 90499,
+        "size": 881,
+        "seq": 479
+      },
+      {
+        "pairId": 3,
+        "side": "ask",
+        "level": 0,
+        "price": 90509,
+        "size": 791,
+        "seq": 480
+      },
+      {
+        "pairId": 3,
+        "side": "bid",
+        "level": 1,
+        "price": 90489,
+        "size": 1554,
+        "seq": 481
+      },
+      {
+        "pairId": 3,
+        "side": "ask",
+        "level": 1,
+        "price": 90519,
+        "size": 1461,
+        "seq": 482
+      },
+      {
+        "pairId": 3,
+        "side": "bid",
+        "level": 2,
+        "price": 90479,
+        "size": 2194,
+        "seq": 483
+      },
+      {
+        "pairId": 3,
+        "side": "ask",
+        "level": 2,
+        "price": 90529,
+        "size": 2061,
+        "seq": 484
+      },
+      {
+        "pairId": 3,
+        "side": "bid",
+        "level": 3,
+        "price": 90469,
+        "size": 2662,
+        "seq": 485
+      },
+      {
+        "pairId": 3,
+        "side": "ask",
+        "level": 3,
+        "price": 90539,
+        "size": 2917,
+        "seq": 486
+      },
+      {
+        "pairId": 0,
+        "side": "bid",
+        "level": 3,
+        "price": 108461,
+        "size": 2775,
+        "seq": 487
+      },
+      {
+        "pairId": 0,
+        "side": "ask",
+        "level": 0,
+        "price": 108491,
+        "size": 730,
+        "seq": 488
+      },
+      {
+        "pairId": 1,
+        "side": "bid",
+        "level": 0,
+        "price": 127007,
+        "size": 875,
+        "seq": 489
+      },
+      {
+        "pairId": 1,
+        "side": "ask",
+        "level": 0,
+        "price": 127016,
+        "size": 1175,
+        "seq": 490
+      },
+      {
+        "pairId": 1,
+        "side": "bid",
+        "level": 1,
+        "price": 126997,
+        "size": 1679,
+        "seq": 491
+      },
+      {
+        "pairId": 1,
+        "side": "ask",
+        "level": 1,
+        "price": 127026,
+        "size": 1658,
+        "seq": 492
+      },
+      {
+        "pairId": 1,
+        "side": "bid",
+        "level": 2,
+        "price": 126987,
+        "size": 2086,
+        "seq": 493
+      },
+      {
+        "pairId": 1,
+        "side": "ask",
+        "level": 2,
+        "price": 127036,
+        "size": 2075,
+        "seq": 494
+      },
+      {
+        "pairId": 1,
+        "side": "bid",
+        "level": 3,
+        "price": 126977,
+        "size": 2909,
+        "seq": 495
+      },
+      {
+        "pairId": 1,
+        "side": "ask",
+        "level": 3,
+        "price": 127046,
+        "size": 3098,
+        "seq": 496
+      }
+    ]
+  },
+  {
+    "frameType": "DELTA",
+    "count": 19,
+    "firstSeq": 497,
+    "serverTs": 950,
+    "records": [
+      {
+        "pairId": 4,
+        "side": "ask",
+        "level": 1,
+        "price": 66526,
+        "size": 1930,
+        "seq": 497
+      },
+      {
+        "pairId": 1,
+        "side": "bid",
+        "level": 0,
+        "price": 127004,
+        "size": 875,
+        "seq": 498
+      },
+      {
+        "pairId": 1,
+        "side": "ask",
+        "level": 0,
+        "price": 127013,
+        "size": 1175,
+        "seq": 499
+      },
+      {
+        "pairId": 1,
+        "side": "bid",
+        "level": 1,
+        "price": 126994,
+        "size": 1679,
+        "seq": 500
+      },
+      {
+        "pairId": 1,
+        "side": "ask",
+        "level": 1,
+        "price": 127023,
+        "size": 1658,
+        "seq": 501
+      },
+      {
+        "pairId": 1,
+        "side": "bid",
+        "level": 2,
+        "price": 126984,
+        "size": 2086,
+        "seq": 502
+      },
+      {
+        "pairId": 1,
+        "side": "ask",
+        "level": 2,
+        "price": 127033,
+        "size": 2075,
+        "seq": 503
+      },
+      {
+        "pairId": 1,
+        "side": "bid",
+        "level": 3,
+        "price": 126974,
+        "size": 2909,
+        "seq": 504
+      },
+      {
+        "pairId": 1,
+        "side": "ask",
+        "level": 3,
+        "price": 127043,
+        "size": 3098,
+        "seq": 505
+      },
+      {
+        "pairId": 1,
+        "side": "bid",
+        "level": 2,
+        "price": 126984,
+        "size": 1962,
+        "seq": 506
+      },
+      {
+        "pairId": 2,
+        "side": "ask",
+        "level": 1,
+        "price": 157005,
+        "size": 1222,
+        "seq": 507
+      },
+      {
+        "pairId": 0,
+        "side": "bid",
+        "level": 0,
+        "price": 108487,
+        "size": 872,
+        "seq": 508
+      },
+      {
+        "pairId": 0,
+        "side": "ask",
+        "level": 0,
+        "price": 108493,
+        "size": 730,
+        "seq": 509
+      },
+      {
+        "pairId": 0,
+        "side": "bid",
+        "level": 1,
+        "price": 108479,
+        "size": 1546,
+        "seq": 510
+      },
+      {
+        "pairId": 0,
+        "side": "ask",
+        "level": 1,
+        "price": 108501,
+        "size": 1337,
+        "seq": 511
+      },
+      {
+        "pairId": 0,
+        "side": "bid",
+        "level": 2,
+        "price": 108471,
+        "size": 2168,
+        "seq": 512
+      },
+      {
+        "pairId": 0,
+        "side": "ask",
+        "level": 2,
+        "price": 108509,
+        "size": 2334,
+        "seq": 513
+      },
+      {
+        "pairId": 0,
+        "side": "bid",
+        "level": 3,
+        "price": 108463,
+        "size": 2775,
+        "seq": 514
+      },
+      {
+        "pairId": 0,
+        "side": "ask",
+        "level": 3,
+        "price": 108517,
+        "size": 3005,
+        "seq": 515
+      }
+    ]
+  },
+  {
+    "frameType": "DELTA",
+    "count": 24,
+    "firstSeq": 516,
+    "serverTs": 1000,
+    "records": [
+      {
+        "pairId": 1,
+        "side": "bid",
+        "level": 1,
+        "price": 126994,
+        "size": 1755,
+        "seq": 516
+      },
+      {
+        "pairId": 0,
+        "side": "bid",
+        "level": 1,
+        "price": 108479,
+        "size": 1645,
+        "seq": 517
+      },
+      {
+        "pairId": 2,
+        "side": "ask",
+        "level": 1,
+        "price": 157005,
+        "size": 1161,
+        "seq": 518
+      },
+      {
+        "pairId": 1,
+        "side": "ask",
+        "level": 0,
+        "price": 127013,
+        "size": 1306,
+        "seq": 519
+      },
+      {
+        "pairId": 1,
+        "side": "ask",
+        "level": 1,
+        "price": 127023,
+        "size": 1759,
+        "seq": 520
+      },
+      {
+        "pairId": 4,
+        "side": "ask",
+        "level": 1,
+        "price": 66526,
+        "size": 1946,
+        "seq": 521
+      },
+      {
+        "pairId": 4,
+        "side": "bid",
+        "level": 1,
+        "price": 66497,
+        "size": 1504,
+        "seq": 522
+      },
+      {
+        "pairId": 3,
+        "side": "bid",
+        "level": 0,
+        "price": 90501,
+        "size": 881,
+        "seq": 523
+      },
+      {
+        "pairId": 3,
+        "side": "ask",
+        "level": 0,
+        "price": 90511,
+        "size": 791,
+        "seq": 524
+      },
+      {
+        "pairId": 3,
+        "side": "bid",
+        "level": 1,
+        "price": 90491,
+        "size": 1554,
+        "seq": 525
+      },
+      {
+        "pairId": 3,
+        "side": "ask",
+        "level": 1,
+        "price": 90521,
+        "size": 1461,
+        "seq": 526
+      },
+      {
+        "pairId": 3,
+        "side": "bid",
+        "level": 2,
+        "price": 90481,
+        "size": 2194,
+        "seq": 527
+      },
+      {
+        "pairId": 3,
+        "side": "ask",
+        "level": 2,
+        "price": 90531,
+        "size": 2061,
+        "seq": 528
+      },
+      {
+        "pairId": 3,
+        "side": "bid",
+        "level": 3,
+        "price": 90471,
+        "size": 2662,
+        "seq": 529
+      },
+      {
+        "pairId": 3,
+        "side": "ask",
+        "level": 3,
+        "price": 90541,
+        "size": 2917,
+        "seq": 530
+      },
+      {
+        "pairId": 2,
+        "side": "bid",
+        "level": 0,
+        "price": 156990,
+        "size": 617,
+        "seq": 531
+      },
+      {
+        "pairId": 2,
+        "side": "ask",
+        "level": 0,
+        "price": 156998,
+        "size": 657,
+        "seq": 532
+      },
+      {
+        "pairId": 2,
+        "side": "bid",
+        "level": 1,
+        "price": 156980,
+        "size": 1173,
+        "seq": 533
+      },
+      {
+        "pairId": 2,
+        "side": "ask",
+        "level": 1,
+        "price": 157008,
+        "size": 1161,
+        "seq": 534
+      },
+      {
+        "pairId": 2,
+        "side": "bid",
+        "level": 2,
+        "price": 156970,
+        "size": 2095,
+        "seq": 535
+      },
+      {
+        "pairId": 2,
+        "side": "ask",
+        "level": 2,
+        "price": 157018,
+        "size": 2425,
+        "seq": 536
+      },
+      {
+        "pairId": 2,
+        "side": "bid",
+        "level": 3,
+        "price": 156960,
+        "size": 3023,
+        "seq": 537
+      },
+      {
+        "pairId": 2,
+        "side": "ask",
+        "level": 3,
+        "price": 157028,
+        "size": 2931,
+        "seq": 538
+      },
+      {
+        "pairId": 1,
+        "side": "ask",
+        "level": 0,
+        "price": 127013,
+        "size": 1454,
+        "seq": 539
+      }
+    ]
+  }
+]
