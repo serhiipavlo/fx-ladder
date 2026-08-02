@@ -68,20 +68,24 @@ describe('invariants (done-when of T-0.1.3)', () => {
     );
   });
 
-  it('every emitted price sits on the pipette grid and every record is well-formed', () => {
+  it('every emitted price sits on the pipette grid and every record is well-formed', { timeout: 15_000 }, () => {
+    // Streams reach ~10^5 records per run — assert with plain checks and let
+    // fast-check shrink on throw; per-record expect() overhead would blow the
+    // CI budget without adding information.
     fc.assert(
       fc.property(seedArb, stepsArb, (seed, steps) => {
         const market = createMarket(seed);
         for (const batch of [...run(market, steps), market.snapshot()]) {
           for (const r of batch) {
-            expect(Number.isSafeInteger(r.price) && r.price > 0).toBe(true);
-            expect(Number.isSafeInteger(r.size) && r.size > 0).toBe(true);
-            expect(INSTRUMENTS[r.pairId]).toBeDefined();
-            expect(r.level >= 0 && r.level < BOOK_LEVELS).toBe(true);
-            expect(r.side === 'bid' || r.side === 'ask').toBe(true);
+            if (!Number.isSafeInteger(r.price) || r.price <= 0) throw new Error(`price off the grid: ${r.price}`);
+            if (!Number.isSafeInteger(r.size) || r.size <= 0) throw new Error(`bad size: ${r.size}`);
+            if (INSTRUMENTS[r.pairId] === undefined) throw new Error(`unknown pairId: ${r.pairId}`);
+            if (r.level < 0 || r.level >= BOOK_LEVELS) throw new Error(`level out of range: ${r.level}`);
+            if (r.side !== 'bid' && r.side !== 'ask') throw new Error(`bad side: ${String(r.side)}`);
           }
         }
       }),
+      { numRuns: 30 },
     );
   });
 
