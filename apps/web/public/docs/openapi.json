@@ -36,6 +36,46 @@
         }
       }
     },
+    "/api/instruments": {
+      "get": {
+        "summary": "Instrument catalogue",
+        "description": "The cold plane (architecture §7.2): the catalogue with `ETag` and `Cache-Control: max-age=3600`. A conditional request with a matching `If-None-Match` returns `304` with an empty body — the client's React Query `staleTime` aligns with this `max-age` so both cache layers tell one story.",
+        "tags": [
+          "cold plane"
+        ],
+        "responses": {
+          "200": {
+            "description": "The catalogue; `pairId` on the hot plane is the index into this array.",
+            "headers": {
+              "ETag": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "public, max-age=3600"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Instrument"
+                  }
+                }
+              }
+            }
+          },
+          "304": {
+            "description": "Unchanged since the version the client holds; headers only."
+          }
+        }
+      }
+    },
     "/sim/seed": {
       "post": {
         "summary": "Reseed the market",
@@ -606,6 +646,55 @@
           "tif"
         ],
         "additionalProperties": false
+      },
+      "Instrument": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "symbol",
+          "base",
+          "quote",
+          "precision",
+          "pipDigit",
+          "lotSizeK",
+          "minQtyK",
+          "tier"
+        ],
+        "properties": {
+          "symbol": {
+            "type": "string",
+            "description": "Concatenated pair name, e.g. EURUSD."
+          },
+          "base": {
+            "type": "string"
+          },
+          "quote": {
+            "type": "string"
+          },
+          "precision": {
+            "type": "integer",
+            "description": "Decimal places of a quoted price."
+          },
+          "pipDigit": {
+            "type": "integer",
+            "description": "1-based decimal position of one pip."
+          },
+          "lotSizeK": {
+            "type": "integer",
+            "description": "Standard lot in thousands of base."
+          },
+          "minQtyK": {
+            "type": "integer"
+          },
+          "tier": {
+            "type": "string",
+            "enum": [
+              "major",
+              "cross",
+              "exotic"
+            ]
+          }
+        }
       },
       "Ok": {
         "type": "object",

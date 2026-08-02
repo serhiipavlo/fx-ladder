@@ -7,6 +7,7 @@ import { assembleFrame, encodeFrame, FX_SUBPROTOCOL, heartbeatFrame } from '@fx/
 import { createExecutionEngine, createMarket, xoshiro128, type ExecutionEngine, type Market } from '@fx/sim-core';
 import { WebSocket, WebSocketServer } from 'ws';
 
+import { handleInstruments } from './cold';
 import type { FeedServerConfig } from './config';
 import { handleSimRequest, percentile, type SimStats } from './control';
 
@@ -277,6 +278,11 @@ export function createFeedServer(config: FeedServerConfig): FeedServer {
     if (req.method === 'GET' && pathname === '/healthz') {
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ ok: true, uptimeMs: serverTs() }));
+      return;
+    }
+
+    if (req.method === 'GET' && pathname === '/api/instruments') {
+      handleInstruments(req, res);
       return;
     }
 
