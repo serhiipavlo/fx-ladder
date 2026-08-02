@@ -40,6 +40,12 @@ export interface Market {
    * the jump and the widening arrive together, as they should.
    */
   news(pairId: number, pips: number, spreadX: number): void;
+  /**
+   * Silence one pair for `ms` of advance-clock time (AC-06): its actions are
+   * skipped, everything else flows. On thaw the pair returns with a full
+   * refresh so the wire shows it waking, not jumping.
+   */
+  freeze(pairId: number, ms: number): void;
 }
 
 export const BOOK_LEVELS = 4;
@@ -94,6 +100,10 @@ interface PairState {
   newsAt: number | null;
   /** Full both-side refresh owed to the wire at the next advance. */
   refreshPending: boolean;
+  /** Command landed, freeze clock not stamped yet. */
+  freezeArmedMs: number | null;
+  /** Frozen until this advance-clock moment; null = flowing. */
+  frozenUntil: number | null;
 }
 
 function initialSizes(prng: Prng): number[] {
@@ -151,6 +161,8 @@ export function createMarket(seed: number, updatesPerSec = 1000): Market {
       newsArmed: false,
       newsAt: null,
       refreshPending: false,
+      freezeArmedMs: null,
+      frozenUntil: null,
     };
   });
 
@@ -219,6 +231,14 @@ export function createMarket(seed: number, updatesPerSec = 1000): Market {
       // and an owed refresh puts the shock on the wire immediately — command
       // effects ride outside the rate budget.
       for (const pair of pairs) {
+        if (pair.freezeArmedMs !== null) {
+          pair.frozenUntil = now + pair.freezeArmedMs;
+          pair.freezeArmedMs = null;
+        }
+        if (pair.frozenUntil !== null && now >= pair.frozenUntil) {
+          pair.frozenUntil = null;
+          pair.refreshPending = true; // the pair wakes with a full refresh
+        }
         if (pair.newsArmed) {
           pair.newsAt = now;
           pair.newsArmed = false;
@@ -247,10 +267,12 @@ export function createMarket(seed: number, updatesPerSec = 1000): Market {
       while (credit >= 1) {
         const pair = pairs[prng.nextUint32() % pairs.length] as PairState;
         if (prng.nextFloat() < 0.25) {
-          moveMid(pair, out);
+          // A frozen pair's actions are skipped, cost still paid: its share of
+          // the rate simply vanishes while everything else flows (AC-06).
+          if (pair.frozenUntil === null) moveMid(pair, out);
           credit -= midMoveCost;
         } else {
-          jiggleSize(pair, out);
+          if (pair.frozenUntil === null) jiggleSize(pair, out);
           credit -= 1;
         }
       }
@@ -279,6 +301,13 @@ export function createMarket(seed: number, updatesPerSec = 1000): Market {
       pair.newsArmed = true;
       pair.newsAt = null;
       pair.refreshPending = true;
+    },
+
+    freeze(pairId: number, ms: number): void {
+      const pair = pairs[pairId];
+      if (pair === undefined) throw new Error(`unknown pairId: ${pairId}`);
+      if (!Number.isInteger(ms) || ms < 1) throw new Error(`ms must be a positive integer, got ${ms}`);
+      pair.freezeArmedMs = ms;
     },
   };
 }

@@ -3,7 +3,9 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import {
   pairIdOf,
   simDisconnectBodySchema,
+  simFreezeBodySchema,
   simGapBodySchema,
+  simModeBodySchema,
   simNewsBodySchema,
   simRateBodySchema,
   simSeedBodySchema,
@@ -25,6 +27,8 @@ export interface TickStats {
 export interface SimStats {
   generated: number;
   sent: number;
+  framesSent: number;
+  batch: boolean;
   updatesPerSec: number;
   clients: number;
   uptimeMs: number;
@@ -38,6 +42,8 @@ export interface ControlDeps {
   skipSeqs(count: number): void;
   news(pairId: number, pips: number, spreadX: number): void;
   disconnect(graceful: boolean, afterMs: number): void;
+  setBatch(batch: boolean): void;
+  freeze(pairId: number, ms: number): void;
   stats(): SimStats;
 }
 
@@ -138,6 +144,18 @@ export function handleSimRequest(
       return;
     case '/sim/gap':
       route('POST', () => void handlePost(req, res, simGapBodySchema, (body) => deps.skipSeqs(body.skipSeqs)));
+      return;
+    case '/sim/mode':
+      route('POST', () => void handlePost(req, res, simModeBodySchema, (body) => deps.setBatch(body.batch)));
+      return;
+    case '/sim/freeze':
+      route('POST', () =>
+        void handlePost(req, res, simFreezeBodySchema, (body) => {
+          const pairId = pairIdOf(body.pair);
+          if (pairId < 0) throw new FieldError('pair', `unknown pair: ${body.pair}`);
+          deps.freeze(pairId, body.ms);
+        }),
+      );
       return;
     case '/sim/disconnect':
       route('POST', () =>

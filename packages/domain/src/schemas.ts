@@ -50,3 +50,19 @@ export const simDisconnectBodySchema = z.strictObject({
   afterMs: z.number().int().min(0).max(60_000).optional().default(0),
 });
 export type SimDisconnectBody = z.infer<typeof simDisconnectBodySchema>;
+
+/** POST /sim/mode — the server half of the §6.4 contrast: batched tick frames vs one frame per update. */
+export const simModeBodySchema = z.strictObject({
+  batch: z.boolean(),
+});
+export type SimModeBody = z.infer<typeof simModeBodySchema>;
+
+/**
+ * POST /sim/freeze — one pair goes silent for `ms` while the channel stays
+ * alive: stale ≠ disconnected (AC-06, architecture §8).
+ */
+export const simFreezeBodySchema = z.strictObject({
+  pair: z.string().regex(/^[A-Z]{6}$/, 'pair is a six-letter symbol like USDJPY'),
+  ms: z.number().int().min(100).max(600_000),
+});
+export type SimFreezeBody = z.infer<typeof simFreezeBodySchema>;

@@ -250,6 +250,46 @@ describe('news (done-when of T-0.2.1)', () => {
   });
 });
 
+describe('freeze (done-when of T-0.2.4)', () => {
+  const USDJPY = pairIdOf('USDJPY');
+
+  it('silences exactly one pair while everything else flows, then wakes it with a refresh', () => {
+    const market = createMarket(42, 4000);
+    market.advance(0);
+    market.freeze(USDJPY, 5000);
+
+    // The next advance stamps the window: frozen for [10, 5010).
+    const during = [
+      ...market.advance(10),
+      ...market.advance(1000),
+      ...market.advance(2500),
+      ...market.advance(4900),
+    ];
+    expect(during.some((r) => r.pairId === USDJPY)).toBe(false);
+    expect(during.length).toBeGreaterThan(1000); // the rest of the market never paused
+
+    const after = market.advance(5100);
+    const woken = after.filter((r) => r.pairId === USDJPY);
+    expect(woken.length).toBeGreaterThanOrEqual(2 * BOOK_LEVELS); // the thaw refresh
+  });
+
+  it('freeze commands keep runs bit-identical', () => {
+    function run(): unknown[] {
+      const market = createMarket(3, 2000);
+      market.advance(0);
+      market.freeze(USDJPY, 300);
+      return [market.advance(100), market.advance(400), market.advance(700)];
+    }
+    expect(run()).toEqual(run());
+  });
+
+  it('rejects unknown pairs and non-positive windows', () => {
+    const market = createMarket(1);
+    expect(() => market.freeze(999, 100)).toThrow(/pairId/);
+    expect(() => market.freeze(0, 0)).toThrow(/ms/);
+  });
+});
+
 describe('model alignment', () => {
   it('simulates exactly the catalogued instruments', () => {
     const snapshotPairs = new Set(createMarket(1).snapshot().map((r) => r.pairId));
