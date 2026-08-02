@@ -3,10 +3,11 @@ import type { AddressInfo } from 'node:net';
 import type { Duplex } from 'node:stream';
 
 import { assembleFrame, encodeFrame, FX_SUBPROTOCOL, heartbeatFrame } from '@fx/protocol';
-import { createMarket } from '@fx/sim-core';
+import { createMarket, type Market } from '@fx/sim-core';
 import { WebSocket, WebSocketServer } from 'ws';
 
 import type { FeedServerConfig } from './config';
+import { handleSimRequest, percentile, type SimStats } from './control';
 
 export interface FeedServer {
   /** Binds and resolves with the actual port (pass 0 in config for an ephemeral one). */
@@ -23,18 +24,37 @@ interface ClientState {
 /** How often silence is checked for; the heartbeat interval itself is config. */
 const HEARTBEAT_SWEEP_MS = 250;
 
+/** Ring size for tick-duration samples feeding the /sim/stats percentiles. */
+const TICK_SAMPLES = 1024;
+
 export function createFeedServer(config: FeedServerConfig): FeedServer {
   const allowedOrigins = new Set(config.allowedOrigins);
   const t0 = performance.now();
   /** Monotonic ms since server start — the wire's serverTs and the model's now. */
   const serverTs = (): number => Math.round(performance.now() - t0);
 
-  const market = createMarket(config.seed, config.updatesPerSec);
+  let updatesPerSec = config.updatesPerSec;
+  let market: Market = createMarket(config.seed, updatesPerSec);
   // Sequencing is per connection: density of seq is a per-wire contract
   // (architecture §6.2), and a snapshot sent to a newcomer must not tear a
   // hole into anyone else's stream.
   const clients = new Map<WebSocket, ClientState>();
   let closed = false;
+
+  // Telemetry for /sim/stats — the numbers the perf gate reads (plan §3).
+  let generated = 0;
+  let sent = 0;
+  const tickDurations: number[] = [];
+  let tickCursor = 0;
+
+  function recordTickDuration(ms: number): void {
+    if (tickDurations.length < TICK_SAMPLES) {
+      tickDurations.push(ms);
+    } else {
+      tickDurations[tickCursor] = ms;
+      tickCursor = (tickCursor + 1) % TICK_SAMPLES;
+    }
+  }
 
   const httpServer = createServer(handleRequest);
   const wss = new WebSocketServer({
@@ -61,17 +81,22 @@ export function createFeedServer(config: FeedServerConfig): FeedServer {
   });
 
   const tick = setInterval(() => {
+    const started = performance.now();
     const ts = serverTs();
     const updates = market.advance(ts);
-    if (updates.length === 0) return;
-    // One send per client per tick (§7.1); seq assigned last, per wire (§6.2).
-    for (const [ws, state] of clients) {
-      if (ws.readyState !== WebSocket.OPEN) continue;
-      const { frame, nextSeq } = assembleFrame('DELTA', updates, state.nextSeq, ts);
-      ws.send(encodeFrame(frame));
-      state.nextSeq = nextSeq;
-      state.lastSentTs = ts;
+    if (updates.length > 0) {
+      generated += updates.length;
+      // One send per client per tick (§7.1); seq assigned last, per wire (§6.2).
+      for (const [ws, state] of clients) {
+        if (ws.readyState !== WebSocket.OPEN) continue;
+        const { frame, nextSeq } = assembleFrame('DELTA', updates, state.nextSeq, ts);
+        ws.send(encodeFrame(frame));
+        state.nextSeq = nextSeq;
+        state.lastSentTs = ts;
+        sent += updates.length;
+      }
     }
+    recordTickDuration(performance.now() - started);
   }, config.tickMs);
 
   const heartbeat = setInterval(() => {
@@ -86,6 +111,50 @@ export function createFeedServer(config: FeedServerConfig): FeedServer {
     }
   }, HEARTBEAT_SWEEP_MS);
 
+  // What /sim/* is allowed to do to this server (architecture §8).
+  const controlDeps = {
+    reseed(seed: number): void {
+      market = createMarket(seed, updatesPerSec);
+      // Connected clients' books are stale wholesale: push each a fresh
+      // SNAPSHOT that keeps its wire dense — same mechanics as resync (ADR-08).
+      const ts = serverTs();
+      const snapshot = market.snapshot();
+      for (const [ws, state] of clients) {
+        if (ws.readyState !== WebSocket.OPEN) continue;
+        const { frame, nextSeq } = assembleFrame('SNAPSHOT', snapshot, state.nextSeq, ts);
+        ws.send(encodeFrame(frame));
+        state.nextSeq = nextSeq;
+        state.lastSentTs = ts;
+        sent += frame.count;
+      }
+    },
+    setRate(next: number): void {
+      updatesPerSec = next;
+      market.setRate(next);
+    },
+    skipSeqs(count: number): void {
+      // A pure numbering jump: the next assembly on every wire starts `count`
+      // seqs later — exactly one provable hole per client (NFR-08).
+      for (const state of clients.values()) state.nextSeq += count;
+    },
+    stats(): SimStats {
+      return {
+        generated,
+        sent,
+        updatesPerSec,
+        clients: clients.size,
+        uptimeMs: serverTs(),
+        tick: {
+          p50: percentile(tickDurations, 50),
+          p95: percentile(tickDurations, 95),
+          p99: percentile(tickDurations, 99),
+          max: percentile(tickDurations, 100),
+          samples: tickDurations.length,
+        },
+      };
+    },
+  };
+
   function handleRequest(req: IncomingMessage, res: ServerResponse): void {
     const pathname = new URL(req.url ?? '/', 'http://placeholder').pathname;
     const origin = req.headers.origin;
@@ -99,6 +168,11 @@ export function createFeedServer(config: FeedServerConfig): FeedServer {
     if (req.method === 'GET' && pathname === '/healthz') {
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ ok: true, uptimeMs: serverTs() }));
+      return;
+    }
+
+    if (pathname.startsWith('/sim/')) {
+      handleSimRequest(pathname, req, res, controlDeps);
       return;
     }
 
