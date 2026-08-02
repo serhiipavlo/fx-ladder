@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.1.1 — 2026-08-02
+
+- fix: the post-deploy smoke expected the v0.0.1 unconditional heartbeat; since v0.1.0 a wire opens with a SNAPSHOT and heartbeats only through silence — the smoke now asserts the snapshot. The v0.1.0 release run went red on exactly this check while the deploy itself was healthy.
+
 ## v0.1.0 — 2026-08-02
 
 MVP: live prices end-to-end on the real network (plan §3).

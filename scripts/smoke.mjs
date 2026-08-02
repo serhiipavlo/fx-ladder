@@ -37,25 +37,28 @@ try {
 
 const wsUrl = new URL('/feed', feedOrigin);
 wsUrl.protocol = wsUrl.protocol === 'https:' ? 'wss:' : 'ws:';
-const heartbeat = await new Promise((resolve) => {
+// Since v0.1.0 the server opens every wire with a SNAPSHOT and heartbeats
+// only through silence (§6.3) — liveness proof is the snapshot itself.
+const snapshot = await new Promise((resolve) => {
   const ws = new WebSocket(wsUrl, 'fx.v1');
   const timeout = setTimeout(() => {
-    resolve({ ok: false, detail: 'no heartbeat within 5 s' });
+    resolve({ ok: false, detail: 'no frame within 5 s' });
     ws.close();
   }, 5000);
   ws.onmessage = (event) => {
     const frame = JSON.parse(event.data);
-    if (frame.frameType === 'HEARTBEAT') {
-      clearTimeout(timeout);
-      resolve({ ok: true, detail: `subprotocol ${ws.protocol}, seq ${frame.firstSeq}` });
-      ws.close();
-    }
+    clearTimeout(timeout);
+    resolve({
+      ok: frame.frameType === 'SNAPSHOT' && frame.count > 0,
+      detail: `first frame ${frame.frameType}, count ${frame.count}, subprotocol ${ws.protocol}`,
+    });
+    ws.close();
   };
   ws.onerror = () => {
     clearTimeout(timeout);
     resolve({ ok: false, detail: 'handshake failed' });
   };
 });
-check('ws heartbeat', heartbeat.ok, heartbeat.detail);
+check('ws snapshot', snapshot.ok, snapshot.detail);
 
 process.exit(failures === 0 ? 0 : 1);
