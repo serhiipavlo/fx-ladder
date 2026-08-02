@@ -1,11 +1,11 @@
 import { gql } from '@apollo/client';
-import { useMutation, useQuery, useSubscription } from '@apollo/client/react';
+import { useApolloClient, useMutation, useQuery, useSubscription } from '@apollo/client/react';
 import { pairIdOf, type EnrichedExecutionReport, type Instrument } from '@fx/domain';
-import { useEffect, useState, useSyncExternalStore } from 'react';
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 
 import type { FeedStore } from '../stream/store';
 import { OrdersBlotter } from './Blotter';
-import { createOrdersStore } from './orders';
+import { createOrdersStore, type OrderStateData } from './orders';
 import { midOf, unrealisedPnl } from './pnl';
 
 // The trading section (T-0.4.5): a ticket that acks instantly, a blotter that
@@ -30,6 +30,7 @@ export const REPORTS_SUBSCRIPTION = gql`
       pair
       side
       orderQtyK
+      eventSeq
       execType
       ordStatus
       lastPx
@@ -38,6 +39,24 @@ export const REPORTS_SUBSCRIPTION = gql`
       leavesQty
       rejectReason
       transactTime
+    }
+  }
+`;
+
+export const ORDERS_QUERY = gql`
+  query Orders {
+    orders {
+      clOrdId
+      pair
+      side
+      orderQtyK
+      ordStatus
+      cumQty
+      leavesQty
+      lastPx
+      rejectReason
+      eventSeq
+      updatedAt
     }
   }
 `;
@@ -194,9 +213,12 @@ export function Ticket({
 export function TradingSection({
   feedStore,
   instruments,
+  onReconnect,
 }: {
   feedStore: FeedStore;
   instruments: readonly Instrument[];
+  /** The warm socket's post-drop hook; resubscription itself is graphql-ws's. */
+  onReconnect?: (listener: () => void) => () => void;
 }): React.JSX.Element {
   const [orders] = useState(() => createOrdersStore());
   useSubscription<{ executionReports: EnrichedExecutionReport }>(REPORTS_SUBSCRIPTION, {
@@ -214,6 +236,29 @@ export function TradingSection({
   });
   // Realised P&L changes only on trade events (§7.3): refetch exactly then.
   useEffect(() => orders.onTrade(() => void refetch()), [orders, refetch]);
+
+  // Reconciliation (T-0.4.8, ADR-08 retold): on a reconnect — or on a seq
+  // hole proving loss — queue incoming events, take the server's order state
+  // wholesale, drain the queue through the seq arithmetic, and refetch the
+  // positions the outage may have moved. Retries ride the next reconnect or
+  // the timer if the snapshot itself failed mid-flap.
+  const apollo = useApolloClient();
+  const resyncRef = useRef<() => void>(() => undefined);
+  resyncRef.current = () => {
+    orders.beginResync();
+    apollo
+      .query<{ orders: OrderStateData[] }>({ query: ORDERS_QUERY, fetchPolicy: 'network-only' })
+      .then(({ data }) => {
+        if (data === undefined) throw new Error('empty snapshot response');
+        orders.reconcile(data.orders);
+        void refetch();
+      })
+      .catch(() => {
+        window.setTimeout(() => resyncRef.current(), 1000);
+      });
+  };
+  useEffect(() => onReconnect?.(() => resyncRef.current()), [onReconnect]);
+  useEffect(() => orders.onResyncNeeded(() => resyncRef.current()), [orders]);
 
   return (
     <section style={{ marginTop: '1rem' }}>

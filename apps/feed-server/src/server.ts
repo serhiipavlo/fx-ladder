@@ -3,10 +3,13 @@ import type { AddressInfo } from 'node:net';
 import type { Duplex } from 'node:stream';
 
 import {
+  applyReport,
   INSTRUMENTS,
   pairIdOf,
   SCENARIOS,
   type ExecutionReport,
+  type OrderProgress,
+  type RejectReason,
   type ScenarioName,
   type ScenarioStep,
   type SimOrderBody,
@@ -39,6 +42,19 @@ interface ClientState {
   nextSeq: number;
   lastSentTs: number;
   connectedAt: number;
+}
+
+/**
+ * The server's own fold of one order — state recovered from the same events
+ * the wire carries (§5.6), served as the reconnect snapshot (T-0.4.8).
+ * eventSeq counts the folds: the §6.2 density idea on the warm plane.
+ */
+interface OrderStateRow {
+  progress: OrderProgress;
+  lastPx: number | null;
+  rejectReason: RejectReason | null;
+  eventSeq: number;
+  updatedAt: number;
 }
 
 /** How often silence is checked for; the heartbeat interval itself is config. */
@@ -85,6 +101,31 @@ export function createFeedServer(config: FeedServerConfig): FeedServer {
   let orderCounter = 0;
   let ledger: Ledger = createLedger();
   let blotterPrng = xoshiro128(blotterSeed(config.seed));
+  const orderStates = new Map<string, OrderStateRow>();
+
+  /**
+   * The one door every report leaves through: fold into the server's own
+   * order state, stamp the dense per-order eventSeq, then fan out. The stamp
+   * happens at publish — a delivery-time lookup could number a queued report
+   * with a successor's count.
+   */
+  function publishReport(report: ExecutionReport): void {
+    const meta = ledger.orderMeta(report.clOrdId);
+    // A reseed between a submit and its deferred publish is a new trading
+    // day (ADR-10): the old day's report has no home and no audience.
+    if (meta === undefined) return;
+    const existing = orderStates.get(report.clOrdId);
+    const progress = applyReport(existing?.progress ?? null, report, meta.qtyK);
+    const state: OrderStateRow = {
+      progress,
+      lastPx: report.execType === 'TRADE' ? report.lastPx : (existing?.lastPx ?? null),
+      rejectReason: report.rejectReason,
+      eventSeq: (existing?.eventSeq ?? 0) + 1,
+      updatedAt: report.transactTime,
+    };
+    orderStates.set(report.clOrdId, state);
+    warm.bus.publish({ ...report, eventSeq: state.eventSeq });
+  }
   const lastLook = { holdMs: 40, rejectRate: 0 };
   // Sequencing is per connection: density of seq is a per-wire contract
   // (architecture §6.2), and a snapshot sent to a newcomer must not tear a
@@ -147,7 +188,7 @@ export function createFeedServer(config: FeedServerConfig): FeedServer {
     // to every subscriber, exactly once (§7.3).
     for (const report of engine.advance(ts)) {
       ledger.record(report);
-      warm.bus.publish(report);
+      publishReport(report);
     }
     const updates = market.advance(ts);
     if (updates.length > 0) {
@@ -221,7 +262,7 @@ export function createFeedServer(config: FeedServerConfig): FeedServer {
     if (immediate.length > 0) {
       for (const report of immediate) ledger.record(report);
       setTimeout(() => {
-        for (const report of immediate) warm.bus.publish(report);
+        for (const report of immediate) publishReport(report);
       }, 0);
     }
     return { clOrdId, immediate };
@@ -233,6 +274,23 @@ export function createFeedServer(config: FeedServerConfig): FeedServer {
     trades: (pairId) => ledger.trades(pairId),
     positions: () => ledger.positions(),
     orderMeta: (clOrdId) => ledger.orderMeta(clOrdId),
+    orders: () =>
+      [...orderStates.entries()].map(([clOrdId, state]) => {
+        const meta = ledger.orderMeta(clOrdId)!;
+        return {
+          clOrdId,
+          pair: INSTRUMENTS[meta.pairId]!.symbol,
+          side: meta.side,
+          orderQtyK: meta.qtyK,
+          ordStatus: state.progress.status,
+          cumQty: state.progress.cumQty,
+          leavesQty: state.progress.leavesQty,
+          lastPx: state.lastPx,
+          rejectReason: state.rejectReason,
+          eventSeq: state.eventSeq,
+          updatedAt: state.updatedAt,
+        };
+      }),
   });
 
   // What /sim/* is allowed to do to this server (architecture §8).
@@ -247,6 +305,7 @@ export function createFeedServer(config: FeedServerConfig): FeedServer {
       });
       ledger = createLedger();
       blotterPrng = xoshiro128(blotterSeed(seed));
+      orderStates.clear();
       // Connected clients' books are stale wholesale: push each a fresh
       // SNAPSHOT that keeps its wire dense — same mechanics as resync (ADR-08).
       const ts = serverTs();
@@ -341,6 +400,15 @@ export function createFeedServer(config: FeedServerConfig): FeedServer {
           if (ws.readyState !== WebSocket.OPEN) continue;
           if (graceful) ws.close(1000, 'disconnected by control plane');
           else ws.close(4000, 'simulated crash');
+        }
+        if (!graceful) {
+          // A crash takes the whole process's connections with it — the warm
+          // plane drops too, and owes the T-0.4.8 story: resubscribe plus
+          // snapshot reconciliation. A graceful goodbye is a hot-plane
+          // demonstration and leaves the warm socket alone.
+          for (const ws of warm.wss.clients) {
+            if (ws.readyState === WebSocket.OPEN) ws.close(4000, 'simulated crash');
+          }
         }
       }, afterMs);
       pendingDisconnects.add(timer);

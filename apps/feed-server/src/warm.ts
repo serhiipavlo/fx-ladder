@@ -4,6 +4,10 @@ import {
   pairIdOf,
   type EnrichedExecutionReport,
   type ExecutionReport,
+  type OrdStatus,
+  type OrderSide,
+  type RejectReason,
+  type SequencedExecutionReport,
   type SimOrderBody,
 } from '@fx/domain';
 import type { OrderMeta, PositionRow, TradeRow } from '@fx/sim-core';
@@ -16,12 +20,28 @@ import { WebSocketServer } from 'ws';
 // the hot plane's: every execution report reaches every subscriber exactly
 // once, in order — merged or dropped events would be lied-about money.
 
+/** The reconnect snapshot's row shape — resolved by the server's own fold. */
+export interface OrderStateOut {
+  clOrdId: string;
+  pair: string;
+  side: OrderSide;
+  orderQtyK: number;
+  ordStatus: OrdStatus;
+  cumQty: number;
+  leavesQty: number;
+  lastPx: number | null;
+  rejectReason: RejectReason | null;
+  eventSeq: number;
+  updatedAt: number;
+}
+
 export interface WarmDeps {
   submitOrder(input: SimOrderBody & { pairId: number }): { clOrdId: string; immediate: ExecutionReport[] };
   serverTs(): number;
   trades(pairId: number | null): readonly TradeRow[];
   positions(): readonly PositionRow[];
   orderMeta(clOrdId: string): OrderMeta | undefined;
+  orders(): OrderStateOut[];
 }
 
 interface OrderInputGql {
@@ -40,12 +60,12 @@ interface OrderInputGql {
 export class ReportBus {
   private readonly queues = new Set<{
     filter: string | null;
-    buffer: ExecutionReport[];
+    buffer: SequencedExecutionReport[];
     wake: (() => void) | null;
     done: boolean;
   }>();
 
-  publish(report: ExecutionReport): void {
+  publish(report: SequencedExecutionReport): void {
     for (const queue of this.queues) {
       if (queue.filter !== null && queue.filter !== report.clOrdId) continue;
       queue.buffer.push(report);
@@ -58,12 +78,12 @@ export class ReportBus {
     return this.queues.size;
   }
 
-  iterate(filter: string | null): AsyncGenerator<{ executionReports: ExecutionReport }> {
-    const state = { filter, buffer: [] as ExecutionReport[], wake: null as (() => void) | null, done: false };
+  iterate(filter: string | null): AsyncGenerator<{ executionReports: SequencedExecutionReport }> {
+    const state = { filter, buffer: [] as SequencedExecutionReport[], wake: null as (() => void) | null, done: false };
     this.queues.add(state);
     const queues = this.queues;
 
-    async function* generate(): AsyncGenerator<{ executionReports: ExecutionReport }> {
+    async function* generate(): AsyncGenerator<{ executionReports: SequencedExecutionReport }> {
       try {
         while (!state.done) {
           if (state.buffer.length === 0) {
@@ -125,6 +145,7 @@ export function createWarmPlane(deps: WarmDeps): WarmPlane {
           avgPx: p.avgPx,
           realisedPnl: p.realisedPnl,
         })),
+      orders: () => deps.orders(),
     },
     mutation: {
       submitOrder: ({ input }: { input: OrderInputGql }) => {
