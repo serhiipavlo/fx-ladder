@@ -46,6 +46,10 @@ export interface Market {
    * refresh so the wire shows it waking, not jumping.
    */
   freeze(pairId: number, ms: number): void;
+  /** Current best bid/ask of one pair — what fills price against (§5.5). */
+  topOfBook(pairId: number): { bid: number; ask: number };
+  /** True while the pair sits inside a freeze window — the server's truth for freshness checks (§7.3). */
+  isFrozen(pairId: number): boolean;
 }
 
 export const BOOK_LEVELS = 4;
@@ -308,6 +312,19 @@ export function createMarket(seed: number, updatesPerSec = 1000): Market {
       if (pair === undefined) throw new Error(`unknown pairId: ${pairId}`);
       if (!Number.isInteger(ms) || ms < 1) throw new Error(`ms must be a positive integer, got ${ms}`);
       pair.freezeArmedMs = ms;
+    },
+
+    topOfBook(pairId: number): { bid: number; ask: number } {
+      const pair = pairs[pairId];
+      if (pair === undefined) throw new Error(`unknown pairId: ${pairId}`);
+      const bid = pair.mid - Math.ceil(pair.spread / 2);
+      return { bid, ask: bid + pair.spread };
+    },
+
+    isFrozen(pairId: number): boolean {
+      const pair = pairs[pairId];
+      if (pair === undefined) throw new Error(`unknown pairId: ${pairId}`);
+      return pair.freezeArmedMs !== null || pair.frozenUntil !== null;
     },
   };
 }
