@@ -2,14 +2,23 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'node:ht
 import type { AddressInfo } from 'node:net';
 import type { Duplex } from 'node:stream';
 
-import type { SimOrderBody } from '@fx/domain';
+import type { ExecutionReport, SimOrderBody } from '@fx/domain';
 import { assembleFrame, encodeFrame, FX_SUBPROTOCOL, heartbeatFrame } from '@fx/protocol';
-import { createExecutionEngine, createMarket, xoshiro128, type ExecutionEngine, type Market } from '@fx/sim-core';
+import {
+  createExecutionEngine,
+  createLedger,
+  createMarket,
+  xoshiro128,
+  type ExecutionEngine,
+  type Ledger,
+  type Market,
+} from '@fx/sim-core';
 import { WebSocket, WebSocketServer } from 'ws';
 
 import { handleInstruments } from './cold';
 import type { FeedServerConfig } from './config';
 import { handleSimRequest, percentile, type SimStats } from './control';
+import { createWarmPlane } from './warm';
 
 export interface FeedServer {
   /** Binds and resolves with the actual port (pass 0 in config for an ephemeral one). */
@@ -51,6 +60,7 @@ export function createFeedServer(config: FeedServerConfig): FeedServer {
     market.topOfBook(pairId),
   );
   let orderCounter = 0;
+  let ledger: Ledger = createLedger();
   const lastLook = { holdMs: 40, rejectRate: 0 };
   // Sequencing is per connection: density of seq is a per-wire contract
   // (architecture §6.2), and a snapshot sent to a newcomer must not tear a
@@ -105,9 +115,13 @@ export function createFeedServer(config: FeedServerConfig): FeedServer {
   const tick = setInterval(() => {
     const started = performance.now();
     const ts = serverTs();
-    // Scheduled execution events materialise on the same clock; their
-    // transport is the warm plane (v0.4) — today they feed the stats.
-    engine.advance(ts);
+    // Scheduled execution events materialise on the same clock: the ledger
+    // books them first (server truth), then every report rides the warm plane
+    // to every subscriber, exactly once (§7.3).
+    for (const report of engine.advance(ts)) {
+      ledger.record(report);
+      warm.bus.publish(report);
+    }
     const updates = market.advance(ts);
     if (updates.length > 0) {
       generated += updates.length;
@@ -160,15 +174,50 @@ export function createFeedServer(config: FeedServerConfig): FeedServer {
     }
   }, HEARTBEAT_SWEEP_MS);
 
+  /**
+   * The one submit path both doors share (§7.3): freshness is the server's
+   * own state at processing time, and immediate rejections defer onto the
+   * next macrotask so every outcome reaches subscribers as an event, after
+   * any ack. /sim/order additionally returns them in its response.
+   */
+  function submitOrderShared(input: SimOrderBody & { pairId: number }): {
+    clOrdId: string;
+    immediate: ExecutionReport[];
+  } {
+    const clOrdId = input.clOrdId ?? `srv-${(orderCounter += 1)}`;
+    ledger.open(clOrdId, input.pairId, input.side, input.qtyK);
+    const immediate = engine.submit(
+      { clOrdId, pairId: input.pairId, side: input.side, qtyK: input.qtyK, tif: input.tif },
+      serverTs(),
+      { stale: market.isFrozen(input.pairId) },
+    );
+    if (immediate.length > 0) {
+      for (const report of immediate) ledger.record(report);
+      setTimeout(() => {
+        for (const report of immediate) warm.bus.publish(report);
+      }, 0);
+    }
+    return { clOrdId, immediate };
+  }
+
+  const warm = createWarmPlane({
+    submitOrder: submitOrderShared,
+    serverTs,
+    trades: (pairId) => ledger.trades(pairId),
+    positions: () => ledger.positions(),
+  });
+
   // What /sim/* is allowed to do to this server (architecture §8).
   const controlDeps = {
     reseed(seed: number): void {
       market = createMarket(seed, updatesPerSec);
-      // Reseed is a new trading day (ADR-10): open orders do not survive it.
+      // Reseed is a new trading day (ADR-10): open orders and the blotter do
+      // not survive it.
       engine = createExecutionEngine(xoshiro128(engineSeed(seed)), (pairId) => market.topOfBook(pairId), {
         holdMs: lastLook.holdMs,
         rejectRate: lastLook.rejectRate,
       });
+      ledger = createLedger();
       // Connected clients' books are stale wholesale: push each a fresh
       // SNAPSHOT that keeps its wire dense — same mechanics as resync (ADR-08).
       const ts = serverTs();
@@ -206,17 +255,7 @@ export function createFeedServer(config: FeedServerConfig): FeedServer {
       lastLook.rejectRate = rejectRate;
       engine.setLastLook(holdMs, rejectRate);
     },
-    submitOrder(input: SimOrderBody & { pairId: number }) {
-      const clOrdId = input.clOrdId ?? `srv-${(orderCounter += 1)}`;
-      // The server is the truth about freshness (§7.3): the check runs against
-      // the market's own state at processing time, never the client's belief.
-      const immediate = engine.submit(
-        { clOrdId, pairId: input.pairId, side: input.side, qtyK: input.qtyK, tif: input.tif },
-        serverTs(),
-        { stale: market.isFrozen(input.pairId) },
-      );
-      return { clOrdId, immediate };
-    },
+    submitOrder: submitOrderShared,
     disconnect(graceful: boolean, afterMs: number): void {
       // Different endings demand different client reactions (§7.1): 1000 is a
       // deliberate goodbye (no reconnect), 4000 is a simulated crash
@@ -304,7 +343,7 @@ export function createFeedServer(config: FeedServerConfig): FeedServer {
 
   httpServer.on('upgrade', (req: IncomingMessage, socket: Duplex, head: Buffer) => {
     const pathname = new URL(req.url ?? '/', 'http://placeholder').pathname;
-    if (pathname !== '/feed') {
+    if (pathname !== '/feed' && pathname !== '/graphql') {
       refuseUpgrade(socket, 404, 'Not Found');
       return;
     }
@@ -313,6 +352,14 @@ export function createFeedServer(config: FeedServerConfig): FeedServer {
     const origin = req.headers.origin;
     if (origin !== undefined && !allowedOrigins.has(origin)) {
       refuseUpgrade(socket, 403, 'Forbidden');
+      return;
+    }
+    if (pathname === '/graphql') {
+      // The warm plane on the same port, routed by path (ADR-05); graphql-ws
+      // negotiates its own subprotocol and heartbeats.
+      warm.wss.handleUpgrade(req, socket, head, (ws) => {
+        warm.wss.emit('connection', ws, req);
+      });
       return;
     }
     // Refuse incompatible clients at the door with a server-side 400: ws's own
@@ -351,12 +398,16 @@ export function createFeedServer(config: FeedServerConfig): FeedServer {
       clearInterval(heartbeat);
       for (const timer of pendingDisconnects) clearTimeout(timer);
       for (const client of wss.clients) client.close(1000, 'server shutting down');
-      return new Promise((resolve, reject) => {
-        wss.close(() => {
-          httpServer.close((err) => (err ? reject(err) : resolve()));
-          httpServer.closeIdleConnections();
-        });
-      });
+      for (const client of warm.wss.clients) client.close(1000, 'server shutting down');
+      return warm.close().then(
+        () =>
+          new Promise((resolve, reject) => {
+            wss.close(() => {
+              httpServer.close((err) => (err ? reject(err) : resolve()));
+              httpServer.closeIdleConnections();
+            });
+          }),
+      );
     },
   };
 }
