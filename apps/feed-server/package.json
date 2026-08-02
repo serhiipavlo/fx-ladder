@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "dev": "tsx watch src/index.ts"
+    "dev": "tsx watch src/index.ts",
+    "build": "node build.mjs"
   },
   "dependencies": {
     "@fx/domain": "workspace:*",
@@ -15,6 +16,7 @@
   },
   "devDependencies": {
     "@types/ws": "^8.18.0",
+    "esbuild": "^0.28.0",
     "tsx": "^4.19.0"
   }
 }
