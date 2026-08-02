@@ -288,6 +288,29 @@ describe('freeze (done-when of T-0.2.4)', () => {
     expect(() => market.freeze(999, 100)).toThrow(/pairId/);
     expect(() => market.freeze(0, 0)).toThrow(/ms/);
   });
+
+  it('isFrozen tells the server truth through the whole window (§7.3)', () => {
+    const market = createMarket(1, 1000);
+    market.advance(0);
+    expect(market.isFrozen(USDJPY)).toBe(false);
+
+    market.freeze(USDJPY, 500);
+    expect(market.isFrozen(USDJPY)).toBe(true); // armed counts: the command has landed
+    market.advance(10); // stamps [10, 510)
+    expect(market.isFrozen(USDJPY)).toBe(true);
+    market.advance(400);
+    expect(market.isFrozen(USDJPY)).toBe(true);
+    market.advance(600);
+    expect(market.isFrozen(USDJPY)).toBe(false);
+    expect(() => market.isFrozen(999)).toThrow(/pairId/);
+  });
+
+  it('topOfBook mirrors the snapshot top and rejects unknown pairs', () => {
+    const market = createMarket(1);
+    const snap = bookFromSnapshot(market.snapshot()).get(0)!;
+    expect(market.topOfBook(0)).toEqual({ bid: snap.bids[0]!, ask: snap.asks[0]! });
+    expect(() => market.topOfBook(999)).toThrow(/pairId/);
+  });
 });
 
 describe('model alignment', () => {
