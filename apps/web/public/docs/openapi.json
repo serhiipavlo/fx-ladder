@@ -159,6 +159,88 @@
         }
       }
     },
+    "/sim/mode": {
+      "post": {
+        "summary": "Batching on/off",
+        "description": "The server half of the §6.4 contrast: `batch: true` (default) accumulates a tick into one frame; `batch: false` sends one frame per update — the wire shape that kills naive clients.",
+        "tags": [
+          "control plane"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SimModeBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Applied.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Body failed the shared domain schema; nothing reached the simulator.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/sim/freeze": {
+      "post": {
+        "summary": "Freeze one pair",
+        "description": "The pair goes silent for `ms` while everything else flows: the client must mark it stale, not disconnected (AC-06). On thaw the pair returns with a full refresh.",
+        "tags": [
+          "control plane"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SimFreezeBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Applied.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Body failed the shared domain schema; nothing reached the simulator.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/sim/disconnect": {
       "post": {
         "summary": "Drop every client",
@@ -351,6 +433,37 @@
         ],
         "additionalProperties": false
       },
+      "SimModeBody": {
+        "type": "object",
+        "properties": {
+          "batch": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "batch"
+        ],
+        "additionalProperties": false
+      },
+      "SimFreezeBody": {
+        "type": "object",
+        "properties": {
+          "pair": {
+            "type": "string",
+            "pattern": "^[A-Z]{6}$"
+          },
+          "ms": {
+            "type": "integer",
+            "minimum": 100,
+            "maximum": 600000
+          }
+        },
+        "required": [
+          "pair",
+          "ms"
+        ],
+        "additionalProperties": false
+      },
       "Ok": {
         "type": "object",
         "additionalProperties": false,
@@ -422,6 +535,8 @@
         "required": [
           "generated",
           "sent",
+          "framesSent",
+          "batch",
           "updatesPerSec",
           "clients",
           "uptimeMs",
@@ -437,6 +552,15 @@
             "type": "integer",
             "minimum": 0,
             "description": "Records sent across all clients."
+          },
+          "framesSent": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Frames sent across all clients."
+          },
+          "batch": {
+            "type": "boolean",
+            "description": "Current /sim/mode: tick frames vs frame-per-update."
           },
           "updatesPerSec": {
             "type": "integer",

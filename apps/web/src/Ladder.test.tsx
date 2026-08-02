@@ -93,4 +93,31 @@ describe('ladder (done-when of T-0.1.8)', () => {
     act(() => feed(SNAPSHOT));
     expect(screen.getByTestId('row-EURUSD').style.opacity).toBe('1');
   });
+
+  it('marks a quiet pair stale while the channel stays alive (AC-06)', () => {
+    const { store, feed } = makeHarness();
+    let clock = SNAPSHOT.serverTs;
+    render(<Ladder store={store} nowFn={() => clock} />);
+    act(() => feed(SNAPSHOT));
+    expect(screen.queryByTestId('stale-USDJPY')).toBeNull();
+
+    // Everything but USDJPY keeps updating past the staleness threshold.
+    let seq = SNAPSHOT.firstSeq + SNAPSHOT.count;
+    for (const dt of [1000, 2000, 3000]) {
+      clock = SNAPSHOT.serverTs + dt;
+      const { frame } = assembleFrame(
+        'DELTA',
+        [{ pairId: 0, side: 'bid', level: 0, price: 108490, size: 700 }],
+        seq,
+        clock,
+      );
+      seq += 1;
+      act(() => feed(frame));
+    }
+
+    expect(screen.getByTestId('stale-USDJPY')).toBeTruthy();
+    expect(screen.queryByTestId('stale-EURUSD')).toBeNull();
+    // Stale ≠ disconnected: the connection itself still reads as live.
+    expect(screen.getByTestId('row-USDJPY').style.opacity).not.toBe('0.4');
+  });
 });

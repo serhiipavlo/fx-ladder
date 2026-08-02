@@ -234,6 +234,60 @@ describe('/sim/news', () => {
   });
 });
 
+describe('/sim/mode (done-when of T-0.2.4)', () => {
+  it('batch:false produces one frame per update; batch:true restores tick frames', { timeout: 10_000 }, async () => {
+    const port = await startServer({ updatesPerSec: 200 });
+    expect((await post(port, '/sim/mode', { batch: false })).status).toBe(200);
+    const { frames } = await openFeed(port);
+    await settle(500);
+
+    const deltas = frames.filter((f) => f.frameType === 'DELTA');
+    expect(deltas.length).toBeGreaterThan(30);
+    // Every unbatched frame carries exactly one record: frames ≈ updates.
+    expect(deltas.every((f) => f.count === 1)).toBe(true);
+
+    const before = frames.length;
+    expect((await post(port, '/sim/mode', { batch: true })).status).toBe(200);
+    await settle(500);
+    const rebatched = frames.slice(before).filter((f) => f.frameType === 'DELTA');
+    expect(rebatched.some((f) => f.count > 1)).toBe(true);
+    expect((await getStats(port)).batch).toBe(true);
+  });
+
+  it('rejects a missing flag', async () => {
+    const port = await startServer();
+    expect((await post(port, '/sim/mode', {})).status).toBe(400);
+  });
+});
+
+describe('/sim/freeze (done-when of T-0.2.4)', () => {
+  it('stops one pair on the wire while the rest keep flowing, then the pair returns', { timeout: 10_000 }, async () => {
+    const port = await startServer({ updatesPerSec: 4000 });
+    const { frames } = await openFeed(port);
+    await settle(150);
+    const framesBefore = frames.length;
+
+    expect((await post(port, '/sim/freeze', { pair: 'USDJPY', ms: 800 })).status).toBe(200);
+    await settle(500); // inside the freeze window
+
+    const during = frames.slice(framesBefore + 1).flatMap((f) => f.records);
+    expect(during.length).toBeGreaterThan(500); // the channel is provably alive
+    expect(during.some((r) => r.pairId === 2)).toBe(false); // USDJPY silent
+
+    await settle(700); // past the window
+    const after = frames.flatMap((f) => f.records);
+    expect(after.some((r) => r.pairId === 2)).toBe(true); // woke up again
+  });
+
+  it('unknown pair is a field-level 400', async () => {
+    const port = await startServer();
+    const res = await post(port, '/sim/freeze', { pair: 'ZZZZZZ', ms: 500 });
+    expect(res.status).toBe(400);
+    const body = (await res.json()) as { issues: Array<{ path: string }> };
+    expect(body.issues[0]!.path).toBe('pair');
+  });
+});
+
 describe('/sim/disconnect (done-when of T-0.2.2)', () => {
   it('graceful drops every client with 1000 — the deliberate goodbye', { timeout: 10_000 }, async () => {
     const port = await startServer();

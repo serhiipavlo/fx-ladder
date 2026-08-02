@@ -38,6 +38,12 @@ export interface StreamStats {
 export const DEAD_AFTER_MS = 3000;
 
 /**
+ * No update for one pair for this long while the channel is alive = the pair
+ * is stale, not the connection (AC-06): frozen ≠ disconnected.
+ */
+export const STALE_AFTER_MS = 2500;
+
+/**
  * One record is a full upsert of one level: applying it twice is a no-op by
  * construction, size 0 clears the level (§6.1).
  */
@@ -66,6 +72,8 @@ export interface StreamCore {
    * re-renders only when its pair's counter moved (NFR-03).
    */
   pairVersions(): ReadonlyMap<number, number>;
+  /** Client-clock moment this pair last updated; null before its first record. */
+  pairUpdatedAt(pairId: number): number | null;
 }
 
 export function createStreamCore(): StreamCore {
@@ -85,9 +93,11 @@ export function createStreamCore(): StreamCore {
 
   let version = 0;
   const pairVersions = new Map<number, number>();
+  const pairTouchedAt = new Map<number, number>();
 
-  function bumpPair(pairId: number): void {
+  function bumpPair(pairId: number, now: number): void {
     pairVersions.set(pairId, (pairVersions.get(pairId) ?? 0) + 1);
+    pairTouchedAt.set(pairId, now);
   }
 
   function resync(reason: ResyncReason): StreamEvent[] {
@@ -121,7 +131,7 @@ export function createStreamCore(): StreamCore {
         // code path on purpose (ADR-08).
         books.clear();
         for (const record of frame.records) applyRecord(books, record);
-        for (const pairId of books.keys()) bumpPair(pairId);
+        for (const pairId of books.keys()) bumpPair(pairId, now);
         stats.records += frame.count;
         stats.lastSeq = frame.count > 0 ? frame.firstSeq + frame.count - 1 : frame.firstSeq;
         expectedSeq = frame.firstSeq + frame.count;
@@ -147,7 +157,7 @@ export function createStreamCore(): StreamCore {
       }
       for (const record of frame.records) {
         applyRecord(books, record);
-        bumpPair(record.pairId);
+        bumpPair(record.pairId, now);
       }
       stats.records += frame.count;
       stats.lastSeq = frame.firstSeq + frame.count - 1;
@@ -168,5 +178,6 @@ export function createStreamCore(): StreamCore {
     stats: () => stats,
     version: () => version,
     pairVersions: () => pairVersions,
+    pairUpdatedAt: (pairId) => pairTouchedAt.get(pairId) ?? null,
   };
 }

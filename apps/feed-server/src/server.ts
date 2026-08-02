@@ -45,6 +45,10 @@ export function createFeedServer(config: FeedServerConfig): FeedServer {
   // Telemetry for /sim/stats — the numbers the perf gate reads (plan §3).
   let generated = 0;
   let sent = 0;
+  let framesSent = 0;
+  // The server half of the §6.4 contrast: batched tick frames (default) vs
+  // one frame per update — the wire shape a naive server would produce.
+  let batchMode = true;
   const tickDurations: number[] = [];
   let tickCursor = 0;
 
@@ -87,7 +91,6 @@ export function createFeedServer(config: FeedServerConfig): FeedServer {
     const updates = market.advance(ts);
     if (updates.length > 0) {
       generated += updates.length;
-      // One send per client per tick (§7.1); seq assigned last, per wire (§6.2).
       for (const [ws, state] of clients) {
         if (ws.readyState !== WebSocket.OPEN) continue;
         if (ws.bufferedAmount > config.slowClientBufferBytes) {
@@ -97,9 +100,21 @@ export function createFeedServer(config: FeedServerConfig): FeedServer {
           ws.close(4001, 'slow consumer: send queue over limit');
           continue;
         }
-        const { frame, nextSeq } = assembleFrame('DELTA', updates, state.nextSeq, ts);
-        ws.send(encodeFrame(frame));
-        state.nextSeq = nextSeq;
+        if (batchMode) {
+          // One send per client per tick (§7.1); seq assigned last, per wire (§6.2).
+          const { frame, nextSeq } = assembleFrame('DELTA', updates, state.nextSeq, ts);
+          ws.send(encodeFrame(frame));
+          state.nextSeq = nextSeq;
+          framesSent += 1;
+        } else {
+          // batch:false — a frame per update, the §6.4 pathology on demand.
+          for (const update of updates) {
+            const { frame, nextSeq } = assembleFrame('DELTA', [update], state.nextSeq, ts);
+            ws.send(encodeFrame(frame));
+            state.nextSeq = nextSeq;
+            framesSent += 1;
+          }
+        }
         state.lastSentTs = ts;
         sent += updates.length;
       }
@@ -149,6 +164,12 @@ export function createFeedServer(config: FeedServerConfig): FeedServer {
       // The shock and the owed both-side refresh ride the next tick (§5.3).
       market.news(pairId, pips, spreadX);
     },
+    setBatch(batch: boolean): void {
+      batchMode = batch;
+    },
+    freeze(pairId: number, ms: number): void {
+      market.freeze(pairId, ms);
+    },
     disconnect(graceful: boolean, afterMs: number): void {
       // Different endings demand different client reactions (§7.1): 1000 is a
       // deliberate goodbye (no reconnect), 4000 is a simulated crash
@@ -167,6 +188,8 @@ export function createFeedServer(config: FeedServerConfig): FeedServer {
       return {
         generated,
         sent,
+        framesSent,
+        batch: batchMode,
         updatesPerSec,
         clients: clients.size,
         uptimeMs: serverTs(),

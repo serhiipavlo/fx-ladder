@@ -1,6 +1,8 @@
 import {
   simDisconnectBodySchema,
+  simFreezeBodySchema,
   simGapBodySchema,
+  simModeBodySchema,
   simNewsBodySchema,
   simRateBodySchema,
   simSeedBodySchema,
@@ -102,6 +104,18 @@ export function buildOpenApi(): JsonSchema {
           'for exercising the client gap detector (NFR-08).',
         'SimGapBody',
       ),
+      '/sim/mode': controlPost(
+        'Batching on/off',
+        'The server half of the §6.4 contrast: `batch: true` (default) accumulates a tick into one ' +
+          'frame; `batch: false` sends one frame per update — the wire shape that kills naive clients.',
+        'SimModeBody',
+      ),
+      '/sim/freeze': controlPost(
+        'Freeze one pair',
+        'The pair goes silent for `ms` while everything else flows: the client must mark it stale, ' +
+          'not disconnected (AC-06). On thaw the pair returns with a full refresh.',
+        'SimFreezeBody',
+      ),
       '/sim/disconnect': controlPost(
         'Drop every client',
         'Graceful (`close 1000` — the client must not reconnect: the goodbye is deliberate) versus a ' +
@@ -137,6 +151,8 @@ export function buildOpenApi(): JsonSchema {
         SimGapBody: fromZod(simGapBodySchema),
         SimNewsBody: fromZod(simNewsBodySchema),
         SimDisconnectBody: fromZod(simDisconnectBodySchema),
+        SimModeBody: fromZod(simModeBodySchema),
+        SimFreezeBody: fromZod(simFreezeBodySchema),
         Ok: {
           type: 'object',
           additionalProperties: false,
@@ -175,10 +191,12 @@ export function buildOpenApi(): JsonSchema {
         SimStats: {
           type: 'object',
           additionalProperties: false,
-          required: ['generated', 'sent', 'updatesPerSec', 'clients', 'uptimeMs', 'tick'],
+          required: ['generated', 'sent', 'framesSent', 'batch', 'updatesPerSec', 'clients', 'uptimeMs', 'tick'],
           properties: {
             generated: { type: 'integer', minimum: 0, description: 'Records produced by the model since start.' },
             sent: { type: 'integer', minimum: 0, description: 'Records sent across all clients.' },
+            framesSent: { type: 'integer', minimum: 0, description: 'Frames sent across all clients.' },
+            batch: { type: 'boolean', description: 'Current /sim/mode: tick frames vs frame-per-update.' },
             updatesPerSec: { type: 'integer', minimum: 1 },
             clients: { type: 'integer', minimum: 0 },
             uptimeMs: { type: 'integer', minimum: 0 },
