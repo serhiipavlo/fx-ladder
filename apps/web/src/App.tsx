@@ -1,55 +1,64 @@
-import { FX_SUBPROTOCOL, type Frame } from '@fx/protocol';
-import { useEffect, useState } from 'react';
+import { FX_SUBPROTOCOL } from '@fx/protocol';
+import { useEffect, useState, useSyncExternalStore } from 'react';
 
 import { feedWsUrl, healthzUrl } from './backend';
-
-type ConnectionState = 'connecting' | 'connected' | 'disconnected';
-
-const stateColor: Record<ConnectionState, string> = {
-  connecting: '#b58900',
-  connected: '#2aa198',
-  disconnected: '#dc322f',
-};
+import { Ladder } from './Ladder';
+import { connectFeedStream } from './stream/connect';
+import { createFeedStore, type FeedStore } from './stream/store';
 
 const WAKE_DEADLINE_MS = 90_000;
 const WAKE_RETRY_MS = 3_000;
 
+function StatusLine({ store }: { store: FeedStore }): React.JSX.Element {
+  useSyncExternalStore(store.subscribe, () => store.version());
+  const socket = store.socketState();
+  const status = store.core.status();
+  const stats = store.core.stats();
+
+  const label =
+    socket === 'open'
+      ? status === 'live'
+        ? 'live'
+        : status === 'resync'
+          ? 'resyncing'
+          : 'connecting'
+      : socket === 'connecting'
+        ? 'connecting'
+        : 'disconnected — retrying';
+  const color = label === 'live' ? '#2aa198' : label.startsWith('disconnected') ? '#dc322f' : '#b58900';
+
+  return (
+    <p>
+      feed: <strong style={{ color }}>{label}</strong> ({FX_SUBPROTOCOL}) — frames {stats.frames}, records{' '}
+      {stats.records}, heartbeats {stats.heartbeats}, gaps <span data-testid="gaps">{stats.gaps}</span>, last seq{' '}
+      {stats.lastSeq ?? '—'}
+    </p>
+  );
+}
+
 export function App(): React.JSX.Element {
-  const [connection, setConnection] = useState<ConnectionState>('connecting');
-  const [heartbeats, setHeartbeats] = useState(0);
-  const [lastFrame, setLastFrame] = useState<Frame | null>(null);
+  const [store, setStore] = useState<FeedStore | null>(null);
   const [health, setHealth] = useState('fetching…');
-  const [attempt, setAttempt] = useState(1);
   const [waking, setWaking] = useState(false);
 
   useEffect(() => {
-    setConnection('connecting');
-    const ws = new WebSocket(feedWsUrl(), FX_SUBPROTOCOL);
-    ws.onopen = () => setConnection('connected');
-    ws.onclose = () => setConnection('disconnected');
-    ws.onmessage = (event: MessageEvent<string>) => {
-      const frame = JSON.parse(event.data) as Frame;
-      if (frame.frameType === 'HEARTBEAT') {
-        setHeartbeats((n) => n + 1);
-        setLastFrame(frame);
-      }
-    };
-    return () => ws.close();
-  }, [attempt]);
+    const created = createFeedStore((onChange) => connectFeedStream(feedWsUrl(), onChange));
+    setStore(created);
+    return () => created.close();
+  }, []);
 
   useEffect(() => {
     // The one deliberately cross-origin fetch of the walking skeleton: on the
-    // deployed site it proves CORS between the static host and the container —
-    // the WS handshake alone cannot (plan §3, v0.0.1).
+    // deployed site it proves CORS between the static host and the container.
     fetch(healthzUrl())
       .then((res) => res.json())
       .then((body: unknown) => setHealth(JSON.stringify(body)))
       .catch((err: unknown) => setHealth(`error: ${err instanceof Error ? err.message : String(err)}`));
-  }, [attempt]);
+  }, []);
 
-  // The free Render instance spins down after ~15 min without inbound traffic
-  // and takes up to a minute to cold-start (ADR-11 revision). Waking = knock
-  // on /healthz until it answers, then reconnect the feed.
+  // The free Render instance sleeps after ~15 min without inbound traffic and
+  // takes up to a minute to cold-start (ADR-11 revision). Waking = knock on
+  // /healthz until it answers; the stream's own 1 s retry then reconnects.
   async function wake(): Promise<void> {
     setWaking(true);
     setHealth('waking…');
@@ -58,8 +67,8 @@ export function App(): React.JSX.Element {
       try {
         const res = await fetch(healthzUrl());
         if (res.ok) {
+          setHealth(JSON.stringify(await res.json()));
           setWaking(false);
-          setAttempt((n) => n + 1);
           return;
         }
       } catch {
@@ -73,34 +82,32 @@ export function App(): React.JSX.Element {
 
   return (
     <main style={{ fontFamily: 'ui-monospace, monospace', padding: '2rem', lineHeight: 1.8 }}>
-      <h1 style={{ marginTop: 0 }}>FX Ladder — walking skeleton</h1>
-      <p>
-        feed:{' '}
-        <strong style={{ color: stateColor[connection] }}>{connection}</strong> ({FX_SUBPROTOCOL})
-      </p>
-      <p>
-        heartbeats: <strong>{heartbeats}</strong>
-        {lastFrame === null ? null : ` — last seq ${lastFrame.firstSeq}, serverTs ${lastFrame.serverTs} ms`}
-      </p>
+      <h1 style={{ marginTop: 0 }}>FX Ladder</h1>
+      {store === null ? null : (
+        <>
+          <StatusLine store={store} />
+          <Ladder store={store} />
+          {store.socketState() === 'closed' ? (
+            <p>
+              <button
+                onClick={() => void wake()}
+                disabled={waking}
+                style={{ font: 'inherit', padding: '0.4rem 1rem', cursor: waking ? 'wait' : 'pointer' }}
+              >
+                {waking ? 'waking the server…' : 'Wake the server'}
+              </button>
+              <br />
+              <small>free instance sleeps after ~15 min idle; waking takes up to a minute</small>
+            </p>
+          ) : null}
+        </>
+      )}
       <p>
         healthz: <code>{health}</code>
       </p>
       <p>
         <a href="/docs/">API docs</a> — control plane (OpenAPI) + feed (AsyncAPI)
       </p>
-      {connection === 'disconnected' ? (
-        <p>
-          <button
-            onClick={() => void wake()}
-            disabled={waking}
-            style={{ font: 'inherit', padding: '0.4rem 1rem', cursor: waking ? 'wait' : 'pointer' }}
-          >
-            {waking ? 'waking the server…' : 'Wake the server'}
-          </button>
-          <br />
-          <small>free instance sleeps after ~15 min idle; waking takes up to a minute</small>
-        </p>
-      ) : null}
     </main>
   );
 }
