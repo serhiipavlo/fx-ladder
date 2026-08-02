@@ -367,7 +367,7 @@
           "updatesPerSec": {
             "type": "integer",
             "minimum": 1,
-            "maximum": 10000
+            "maximum": 100000
           }
         },
         "required": [

@@ -25,10 +25,14 @@ function makeHarness(socket: SocketState = 'open') {
     resume: () => undefined,
     close: () => undefined,
   };
-  const store = createFeedStore((onChange) => {
-    notify = onChange;
-    return handle;
-  });
+  // Synchronous frame scheduler: coalesced flushes run inline under act().
+  const store = createFeedStore(
+    (onChange) => {
+      notify = onChange;
+      return handle;
+    },
+    { scheduleFrame: (cb) => cb(), nowFn: () => 0 },
+  );
   const feed = (frame: Frame): void => {
     core.onMessage(encodeFrame(frame), frame.serverTs);
     notify();

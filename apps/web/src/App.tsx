@@ -28,16 +28,32 @@ function StatusLine({ store }: { store: FeedStore }): React.JSX.Element {
         : (closeInfo?.decision.label ?? 'disconnected — retrying');
   const color = label === 'live' ? '#2aa198' : store.terminal() || label.includes('lost') ? '#dc322f' : '#b58900';
 
+  const render = store.renderStats();
   return (
-    <p>
-      feed:{' '}
-      <strong style={{ color }} data-testid="feed-status">
-        {label}
-      </strong>{' '}
-      ({FX_SUBPROTOCOL}) — frames {stats.frames}, records{' '}
-      {stats.records}, heartbeats {stats.heartbeats}, gaps <span data-testid="gaps">{stats.gaps}</span>, last seq{' '}
-      {stats.lastSeq ?? '—'}
-    </p>
+    <>
+      <p>
+        feed:{' '}
+        <strong style={{ color }} data-testid="feed-status">
+          {label}
+        </strong>{' '}
+        ({FX_SUBPROTOCOL}) — frames {stats.frames}, records{' '}
+        {stats.records}, heartbeats {stats.heartbeats}, gaps <span data-testid="gaps">{stats.gaps}</span>, last seq{' '}
+        {stats.lastSeq ?? '—'}
+      </p>
+      <p>
+        render:{' '}
+        <button
+          data-testid="render-mode"
+          onClick={() => store.setRenderMode(render.mode === 'coalesced' ? 'naive' : 'coalesced')}
+          style={{ font: 'inherit', padding: '0.1rem 0.6rem', cursor: 'pointer' }}
+        >
+          {render.mode}
+        </button>{' '}
+        — renders {render.renders}, msg p95{' '}
+        <span data-testid="msg-p95">{render.messageP95.toFixed(2)}</span> ms, flush p95{' '}
+        <span data-testid="flush-p95">{render.flushP95.toFixed(2)}</span> ms
+      </p>
+    </>
   );
 }
 
