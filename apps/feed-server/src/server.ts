@@ -19,6 +19,7 @@ export interface FeedServer {
 interface ClientState {
   nextSeq: number;
   lastSentTs: number;
+  connectedAt: number;
 }
 
 /** How often silence is checked for; the heartbeat interval itself is config. */
@@ -73,7 +74,7 @@ export function createFeedServer(config: FeedServerConfig): FeedServer {
     const ts = serverTs();
     const { frame, nextSeq } = assembleFrame('SNAPSHOT', market.snapshot(), 0, ts);
     ws.send(encodeFrame(frame));
-    clients.set(ws, { nextSeq, lastSentTs: ts });
+    clients.set(ws, { nextSeq, lastSentTs: ts, connectedAt: ts });
 
     ws.on('message', () => {
       // The v0.1 data plane is strictly server → client; any inbound frame is
@@ -126,6 +127,12 @@ export function createFeedServer(config: FeedServerConfig): FeedServer {
     const ts = serverTs();
     for (const [ws, state] of clients) {
       if (ws.readyState !== WebSocket.OPEN) continue;
+      if (ts - state.connectedAt >= config.sessionCeilingMs) {
+        // A deliberate goodbye, not an error: the client's 1000-policy stops
+        // reconnecting and the UI offers to continue instead (architecture §8).
+        ws.close(1000, 'session ceiling reached — press Reconnect to continue');
+        continue;
+      }
       if (ts - state.lastSentTs < config.heartbeatIntervalMs) continue;
       // Silence becomes a signal: channel alive, market quiet — and the last
       // assigned seq proves completeness without new data (§6.3).
@@ -242,8 +249,10 @@ export function createFeedServer(config: FeedServerConfig): FeedServer {
     res.end(JSON.stringify({ error: 'not found' }));
   }
 
-  function refuseUpgrade(socket: Duplex, status: number, reason: string): void {
-    socket.write(`HTTP/1.1 ${status} ${reason}\r\nConnection: close\r\n\r\n`);
+  function refuseUpgrade(socket: Duplex, status: number, reason: string, body = ''): void {
+    socket.write(
+      `HTTP/1.1 ${status} ${reason}\r\nConnection: close\r\nContent-Type: text/plain\r\nContent-Length: ${Buffer.byteLength(body)}\r\n\r\n${body}`,
+    );
     socket.destroy();
   }
 
@@ -266,6 +275,12 @@ export function createFeedServer(config: FeedServerConfig): FeedServer {
     const offered = (req.headers['sec-websocket-protocol'] ?? '').split(',').map((p) => p.trim());
     if (!offered.includes(FX_SUBPROTOCOL)) {
       refuseUpgrade(socket, 400, 'Bad Request');
+      return;
+    }
+    // Resource guard for the unattended public link (architecture §8): the
+    // (N+1)-th client is refused at the door with the reason stated.
+    if (clients.size >= config.maxClients) {
+      refuseUpgrade(socket, 503, 'Service Unavailable', `client limit reached (${config.maxClients})`);
       return;
     }
     wss.handleUpgrade(req, socket, head, (ws) => {

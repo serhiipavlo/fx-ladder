@@ -19,6 +19,8 @@ function testConfig(overrides: Partial<FeedServerConfig> = {}): FeedServerConfig
     seed: 42,
     updatesPerSec: 2000,
     slowClientBufferBytes: 1_000_000,
+    maxClients: 20,
+    sessionCeilingMs: 30 * 60_000,
     ...overrides,
   };
 }
@@ -173,6 +175,35 @@ describe('hot plane (done-when of T-0.1.5)', () => {
       }
     },
   );
+
+  it('the (N+1)-th client is refused with the reason stated, and a freed slot reopens', async () => {
+    const { port } = await startServer({ maxClients: 2 });
+    const { ws: first } = await openFeed(port);
+    await openFeed(port);
+
+    const refused = await handshake(`ws://127.0.0.1:${port}/feed`, [FX_SUBPROTOCOL], { Origin: ALLOWED_ORIGIN });
+    expect(refused).toEqual({ outcome: 'refused', status: 503 });
+
+    // The cap counts live connections: closing one lets the next one in.
+    const freed = new Promise<void>((resolve) => first.on('close', () => resolve()));
+    first.close();
+    await freed;
+    await settle(50);
+    const retry = await handshake(`ws://127.0.0.1:${port}/feed`, [FX_SUBPROTOCOL], { Origin: ALLOWED_ORIGIN });
+    expect(retry.outcome).toBe('open');
+  });
+
+  it('a connection past the session ceiling closes with 1000 and the continue reason', { timeout: 10_000 }, async () => {
+    const { port } = await startServer({ sessionCeilingMs: 700 });
+    const { ws } = await openFeed(port);
+    const closed = new Promise<{ code: number; reason: string }>((resolve) =>
+      ws.on('close', (code, reason) => resolve({ code, reason: String(reason) })),
+    );
+    const result = await closed;
+    expect(result.code).toBe(1000);
+    expect(result.reason).toContain('session ceiling');
+    expect(result.reason).toContain('Reconnect');
+  });
 
   it('graceful shutdown closes a streaming client with 1000', async () => {
     const { server, port } = await startServer();

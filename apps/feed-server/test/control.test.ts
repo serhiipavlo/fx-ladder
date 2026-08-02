@@ -17,6 +17,8 @@ function testConfig(overrides: Partial<FeedServerConfig> = {}): FeedServerConfig
     seed: 42,
     updatesPerSec: 2000,
     slowClientBufferBytes: 1_000_000,
+    maxClients: 20,
+    sessionCeilingMs: 30 * 60_000,
     ...overrides,
   };
 }

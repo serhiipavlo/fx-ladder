@@ -80,7 +80,7 @@ function WakePanel({
       <br />
       <small>
         {store.terminal()
-          ? (store.lastClose()?.decision.label ?? 'stopped')
+          ? (store.lastClose()?.reason || (store.lastClose()?.decision.label ?? 'stopped'))
           : 'free instance sleeps after ~15 min idle; waking takes up to a minute'}
       </small>
     </p>
