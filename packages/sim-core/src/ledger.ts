@@ -27,18 +27,21 @@ export interface PositionRow {
   realisedPnl: number;
 }
 
+export interface OrderMeta {
+  pairId: number;
+  side: OrderSide;
+  qtyK: number;
+}
+
 export interface Ledger {
   /** Registers an order's metadata; reports carry only the clOrdId. */
   open(clOrdId: string, pairId: number, side: OrderSide, qtyK: number): void;
   /** Folds one execution report; only TRADEs move money. */
   record(report: ExecutionReport): void;
+  /** Registration data for wire enrichment (§7.3): pair, side, order size. */
+  orderMeta(clOrdId: string): OrderMeta | undefined;
   trades(pairId?: number | null): readonly TradeRow[];
   positions(): readonly PositionRow[];
-}
-
-interface OrderMeta {
-  pairId: number;
-  side: OrderSide;
 }
 
 export function createLedger(): Ledger {
@@ -85,7 +88,11 @@ export function createLedger(): Ledger {
     open(clOrdId, pairId, side, qtyK): void {
       if (meta.has(clOrdId)) throw new Error(`duplicate clOrdId in ledger: ${clOrdId}`);
       if (!Number.isInteger(qtyK) || qtyK < 0) throw new Error(`qtyK must be a non-negative integer, got ${qtyK}`);
-      meta.set(clOrdId, { pairId, side });
+      meta.set(clOrdId, { pairId, side, qtyK });
+    },
+
+    orderMeta(clOrdId): OrderMeta | undefined {
+      return meta.get(clOrdId);
     },
 
     record(report): void {

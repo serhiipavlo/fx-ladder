@@ -77,7 +77,7 @@ function collectReports(
     {
       query: `subscription Reports($clOrdId: ID) {
         executionReports(clOrdId: $clOrdId) {
-          clOrdId execType ordStatus lastPx lastQty cumQty leavesQty rejectReason transactTime
+          clOrdId pair side orderQtyK execType ordStatus lastPx lastQty cumQty leavesQty rejectReason transactTime
         }
       }`,
       variables: { clOrdId: clOrdId ?? null },
@@ -171,6 +171,16 @@ describe('submitOrder (done-when of T-0.4.2)', () => {
 
     await until(() => sink.some((r) => r.clOrdId === ack.submitOrder.clOrdId));
     expect(arrivals[0]).toBe('ack');
+
+    // Enrichment (§7.3): the wire report knows its order without a registry.
+    const enriched = sink.find((r) => r.clOrdId === ack.submitOrder.clOrdId)! as ExecutionReport & {
+      pair: string;
+      side: string;
+      orderQtyK: number;
+    };
+    expect(enriched.pair).toBe('EURUSD');
+    expect(enriched.side).toBe('buy');
+    expect(enriched.orderQtyK).toBe(200);
   });
 
   it('a freshness-rejected order still acks, then reports the rejection as an event', async () => {

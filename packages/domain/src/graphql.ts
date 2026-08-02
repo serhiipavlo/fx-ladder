@@ -60,6 +60,10 @@ export const GRAPHQL_SCHEMA_SDL = /* GraphQL */ `
   "One §5.6 event: execType says what happened, ordStatus what the order is now."
   type ExecutionReport {
     clOrdId: ID!
+    "Enriched from the order's registration, so a blotter needs no local registry."
+    pair: String!
+    side: Side!
+    orderQtyK: Int!
     execType: ExecType!
     ordStatus: OrdStatus!
     "Fill price in pipettes; TRADE only."
