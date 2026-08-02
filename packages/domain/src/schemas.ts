@@ -86,6 +86,18 @@ export const simBlotterBodySchema = z.strictObject({
 export type SimBlotterBody = z.infer<typeof simBlotterBodySchema>;
 
 /**
+ * POST /sim/scenario — the demo as data (architecture §8): plays a named
+ * timeline of control commands. `speed` compresses the timeline (offset ÷
+ * speed) — ×1 is the live five-minute demo, tests run the same sequence in
+ * seconds. A new scenario cancels whatever the previous one had pending.
+ */
+export const simScenarioBodySchema = z.strictObject({
+  name: z.enum(['demo-5min']),
+  speed: z.number().int().min(1).max(600).optional().default(1),
+});
+export type SimScenarioBody = z.infer<typeof simScenarioBodySchema>;
+
+/**
  * POST /sim/order — the dev-harness door into the execution engine (T-0.3.6).
  * The user-facing order loop arrives with the warm plane in v0.4; this body
  * exists so the event grammar can be exercised and observed today.

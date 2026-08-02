@@ -2,7 +2,15 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'node:ht
 import type { AddressInfo } from 'node:net';
 import type { Duplex } from 'node:stream';
 
-import { INSTRUMENTS, type ExecutionReport, type SimOrderBody } from '@fx/domain';
+import {
+  INSTRUMENTS,
+  pairIdOf,
+  SCENARIOS,
+  type ExecutionReport,
+  type ScenarioName,
+  type ScenarioStep,
+  type SimOrderBody,
+} from '@fx/domain';
 import { assembleFrame, encodeFrame, FX_SUBPROTOCOL, heartbeatFrame } from '@fx/protocol';
 import {
   createExecutionEngine,
@@ -83,6 +91,7 @@ export function createFeedServer(config: FeedServerConfig): FeedServer {
   // hole into anyone else's stream.
   const clients = new Map<WebSocket, ClientState>();
   const pendingDisconnects = new Set<NodeJS.Timeout>();
+  const scenarioTimers = new Set<NodeJS.Timeout>();
   let closed = false;
 
   // Telemetry for /sim/stats — the numbers the perf gate reads (plan §3).
@@ -295,6 +304,26 @@ export function createFeedServer(config: FeedServerConfig): FeedServer {
       }
       return { submitted: rows };
     },
+    scenario(name: ScenarioName, speed: number): { steps: number; durationMs: number } {
+      // One director at a time: a new scenario cancels whatever the previous
+      // one still had pending, so a replay never inherits stray commands.
+      for (const timer of scenarioTimers) clearTimeout(timer);
+      scenarioTimers.clear();
+      const steps = SCENARIOS[name];
+      let durationMs = 0;
+      for (const step of steps) {
+        // The timeline is data; speed only compresses it (offset ÷ speed) —
+        // ×1 is the live five-minute demo, tests replay it in seconds.
+        const delay = Math.round(step.atMs / speed);
+        durationMs = Math.max(durationMs, delay);
+        const timer = setTimeout(() => {
+          scenarioTimers.delete(timer);
+          applyScenarioStep(step);
+        }, delay);
+        scenarioTimers.add(timer);
+      }
+      return { steps: steps.length, durationMs };
+    },
     disconnect(graceful: boolean, afterMs: number): void {
       // Different endings demand different client reactions (§7.1): 1000 is a
       // deliberate goodbye (no reconnect), 4000 is a simulated crash
@@ -329,6 +358,31 @@ export function createFeedServer(config: FeedServerConfig): FeedServer {
       };
     },
   };
+
+  /** Scenario steps reuse the exact control-plane actions, one per command. */
+  function applyScenarioStep(step: ScenarioStep): void {
+    switch (step.action) {
+      case 'rate':
+        controlDeps.setRate(step.updatesPerSec);
+        break;
+      case 'mode':
+        controlDeps.setBatch(step.batch);
+        break;
+      case 'news':
+        // Timeline pairs are proven resolvable by the domain's scenario test.
+        controlDeps.news(pairIdOf(step.pair), step.pips, step.spreadX);
+        break;
+      case 'freeze':
+        controlDeps.freeze(pairIdOf(step.pair), step.ms);
+        break;
+      case 'lastlook':
+        controlDeps.setLastLook(step.holdMs, step.rejectRate);
+        break;
+      case 'disconnect':
+        controlDeps.disconnect(step.graceful, 0);
+        break;
+    }
+  }
 
   function handleRequest(req: IncomingMessage, res: ServerResponse): void {
     const pathname = new URL(req.url ?? '/', 'http://placeholder').pathname;
@@ -436,6 +490,7 @@ export function createFeedServer(config: FeedServerConfig): FeedServer {
       clearInterval(tick);
       clearInterval(heartbeat);
       for (const timer of pendingDisconnects) clearTimeout(timer);
+      for (const timer of scenarioTimers) clearTimeout(timer);
       for (const client of wss.clients) client.close(1000, 'server shutting down');
       for (const client of warm.wss.clients) client.close(1000, 'server shutting down');
       return warm.close().then(

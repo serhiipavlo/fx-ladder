@@ -439,6 +439,82 @@ describe('/sim/blotter (done-when of T-0.4.6, server half)', () => {
   });
 });
 
+describe('/sim/scenario (done-when of T-0.4.7)', () => {
+  it('demo-5min plays the full §8 sequence — asserted from /sim/stats — identically twice from the same seed', { timeout: 30_000 }, async () => {
+    const port = await startServer({ updatesPerSec: 1000 });
+
+    const posture = (s: SimStats): string =>
+      `${s.updatesPerSec}/${s.batch}/${s.executions.lastLook.holdMs}/${s.executions.lastLook.rejectRate}`;
+
+    async function play(): Promise<{ transitions: string[]; closeCode: number }> {
+      expect((await post(port, '/sim/seed', { seed: 11 })).status).toBe(200);
+      const { ws } = await openFeed(port);
+      const closeCode = new Promise<number>((resolve) => ws.on('close', resolve));
+
+      const res = await post(port, '/sim/scenario', { name: 'demo-5min', speed: 100 });
+      expect(res.status).toBe(200);
+      const body = (await res.json()) as { ok: boolean; steps: number; durationMs: number };
+      expect(body).toEqual({ ok: true, steps: 11, durationMs: 2400 });
+
+      // The calm prologue is the timeline's own step 0 — wait for it, then
+      // record every distinct stats-visible posture until the play ends.
+      const prologue = Date.now() + 2000;
+      while (posture(await getStats(port)) !== '300/true/40/0') {
+        if (Date.now() > prologue) throw new Error('scenario prologue never applied');
+        await settle(10);
+      }
+      const transitions = ['300/true/40/0'];
+      const deadline = Date.now() + body.durationMs + 1000;
+      while (Date.now() < deadline) {
+        const seen = posture(await getStats(port));
+        if (transitions[transitions.length - 1] !== seen) transitions.push(seen);
+        await settle(15);
+      }
+      return { transitions, closeCode: await closeCode };
+    }
+
+    const first = await play();
+    // Spec §8 read from stats: calm → spike → naive → batched again →
+    // (crash on the wire) → calm after recovery → last look armed.
+    expect(first.transitions).toEqual([
+      '300/true/40/0',
+      '50000/true/40/0',
+      '50000/false/40/0',
+      '50000/true/40/0',
+      '2000/true/40/0',
+      '2000/true/80/0.3',
+    ]);
+    expect(first.closeCode).toBe(4000); // the scripted crash reached the wire
+
+    const second = await play();
+    expect(second).toEqual(first); // same seed, same timeline, same play
+  });
+
+  it('a new scenario cancels the previous one’s pending steps', { timeout: 15_000 }, async () => {
+    const port = await startServer();
+    // Slow play: its spike would land at 30 s ÷ 20 = 1.5 s…
+    expect((await post(port, '/sim/scenario', { name: 'demo-5min', speed: 20 })).status).toBe(200);
+    // …but the replacement takes the stage before that.
+    expect((await post(port, '/sim/scenario', { name: 'demo-5min', speed: 600 })).status).toBe(200);
+
+    await settle(900); // 300 s ÷ 600 = 500 ms — the fast play has finished
+    const after = await getStats(port);
+    expect(after.updatesPerSec).toBe(2000);
+    expect(after.executions.lastLook).toEqual({ holdMs: 80, rejectRate: 0.3 });
+
+    await settle(900); // past the slow play's spike time: nothing fires
+    expect((await getStats(port)).updatesPerSec).toBe(2000);
+  });
+
+  it('unknown names and out-of-range speeds die at the border', async () => {
+    const port = await startServer();
+    expect((await post(port, '/sim/scenario', { name: 'nope' })).status).toBe(400);
+    expect((await post(port, '/sim/scenario', { name: 'demo-5min', speed: 0 })).status).toBe(400);
+    expect((await post(port, '/sim/scenario', { name: 'demo-5min', speed: 601 })).status).toBe(400);
+    expect((await post(port, '/sim/scenario', { name: 'demo-5min', extra: 1 })).status).toBe(400);
+  });
+});
+
 describe('CORS preflight (the docs page posts cross-origin)', () => {
   it('answers OPTIONS with the method/header grant for an allowed origin', async () => {
     const port = await startServer();
