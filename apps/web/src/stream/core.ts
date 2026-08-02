@@ -59,6 +59,13 @@ export interface StreamCore {
   status(): StreamStatus;
   books(): ReadonlyMap<number, PairBook>;
   stats(): Readonly<StreamStats>;
+  /** Monotonic change counter for whole-state subscribers. */
+  version(): number;
+  /**
+   * Per-pair change counters — the render-isolation contract: a row
+   * re-renders only when its pair's counter moved (NFR-03).
+   */
+  pairVersions(): ReadonlyMap<number, number>;
 }
 
 export function createStreamCore(): StreamCore {
@@ -76,11 +83,19 @@ export function createStreamCore(): StreamCore {
     lastFrameAt: null,
   };
 
+  let version = 0;
+  const pairVersions = new Map<number, number>();
+
+  function bumpPair(pairId: number): void {
+    pairVersions.set(pairId, (pairVersions.get(pairId) ?? 0) + 1);
+  }
+
   function resync(reason: ResyncReason): StreamEvent[] {
     if (reason === 'gap' || reason === 'heartbeat-loss') stats.gaps += 1;
     if (reason === 'protocol-error') stats.protocolErrors += 1;
     status = 'resync';
     expectedSeq = null;
+    version += 1;
     return [{ type: 'resync', reason }];
   }
 
@@ -99,12 +114,14 @@ export function createStreamCore(): StreamCore {
 
       stats.frames += 1;
       stats.lastFrameAt = now;
+      version += 1;
 
       if (frame.frameType === 'SNAPSHOT') {
         // Wholesale replacement — recovery and first connect are the same
         // code path on purpose (ADR-08).
         books.clear();
         for (const record of frame.records) applyRecord(books, record);
+        for (const pairId of books.keys()) bumpPair(pairId);
         stats.records += frame.count;
         stats.lastSeq = frame.count > 0 ? frame.firstSeq + frame.count - 1 : frame.firstSeq;
         expectedSeq = frame.firstSeq + frame.count;
@@ -128,7 +145,10 @@ export function createStreamCore(): StreamCore {
       if (expectedSeq === null || frame.firstSeq !== expectedSeq) {
         return resync('gap');
       }
-      for (const record of frame.records) applyRecord(books, record);
+      for (const record of frame.records) {
+        applyRecord(books, record);
+        bumpPair(record.pairId);
+      }
       stats.records += frame.count;
       stats.lastSeq = frame.firstSeq + frame.count - 1;
       expectedSeq = frame.firstSeq + frame.count;
@@ -146,5 +166,7 @@ export function createStreamCore(): StreamCore {
     status: () => status,
     books: () => books,
     stats: () => stats,
+    version: () => version,
+    pairVersions: () => pairVersions,
   };
 }
