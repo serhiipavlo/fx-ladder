@@ -50,6 +50,8 @@ export interface SimStats {
   clients: number;
   uptimeMs: number;
   executions: ExecutionStatsOut;
+  /** Telemetry of the last /sim/scenario play; null before the first one. */
+  scenario: { name: string; applied: number; steps: number } | null;
   tick: TickStats;
 }
 

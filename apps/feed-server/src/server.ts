@@ -92,6 +92,8 @@ export function createFeedServer(config: FeedServerConfig): FeedServer {
   const clients = new Map<WebSocket, ClientState>();
   const pendingDisconnects = new Set<NodeJS.Timeout>();
   const scenarioTimers = new Set<NodeJS.Timeout>();
+  /** Telemetry of the last play: /sim/stats narrates how far it got. */
+  let scenarioPlay: { name: ScenarioName; applied: number; steps: number } | null = null;
   let closed = false;
 
   // Telemetry for /sim/stats — the numbers the perf gate reads (plan §3).
@@ -310,6 +312,8 @@ export function createFeedServer(config: FeedServerConfig): FeedServer {
       for (const timer of scenarioTimers) clearTimeout(timer);
       scenarioTimers.clear();
       const steps = SCENARIOS[name];
+      const play = { name, applied: 0, steps: steps.length };
+      scenarioPlay = play;
       let durationMs = 0;
       for (const step of steps) {
         // The timeline is data; speed only compresses it (offset ÷ speed) —
@@ -319,6 +323,9 @@ export function createFeedServer(config: FeedServerConfig): FeedServer {
         const timer = setTimeout(() => {
           scenarioTimers.delete(timer);
           applyScenarioStep(step);
+          // Counted on this play's own record: a replaced scenario cannot
+          // bump its successor's progress.
+          play.applied += 1;
         }, delay);
         scenarioTimers.add(timer);
       }
@@ -348,6 +355,7 @@ export function createFeedServer(config: FeedServerConfig): FeedServer {
         clients: clients.size,
         uptimeMs: serverTs(),
         executions: { ...engine.stats(), lastLook: { ...lastLook } },
+        scenario: scenarioPlay === null ? null : { ...scenarioPlay },
         tick: {
           p50: percentile(tickDurations, 50),
           p95: percentile(tickDurations, 95),

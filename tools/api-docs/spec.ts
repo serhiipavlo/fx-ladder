@@ -308,6 +308,22 @@ export function buildOpenApi(): JsonSchema {
             updatesPerSec: { type: 'integer', minimum: 1 },
             clients: { type: 'integer', minimum: 0 },
             uptimeMs: { type: 'integer', minimum: 0 },
+            scenario: {
+              description: 'Telemetry of the last /sim/scenario play; null before the first one.',
+              oneOf: [
+                { type: 'null' },
+                {
+                  type: 'object',
+                  additionalProperties: false,
+                  required: ['name', 'applied', 'steps'],
+                  properties: {
+                    name: { type: 'string' },
+                    applied: { type: 'integer', minimum: 0, description: 'Steps fired so far.' },
+                    steps: { type: 'integer', minimum: 0 },
+                  },
+                },
+              ],
+            },
             tick: {
               type: 'object',
               additionalProperties: false,
