@@ -72,8 +72,10 @@ export function xoshiro128(seed: number): Prng {
   const w1 = mix();
   const w2 = mix();
   const w3 = mix();
-  // xoshiro is undefined on the all-zero state; unreachable via splitmix in
-  // practice, but the guard keeps the constructor total.
+  // xoshiro is undefined on the all-zero state. splitmix32 cannot emit four
+  // zero words for any uint32 seed, so this guard is unreachable defence —
+  // excluded from the 100% gate rather than deleted.
+  /* v8 ignore next */
   if ((w0 | w1 | w2 | w3) === 0) w0 = 0x9e37_79b9;
   return fromWords(w0, w1, w2, w3);
 }
