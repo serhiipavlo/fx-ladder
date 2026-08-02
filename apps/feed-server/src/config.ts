@@ -9,6 +9,12 @@ export interface FeedServerConfig {
   seed: number;
   /** Default record rate; modest so the unattended public link stays cheap. /sim/rate raises it. */
   updatesPerSec: number;
+  /**
+   * Send-queue ceiling per client: past this, the connection closes with 4001
+   * — one threshold, one close, recovery is the ordinary reconnect (§7.1,
+   * the surviving half of ADR-09). The tick never waits for anyone.
+   */
+  slowClientBufferBytes: number;
 }
 
 const DEV_ORIGINS = 'http://localhost:5173,http://127.0.0.1:5173';
@@ -24,5 +30,6 @@ export function configFromEnv(env: Record<string, string | undefined>): FeedServ
     tickMs: 8,
     seed: 42,
     updatesPerSec: 300,
+    slowClientBufferBytes: 1_000_000,
   };
 }

@@ -159,6 +159,47 @@
         }
       }
     },
+    "/sim/disconnect": {
+      "post": {
+        "summary": "Drop every client",
+        "description": "Graceful (`close 1000` — the client must not reconnect: the goodbye is deliberate) versus a simulated crash (`close 4000` — the client comes back with backoff + jitter). `afterMs` delays the drop (architecture §7.1; AC-04, NFR-07).",
+        "tags": [
+          "control plane"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SimDisconnectBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Applied.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Body failed the shared domain schema; nothing reached the simulator.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/sim/news": {
       "post": {
         "summary": "News shock",
@@ -288,6 +329,25 @@
           "pair",
           "pips",
           "spreadX"
+        ],
+        "additionalProperties": false
+      },
+      "SimDisconnectBody": {
+        "type": "object",
+        "properties": {
+          "graceful": {
+            "type": "boolean"
+          },
+          "afterMs": {
+            "default": 0,
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 60000
+          }
+        },
+        "required": [
+          "graceful",
+          "afterMs"
         ],
         "additionalProperties": false
       },

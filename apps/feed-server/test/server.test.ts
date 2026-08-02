@@ -18,6 +18,7 @@ function testConfig(overrides: Partial<FeedServerConfig> = {}): FeedServerConfig
     tickMs: 10,
     seed: 42,
     updatesPerSec: 2000,
+    slowClientBufferBytes: 1_000_000,
     ...overrides,
   };
 }
@@ -138,6 +139,40 @@ describe('hot plane (done-when of T-0.1.5)', () => {
     ws.send('hello?');
     expect(await closeCode).toBe(4002);
   });
+
+  it(
+    'a stalled consumer is closed with 4001 while the second client streams on — the tick never blocks',
+    { timeout: 20_000 },
+    async () => {
+      // The kernel absorbs megabytes on loopback before the ws queue grows
+      // (especially on Linux), so the pressure window must outrun any socket
+      // buffering: ~4.5 MB/s for 3.5 s ≫ worst-case kernel buffers + ceiling.
+      const { port } = await startServer({ updatesPerSec: 50_000, slowClientBufferBytes: 64 * 1024 });
+      const { ws: stalled } = await openFeed(port);
+      const { frames: healthyFrames } = await openFeed(port);
+
+      // Stop reading from the socket: the kernel window fills, then the ws
+      // send queue grows past the ceiling.
+      (stalled as unknown as { _socket: { pause(): void; resume(): void } })._socket.pause();
+      const closeCode = new Promise<number>((resolve) => stalled.on('close', resolve));
+
+      await settle(3500);
+      const healthyDuringStall = healthyFrames.length;
+      expect(healthyDuringStall).toBeGreaterThan(50); // the tick kept publishing throughout
+
+      // Resume reading so the buffered frames and the CLOSE(4001) drain.
+      (stalled as unknown as { _socket: { pause(): void; resume(): void } })._socket.resume();
+      expect(await closeCode).toBe(4001);
+
+      // The healthy wire never blinked: still dense (codec-checked) and growing.
+      await settle(300);
+      expect(healthyFrames.length).toBeGreaterThan(healthyDuringStall);
+      const data = healthyFrames.filter((f) => f.frameType !== 'HEARTBEAT');
+      for (let i = 1; i < data.length; i += 1) {
+        expect(data[i]!.firstSeq).toBe(data[i - 1]!.firstSeq + data[i - 1]!.count);
+      }
+    },
+  );
 
   it('graceful shutdown closes a streaming client with 1000', async () => {
     const { server, port } = await startServer();

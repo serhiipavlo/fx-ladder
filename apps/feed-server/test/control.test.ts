@@ -16,6 +16,7 @@ function testConfig(overrides: Partial<FeedServerConfig> = {}): FeedServerConfig
     tickMs: 10,
     seed: 42,
     updatesPerSec: 2000,
+    slowClientBufferBytes: 1_000_000,
     ...overrides,
   };
 }
@@ -230,6 +231,44 @@ describe('/sim/news', () => {
     expect(res.status).toBe(400);
     const body = (await res.json()) as { issues: Array<{ path: string }> };
     expect(body.issues.some((issue) => issue.path.includes(field))).toBe(true);
+  });
+});
+
+describe('/sim/disconnect (done-when of T-0.2.2)', () => {
+  it('graceful drops every client with 1000 — the deliberate goodbye', { timeout: 10_000 }, async () => {
+    const port = await startServer();
+    const { ws: a } = await openFeed(port);
+    const { ws: b } = await openFeed(port);
+    const codes = Promise.all([
+      new Promise<number>((resolve) => a.on('close', resolve)),
+      new Promise<number>((resolve) => b.on('close', resolve)),
+    ]);
+    expect((await post(port, '/sim/disconnect', { graceful: true })).status).toBe(200);
+    expect(await codes).toEqual([1000, 1000]);
+  });
+
+  it('hard is a simulated crash: close 4000', { timeout: 10_000 }, async () => {
+    const port = await startServer();
+    const { ws } = await openFeed(port);
+    const code = new Promise<number>((resolve) => ws.on('close', resolve));
+    expect((await post(port, '/sim/disconnect', { graceful: false })).status).toBe(200);
+    expect(await code).toBe(4000);
+  });
+
+  it('afterMs delays the drop', { timeout: 10_000 }, async () => {
+    const port = await startServer();
+    const { ws } = await openFeed(port);
+    const started = Date.now();
+    const code = new Promise<number>((resolve) => ws.on('close', resolve));
+    expect((await post(port, '/sim/disconnect', { graceful: false, afterMs: 400 })).status).toBe(200);
+    expect(await code).toBe(4000);
+    expect(Date.now() - started).toBeGreaterThanOrEqual(350);
+  });
+
+  it('rejects malformed bodies at the border', async () => {
+    const port = await startServer();
+    expect((await post(port, '/sim/disconnect', {})).status).toBe(400);
+    expect((await post(port, '/sim/disconnect', { graceful: false, afterMs: -5 })).status).toBe(400);
   });
 });
 

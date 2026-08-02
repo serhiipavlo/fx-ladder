@@ -1,4 +1,10 @@
-import { simGapBodySchema, simNewsBodySchema, simRateBodySchema, simSeedBodySchema } from '@fx/domain';
+import {
+  simDisconnectBodySchema,
+  simGapBodySchema,
+  simNewsBodySchema,
+  simRateBodySchema,
+  simSeedBodySchema,
+} from '@fx/domain';
 import { frameEnvelopeSchema, FX_SUBPROTOCOL, wireRecordSchema } from '@fx/protocol';
 import { z } from 'zod';
 
@@ -96,6 +102,13 @@ export function buildOpenApi(): JsonSchema {
           'for exercising the client gap detector (NFR-08).',
         'SimGapBody',
       ),
+      '/sim/disconnect': controlPost(
+        'Drop every client',
+        'Graceful (`close 1000` — the client must not reconnect: the goodbye is deliberate) versus a ' +
+          'simulated crash (`close 4000` — the client comes back with backoff + jitter). `afterMs` ' +
+          'delays the drop (architecture §7.1; AC-04, NFR-07).',
+        'SimDisconnectBody',
+      ),
       '/sim/news': controlPost(
         'News shock',
         'Jumps the mid by `pips` and widens the spread by `spreadX`, decaying back to baseline over ' +
@@ -123,6 +136,7 @@ export function buildOpenApi(): JsonSchema {
         SimRateBody: fromZod(simRateBodySchema),
         SimGapBody: fromZod(simGapBodySchema),
         SimNewsBody: fromZod(simNewsBodySchema),
+        SimDisconnectBody: fromZod(simDisconnectBodySchema),
         Ok: {
           type: 'object',
           additionalProperties: false,

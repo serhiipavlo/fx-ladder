@@ -39,3 +39,14 @@ export const simNewsBodySchema = z.strictObject({
   spreadX: z.number().min(1).max(20),
 });
 export type SimNewsBody = z.infer<typeof simNewsBodySchema>;
+
+/**
+ * POST /sim/disconnect — drop every client: graceful (close 1000, the client
+ * must NOT reconnect) versus a simulated crash (close 4000, the client comes
+ * back with backoff + jitter). AC-04, NFR-07.
+ */
+export const simDisconnectBodySchema = z.strictObject({
+  graceful: z.boolean(),
+  afterMs: z.number().int().min(0).max(60_000).optional().default(0),
+});
+export type SimDisconnectBody = z.infer<typeof simDisconnectBodySchema>;
