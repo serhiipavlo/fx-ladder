@@ -15,7 +15,7 @@
     "test:e2e": "playwright test",
     "docs:api": "tsx tools/api-docs/generate.ts",
     "fixtures": "tsx tools/fixtures/generate.ts",
-    "gate:perf": "node scripts/gate-perf.mjs",
+    "gate:perf": "tsx tools/perf/gate.ts",
     "dev": "pnpm -r --parallel run dev",
     "build": "pnpm -r --if-present run build"
   },

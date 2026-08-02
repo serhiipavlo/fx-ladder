@@ -30,3 +30,7 @@ jobs:
       # E2E against the local feed-server only — a red run means code broke,
       # never cloud weather (revised ADR-03).
       - run: pnpm test:e2e
+
+      # Thresholds carry shared-runner headroom; honest numbers are measured
+      # on the reference machine (plan §4). Ratchet-only.
+      - run: pnpm gate:perf
