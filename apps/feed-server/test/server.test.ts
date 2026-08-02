@@ -142,10 +142,12 @@ describe('hot plane (done-when of T-0.1.5)', () => {
 
   it(
     'a stalled consumer is closed with 4001 while the second client streams on — the tick never blocks',
-    { timeout: 15_000 },
+    { timeout: 20_000 },
     async () => {
-      // High rate + a small queue ceiling so the guard trips within a second.
-      const { port } = await startServer({ updatesPerSec: 10_000, slowClientBufferBytes: 64 * 1024 });
+      // The kernel absorbs megabytes on loopback before the ws queue grows
+      // (especially on Linux), so the pressure window must outrun any socket
+      // buffering: ~4.5 MB/s for 3.5 s ≫ worst-case kernel buffers + ceiling.
+      const { port } = await startServer({ updatesPerSec: 50_000, slowClientBufferBytes: 64 * 1024 });
       const { ws: stalled } = await openFeed(port);
       const { frames: healthyFrames } = await openFeed(port);
 
@@ -154,9 +156,9 @@ describe('hot plane (done-when of T-0.1.5)', () => {
       (stalled as unknown as { _socket: { pause(): void; resume(): void } })._socket.pause();
       const closeCode = new Promise<number>((resolve) => stalled.on('close', resolve));
 
-      await settle(1500);
+      await settle(3500);
       const healthyDuringStall = healthyFrames.length;
-      expect(healthyDuringStall).toBeGreaterThan(20); // the tick kept publishing throughout
+      expect(healthyDuringStall).toBeGreaterThan(50); // the tick kept publishing throughout
 
       // Resume reading so the buffered frames and the CLOSE(4001) drain.
       (stalled as unknown as { _socket: { pause(): void; resume(): void } })._socket.resume();
