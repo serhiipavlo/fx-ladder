@@ -1,7 +1,9 @@
 import { FX_SUBPROTOCOL } from '@fx/protocol';
+import { useQuery } from '@tanstack/react-query';
 import { useEffect, useState, useSyncExternalStore } from 'react';
 
 import { feedWsUrl, healthzUrl } from './backend';
+import { instrumentsQueryOptions } from './catalogue';
 import { Ladder } from './Ladder';
 import { Panel } from './Panel';
 import { connectFeedStream } from './stream/connect';
@@ -82,6 +84,9 @@ export function App(): React.JSX.Element {
   const [store, setStore] = useState<FeedStore | null>(null);
   const [health, setHealth] = useState('fetching…');
   const [waking, setWaking] = useState(false);
+  // The catalogue is the server's, cached per the §7.2 contract; the built-in
+  // copy renders as placeholder while the canonical one arrives.
+  const { data: instruments = [] } = useQuery(instrumentsQueryOptions);
 
   useEffect(() => {
     const created = createFeedStore((onChange) => connectFeedStream(feedWsUrl(), onChange));
@@ -128,9 +133,9 @@ export function App(): React.JSX.Element {
       {store === null ? null : (
         <>
           <StatusLine store={store} />
-          <Ladder store={store} />
+          <Ladder store={store} instruments={instruments} />
           <WakePanel store={store} waking={waking} onWake={() => void wake().then(() => store.resume())} />
-          <Panel store={store} />
+          <Panel store={store} instruments={instruments} />
         </>
       )}
       <p>

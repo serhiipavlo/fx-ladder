@@ -45,7 +45,7 @@ afterEach(cleanup);
 describe('ladder (done-when of T-0.1.8)', () => {
   it('renders all five pairs from the snapshot with per-instrument precision', () => {
     const { store, feed } = makeHarness();
-    render(<Ladder store={store} />);
+    render(<Ladder store={store} instruments={INSTRUMENTS} />);
     act(() => feed(SNAPSHOT));
 
     // Seed-42 anchors through the real formatter: 5 decimals for EURUSD,
@@ -64,7 +64,7 @@ describe('ladder (done-when of T-0.1.8)', () => {
       counts.set(symbol, (counts.get(symbol) ?? 0) + 1);
     };
 
-    render(<Ladder store={store} onRowRender={collect} />);
+    render(<Ladder store={store} instruments={INSTRUMENTS} onRowRender={collect} />);
     act(() => feed(SNAPSHOT));
     const baseline = new Map(counts);
 
@@ -86,13 +86,13 @@ describe('ladder (done-when of T-0.1.8)', () => {
 
   it('shows rows dimmed while the stream is not live', () => {
     const { store } = makeHarness('closed');
-    render(<Ladder store={store} />);
+    render(<Ladder store={store} instruments={INSTRUMENTS} />);
     expect(screen.getByTestId('row-EURUSD').style.opacity).toBe('0.4');
   });
 
   it('lights rows back up once a snapshot lands on an open socket', () => {
     const { store, feed } = makeHarness();
-    render(<Ladder store={store} />);
+    render(<Ladder store={store} instruments={INSTRUMENTS} />);
     expect(screen.getByTestId('row-EURUSD').style.opacity).toBe('0.4');
     act(() => feed(SNAPSHOT));
     expect(screen.getByTestId('row-EURUSD').style.opacity).toBe('1');
@@ -101,7 +101,7 @@ describe('ladder (done-when of T-0.1.8)', () => {
   it('marks a quiet pair stale while the channel stays alive (AC-06)', () => {
     const { store, feed } = makeHarness();
     let clock = SNAPSHOT.serverTs;
-    render(<Ladder store={store} nowFn={() => clock} />);
+    render(<Ladder store={store} instruments={INSTRUMENTS} nowFn={() => clock} />);
     act(() => feed(SNAPSHOT));
     expect(screen.queryByTestId('stale-USDJPY')).toBeNull();
 

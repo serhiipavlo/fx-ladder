@@ -1,5 +1,12 @@
 export type Tier = 'major' | 'cross' | 'exotic';
 
+/**
+ * Freshness window of the instrument catalogue, in seconds. The cold plane's
+ * `Cache-Control: max-age` and the client's React Query `staleTime` both read
+ * THIS number — the alignment §7.2 demands exists in one copy.
+ */
+export const INSTRUMENTS_MAX_AGE_S = 3600;
+
 export interface Instrument {
   /** Concatenated pair name, e.g. "EURUSD". */
   symbol: string;

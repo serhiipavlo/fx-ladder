@@ -1,4 +1,4 @@
-import { formatPrice, INSTRUMENTS, type Instrument } from '@fx/domain';
+import { formatPrice, type Instrument } from '@fx/domain';
 import { memo, useSyncExternalStore } from 'react';
 
 import { STALE_AFTER_MS } from './stream/core';
@@ -58,12 +58,14 @@ const PairRow = memo(function PairRow({ store, instrument, pairId, live, stale, 
 
 export interface LadderProps {
   store: FeedStore;
+  /** The catalogue as served by the cold plane; pairId = index (§6.1). */
+  instruments: readonly Instrument[];
   onRowRender?: (symbol: string) => void;
   /** Clock used for staleness; injectable for tests. Same domain as the core's now. */
   nowFn?: () => number;
 }
 
-export function Ladder({ store, onRowRender, nowFn }: LadderProps): React.JSX.Element {
+export function Ladder({ store, instruments, onRowRender, nowFn }: LadderProps): React.JSX.Element {
   // The header subscribes to the global counter — it re-renders with the
   // stream, which is also what keeps the staleness computation fresh; the
   // rows stay gated by their own per-pair counters (plus the stale flag,
@@ -81,7 +83,7 @@ export function Ladder({ store, onRowRender, nowFn }: LadderProps): React.JSX.El
         <span style={{ textAlign: 'right' }}>ask</span>
         <span style={{ textAlign: 'right' }}>ask size</span>
       </div>
-      {INSTRUMENTS.map((instrument, pairId) => {
+      {instruments.map((instrument, pairId) => {
         const updatedAt = store.core.pairUpdatedAt(pairId);
         const stale = live && updatedAt !== null && nowMs - updatedAt > STALE_AFTER_MS;
         return (
