@@ -4,11 +4,17 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "dev": "tsx watch src/index.ts"
   },
   "dependencies": {
     "@fx/domain": "workspace:*",
     "@fx/protocol": "workspace:*",
-    "@fx/sim-core": "workspace:*"
+    "@fx/sim-core": "workspace:*",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/ws": "^8.18.0",
+    "tsx": "^4.19.0"
   }
 }
