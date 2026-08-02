@@ -20,6 +20,9 @@ function makeHarness(socket: SocketState = 'open') {
     core,
     socketState: () => socket,
     lastResync: () => null,
+    lastClose: () => null,
+    terminal: () => false,
+    resume: () => undefined,
     close: () => undefined,
   };
   const store = createFeedStore((onChange) => {
