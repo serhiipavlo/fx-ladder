@@ -323,6 +323,88 @@
         }
       }
     },
+    "/sim/lastlook": {
+      "post": {
+        "summary": "Arm last look",
+        "description": "The two knobs of §5.5: every order is held `holdMs` before any answer and bounces with `REJECTED / LAST_LOOK` with probability `rejectRate` — the controlled rejections of demo step 6.",
+        "tags": [
+          "control plane"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SimLastLookBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Applied.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Body failed the shared domain schema; nothing reached the simulator.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/sim/order": {
+      "post": {
+        "summary": "Submit a synthetic order",
+        "description": "The dev-harness door into the execution engine (T-0.3.6): the order expands into a scripted event sequence counted in `/sim/stats`. Immediate rejections (INVALID_QTY, STALE_PRICE on a frozen pair) come back in the response as `immediate`; the user-facing loop arrives with the warm plane in v0.4.",
+        "tags": [
+          "control plane"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SimOrderBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Applied.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Body failed the shared domain schema; nothing reached the simulator.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/sim/stats": {
       "get": {
         "summary": "Simulator telemetry",
@@ -464,6 +546,67 @@
         ],
         "additionalProperties": false
       },
+      "SimLastLookBody": {
+        "type": "object",
+        "properties": {
+          "holdMs": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 10000
+          },
+          "rejectRate": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          }
+        },
+        "required": [
+          "holdMs",
+          "rejectRate"
+        ],
+        "additionalProperties": false
+      },
+      "SimOrderBody": {
+        "type": "object",
+        "properties": {
+          "clOrdId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          },
+          "pair": {
+            "type": "string",
+            "pattern": "^[A-Z]{6}$"
+          },
+          "side": {
+            "type": "string",
+            "enum": [
+              "buy",
+              "sell"
+            ]
+          },
+          "qtyK": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 10000
+          },
+          "tif": {
+            "default": "DAY",
+            "type": "string",
+            "enum": [
+              "DAY",
+              "IOC"
+            ]
+          }
+        },
+        "required": [
+          "pair",
+          "side",
+          "qtyK",
+          "tif"
+        ],
+        "additionalProperties": false
+      },
       "Ok": {
         "type": "object",
         "additionalProperties": false,
@@ -561,6 +704,66 @@
           "batch": {
             "type": "boolean",
             "description": "Current /sim/mode: tick frames vs frame-per-update."
+          },
+          "executions": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "submitted",
+              "trades",
+              "partials",
+              "filled",
+              "canceled",
+              "rejected",
+              "lastLook"
+            ],
+            "description": "Execution-engine counters (T-0.3.6): the numbers a dev-harness burst moves.",
+            "properties": {
+              "submitted": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "trades": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "partials": {
+                "type": "integer",
+                "minimum": 0,
+                "description": "TRADEs that left the order alive."
+              },
+              "filled": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "canceled": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "rejected": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "lastLook": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "holdMs",
+                  "rejectRate"
+                ],
+                "properties": {
+                  "holdMs": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "rejectRate": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
+                  }
+                }
+              }
+            }
           },
           "updatesPerSec": {
             "type": "integer",

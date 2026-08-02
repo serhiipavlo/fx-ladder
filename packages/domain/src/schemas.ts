@@ -66,3 +66,24 @@ export const simFreezeBodySchema = z.strictObject({
   ms: z.number().int().min(100).max(600_000),
 });
 export type SimFreezeBody = z.infer<typeof simFreezeBodySchema>;
+
+/** POST /sim/lastlook — the two knobs of §5.5: hold window and bounce probability. */
+export const simLastLookBodySchema = z.strictObject({
+  holdMs: z.number().int().min(0).max(10_000),
+  rejectRate: z.number().min(0).max(1),
+});
+export type SimLastLookBody = z.infer<typeof simLastLookBodySchema>;
+
+/**
+ * POST /sim/order — the dev-harness door into the execution engine (T-0.3.6).
+ * The user-facing order loop arrives with the warm plane in v0.4; this body
+ * exists so the event grammar can be exercised and observed today.
+ */
+export const simOrderBodySchema = z.strictObject({
+  clOrdId: z.string().min(1).max(64).optional(),
+  pair: z.string().regex(/^[A-Z]{6}$/, 'pair is a six-letter symbol like EURUSD'),
+  side: z.enum(['buy', 'sell']),
+  qtyK: z.number().int().min(1).max(10_000),
+  tif: z.enum(['DAY', 'IOC']).optional().default('DAY'),
+});
+export type SimOrderBody = z.infer<typeof simOrderBodySchema>;

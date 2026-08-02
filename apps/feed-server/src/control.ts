@@ -5,10 +5,14 @@ import {
   simDisconnectBodySchema,
   simFreezeBodySchema,
   simGapBodySchema,
+  simLastLookBodySchema,
   simModeBodySchema,
   simNewsBodySchema,
+  simOrderBodySchema,
   simRateBodySchema,
   simSeedBodySchema,
+  type ExecutionReport,
+  type SimOrderBody,
 } from '@fx/domain';
 
 // Control plane v1 (architecture §8): /sim/* changes the behaviour of the
@@ -24,6 +28,16 @@ export interface TickStats {
   samples: number;
 }
 
+export interface ExecutionStatsOut {
+  submitted: number;
+  trades: number;
+  partials: number;
+  filled: number;
+  canceled: number;
+  rejected: number;
+  lastLook: { holdMs: number; rejectRate: number };
+}
+
 export interface SimStats {
   generated: number;
   sent: number;
@@ -32,6 +46,7 @@ export interface SimStats {
   updatesPerSec: number;
   clients: number;
   uptimeMs: number;
+  executions: ExecutionStatsOut;
   tick: TickStats;
 }
 
@@ -44,6 +59,8 @@ export interface ControlDeps {
   disconnect(graceful: boolean, afterMs: number): void;
   setBatch(batch: boolean): void;
   freeze(pairId: number, ms: number): void;
+  setLastLook(holdMs: number, rejectRate: number): void;
+  submitOrder(input: SimOrderBody & { pairId: number }): { clOrdId: string; immediate: ExecutionReport[] };
   stats(): SimStats;
 }
 
@@ -83,7 +100,7 @@ async function handlePost<T>(
   req: IncomingMessage,
   res: ServerResponse,
   schema: BodySchema<T>,
-  apply: (data: T) => void,
+  apply: (data: T) => Record<string, unknown> | void,
 ): Promise<void> {
   const text = await readBody(req);
   if (text === null) {
@@ -108,8 +125,9 @@ async function handlePost<T>(
     });
     return;
   }
+  let extra: Record<string, unknown> | void;
   try {
-    apply(result.data);
+    extra = apply(result.data);
   } catch (err) {
     if (err instanceof FieldError) {
       sendJson(res, 400, { error: 'validation failed', issues: [{ path: err.field, message: err.message }] });
@@ -117,7 +135,7 @@ async function handlePost<T>(
     }
     throw err;
   }
-  sendJson(res, 200, { ok: true });
+  sendJson(res, 200, { ok: true, ...(extra ?? {}) });
 }
 
 /** Routes one /sim/* request; the caller has already matched the path prefix. */
@@ -154,6 +172,27 @@ export function handleSimRequest(
           const pairId = pairIdOf(body.pair);
           if (pairId < 0) throw new FieldError('pair', `unknown pair: ${body.pair}`);
           deps.freeze(pairId, body.ms);
+        }),
+      );
+      return;
+    case '/sim/lastlook':
+      route('POST', () =>
+        void handlePost(req, res, simLastLookBodySchema, (body) => deps.setLastLook(body.holdMs, body.rejectRate)),
+      );
+      return;
+    case '/sim/order':
+      route('POST', () =>
+        void handlePost(req, res, simOrderBodySchema, (body) => {
+          const pairId = pairIdOf(body.pair);
+          if (pairId < 0) throw new FieldError('pair', `unknown pair: ${body.pair}`);
+          try {
+            return deps.submitOrder({ ...body, pairId });
+          } catch (err) {
+            if (err instanceof Error && err.message.includes('duplicate')) {
+              throw new FieldError('clOrdId', err.message);
+            }
+            throw err;
+          }
         }),
       );
       return;
