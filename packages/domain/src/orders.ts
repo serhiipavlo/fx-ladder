@@ -25,6 +25,13 @@ export interface OrderInput {
   tif: TimeInForce;
 }
 
+/** The wire shape of a report: enriched with the order's registration data. */
+export interface EnrichedExecutionReport extends ExecutionReport {
+  pair: string;
+  side: OrderSide;
+  orderQtyK: number;
+}
+
 export interface ExecutionReport {
   clOrdId: string;
   execType: ExecType;

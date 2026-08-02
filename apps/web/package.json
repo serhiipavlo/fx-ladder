@@ -10,9 +10,12 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@apollo/client": "^4.2.9",
     "@fx/domain": "workspace:*",
     "@fx/protocol": "workspace:*",
     "@tanstack/react-query": "^5.101.4",
+    "graphql": "^17.0.2",
+    "graphql-ws": "^6.2.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },

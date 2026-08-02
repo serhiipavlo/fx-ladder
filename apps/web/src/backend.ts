@@ -21,3 +21,9 @@ export function feedWsUrl(): string {
   url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
   return url.toString();
 }
+
+export function graphqlWsUrl(): string {
+  const url = new URL('/graphql', backendOrigin());
+  url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
+  return url.toString();
+}

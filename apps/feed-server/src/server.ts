@@ -205,6 +205,7 @@ export function createFeedServer(config: FeedServerConfig): FeedServer {
     serverTs,
     trades: (pairId) => ledger.trades(pairId),
     positions: () => ledger.positions(),
+    orderMeta: (clOrdId) => ledger.orderMeta(clOrdId),
   });
 
   // What /sim/* is allowed to do to this server (architecture §8).

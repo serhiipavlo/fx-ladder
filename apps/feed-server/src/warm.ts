@@ -1,5 +1,12 @@
-import { GRAPHQL_SCHEMA_SDL, INSTRUMENTS, pairIdOf, type ExecutionReport, type SimOrderBody } from '@fx/domain';
-import type { PositionRow, TradeRow } from '@fx/sim-core';
+import {
+  GRAPHQL_SCHEMA_SDL,
+  INSTRUMENTS,
+  pairIdOf,
+  type EnrichedExecutionReport,
+  type ExecutionReport,
+  type SimOrderBody,
+} from '@fx/domain';
+import type { OrderMeta, PositionRow, TradeRow } from '@fx/sim-core';
 import { buildSchema, GraphQLError } from 'graphql';
 import { useServer } from 'graphql-ws/use/ws';
 import { WebSocketServer } from 'ws';
@@ -14,6 +21,7 @@ export interface WarmDeps {
   serverTs(): number;
   trades(pairId: number | null): readonly TradeRow[];
   positions(): readonly PositionRow[];
+  orderMeta(clOrdId: string): OrderMeta | undefined;
 }
 
 interface OrderInputGql {
@@ -142,7 +150,26 @@ export function createWarmPlane(deps: WarmDeps): WarmPlane {
       },
     },
     subscription: {
-      executionReports: (args: { clOrdId?: string | null }) => bus.iterate(args.clOrdId ?? null),
+      executionReports: (args: { clOrdId?: string | null }) => {
+        const source = bus.iterate(args.clOrdId ?? null);
+        // Enrich on the way out (§7.3): the report carries only clOrdId, the
+        // registration knows the rest — a blotter needs no local registry.
+        async function* enrich(): AsyncGenerator<{ executionReports: EnrichedExecutionReport }> {
+          for await (const { executionReports: report } of source) {
+            const meta = deps.orderMeta(report.clOrdId);
+            if (meta === undefined) throw new Error(`report for unregistered order: ${report.clOrdId}`);
+            yield {
+              executionReports: {
+                ...report,
+                pair: INSTRUMENTS[meta.pairId]!.symbol,
+                side: meta.side,
+                orderQtyK: meta.qtyK,
+              },
+            };
+          }
+        }
+        return enrich();
+      },
     },
   };
 

@@ -2,10 +2,14 @@ import { FX_SUBPROTOCOL } from '@fx/protocol';
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useState, useSyncExternalStore } from 'react';
 
+import { ApolloProvider } from '@apollo/client/react';
+
 import { feedWsUrl, healthzUrl } from './backend';
 import { instrumentsQueryOptions } from './catalogue';
 import { Ladder } from './Ladder';
 import { Panel } from './Panel';
+import { createWarmClient } from './warm/client';
+import { TradingSection } from './warm/TradingPanel';
 import { connectFeedStream } from './stream/connect';
 import { createFeedStore, type FeedStore } from './stream/store';
 
@@ -84,6 +88,8 @@ export function App(): React.JSX.Element {
   const [store, setStore] = useState<FeedStore | null>(null);
   const [health, setHealth] = useState('fetching…');
   const [waking, setWaking] = useState(false);
+  // Page-lifetime Apollo client; the ws link is lazy and reconnects itself.
+  const [warmClient] = useState(() => createWarmClient());
   // The catalogue is the server's, cached per the §7.2 contract; the built-in
   // copy renders as placeholder while the canonical one arrives.
   const { data: instruments = [] } = useQuery(instrumentsQueryOptions);
@@ -135,6 +141,9 @@ export function App(): React.JSX.Element {
           <StatusLine store={store} />
           <Ladder store={store} instruments={instruments} />
           <WakePanel store={store} waking={waking} onWake={() => void wake().then(() => store.resume())} />
+          <ApolloProvider client={warmClient}>
+            <TradingSection feedStore={store} instruments={instruments} />
+          </ApolloProvider>
           <Panel store={store} instruments={instruments} />
         </>
       )}
