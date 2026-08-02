@@ -165,6 +165,19 @@ export function createFeedServer(config: FeedServerConfig): FeedServer {
       res.setHeader('Vary', 'Origin');
     }
 
+    if (req.method === 'OPTIONS') {
+      // CORS preflight for cross-origin POSTs from the docs page (and the
+      // v0.2 demo panel). The grant itself was set above for allowed origins
+      // only; a foreign origin gets a bare 204 the browser will refuse.
+      res.writeHead(204, {
+        'Access-Control-Allow-Methods': 'GET, POST',
+        'Access-Control-Allow-Headers': 'Content-Type',
+        'Access-Control-Max-Age': '86400',
+      });
+      res.end();
+      return;
+    }
+
     if (req.method === 'GET' && pathname === '/healthz') {
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ ok: true, uptimeMs: serverTs() }));

@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>FX Ladder — API docs</title>
+    <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5/swagger-ui.css" />
+    <link rel="stylesheet" href="https://unpkg.com/@asyncapi/react-component@2/styles/default.min.css" />
+    <style>
+      body { margin: 0; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+      header { padding: 1.25rem 2rem; border-bottom: 1px solid #ddd; }
+      header h1 { margin: 0 0 0.25rem; font-size: 1.25rem; }
+      header p { margin: 0.25rem 0; color: #555; }
+      nav a { margin-right: 1.25rem; }
+      section { padding: 0.5rem 1rem 1.5rem; }
+      section > h2 { padding: 0 1rem; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>FX Ladder — API</h1>
+      <p>
+        Control plane over HTTP, market data over WebSocket (<code>fx.v1</code>). Both documents are
+        generated from the same Zod schemas that validate live traffic (<code>pnpm docs:api</code>).
+      </p>
+      <nav>
+        <a href="#control">Control plane (HTTP)</a>
+        <a href="#feed">Hot plane (WebSocket)</a>
+        <a href="/">← app</a>
+      </nav>
+    </header>
+    <section id="control">
+      <h2>Control plane</h2>
+      <div id="swagger"></div>
+    </section>
+    <section id="feed">
+      <h2>Hot plane — /feed</h2>
+      <div id="asyncapi"></div>
+    </section>
+    <script src="https://unpkg.com/swagger-ui-dist@5/swagger-ui-bundle.js" crossorigin></script>
+    <script src="https://unpkg.com/@asyncapi/react-component@2/browser/standalone/index.js"></script>
+    <script>
+      window.ui = SwaggerUIBundle({
+        url: 'openapi.json',
+        dom_id: '#swagger',
+        deepLinking: true,
+        tryItOutEnabled: true,
+      });
+      AsyncApiStandalone.render(
+        { schema: { url: 'asyncapi.json' }, config: { show: { sidebar: false, errors: true } } },
+        document.getElementById('asyncapi'),
+      );
+    </script>
+  </body>
+</html>

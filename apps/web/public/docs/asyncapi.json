@@ -1,0 +1,252 @@
+{
+  "asyncapi": "3.0.0",
+  "info": {
+    "title": "FX Ladder — hot plane",
+    "version": "0.1.0",
+    "description": "Batched market-data feed over WebSocket, subprotocol `fx.v1` — a client not offering it is refused at the handshake with HTTP 400 (architecture §6.1). One frame per server tick; every record is a **full upsert** of one book level (`size: 0` = level gone), so duplicates are safe and coalescing is legal.\n\n**Seq contract (§6.2).** Records are numbered densely per connection: `firstSeq, firstSeq+1, …` with no holes across frames. Any hole is transport loss — provable arithmetically. Recovery: reconnect and take the fresh SNAPSHOT (ADR-08); a mid-stream SNAPSHOT (after `/sim/seed`) replaces pair state wholesale and continues the same dense wire.\n\n**Heartbeat (§6.3).** After a silent second the server sends a HEARTBEAT carrying the last assigned seq: liveness and completeness proven even when the market is quiet.\n\n**Close codes:** `1000` — deliberate close (do not reconnect); `4002` — protocol error, e.g. any client→server message on this strictly server→client channel (do not blind-retry). `4000` (simulated crash) and `4001` (slow consumer) arrive with v0.2."
+  },
+  "defaultContentType": "application/json",
+  "servers": {
+    "production": {
+      "host": "fx-ladder-feed.onrender.com",
+      "protocol": "wss",
+      "description": "Live demo backend (free instance — may cold-start ~1 min)."
+    },
+    "local": {
+      "host": "localhost:8080",
+      "protocol": "ws",
+      "description": "Local dev server."
+    }
+  },
+  "channels": {
+    "feed": {
+      "address": "/feed",
+      "description": "Hot plane. Handshake must offer the `fx.v1` subprotocol; browsers on foreign origins are refused (403).",
+      "bindings": {
+        "ws": {
+          "method": "GET",
+          "headers": {
+            "type": "object",
+            "properties": {
+              "Sec-WebSocket-Protocol": {
+                "type": "string",
+                "const": "fx.v1"
+              }
+            }
+          },
+          "bindingVersion": "0.1.0"
+        }
+      },
+      "messages": {
+        "snapshot": {
+          "$ref": "#/components/messages/Snapshot"
+        },
+        "delta": {
+          "$ref": "#/components/messages/Delta"
+        },
+        "heartbeat": {
+          "$ref": "#/components/messages/Heartbeat"
+        }
+      }
+    }
+  },
+  "operations": {
+    "receiveFeed": {
+      "action": "receive",
+      "channel": {
+        "$ref": "#/channels/feed"
+      },
+      "summary": "SNAPSHOT on connect, then DELTA per tick, HEARTBEAT through silence.",
+      "messages": [
+        {
+          "$ref": "#/channels/feed/messages/snapshot"
+        },
+        {
+          "$ref": "#/channels/feed/messages/delta"
+        },
+        {
+          "$ref": "#/channels/feed/messages/heartbeat"
+        }
+      ]
+    }
+  },
+  "components": {
+    "messages": {
+      "Snapshot": {
+        "name": "SNAPSHOT",
+        "title": "Full book snapshot",
+        "summary": "Sent on connect and after a reseed: the entire book of every pair. The client replaces pair state wholesale with the same upsert code that applies deltas.",
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "frameType",
+            "count",
+            "firstSeq",
+            "serverTs",
+            "records"
+          ],
+          "properties": {
+            "frameType": {
+              "type": "string",
+              "const": "SNAPSHOT"
+            },
+            "count": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "firstSeq": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "serverTs": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "records": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/WireRecord"
+              }
+            }
+          }
+        }
+      },
+      "Delta": {
+        "name": "DELTA",
+        "title": "Level updates of one tick",
+        "summary": "All level changes accumulated during one server tick, sequenced densely.",
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "frameType",
+            "count",
+            "firstSeq",
+            "serverTs",
+            "records"
+          ],
+          "properties": {
+            "frameType": {
+              "type": "string",
+              "const": "DELTA"
+            },
+            "count": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "firstSeq": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "serverTs": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "records": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/WireRecord"
+              }
+            }
+          }
+        }
+      },
+      "Heartbeat": {
+        "name": "HEARTBEAT",
+        "title": "Silence made explicit",
+        "summary": "No records; `firstSeq` holds the last assigned seq so loss is detectable even when the market is quiet.",
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "frameType",
+            "count",
+            "firstSeq",
+            "serverTs",
+            "records"
+          ],
+          "properties": {
+            "frameType": {
+              "type": "string",
+              "const": "HEARTBEAT"
+            },
+            "count": {
+              "type": "integer",
+              "const": 0
+            },
+            "firstSeq": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "serverTs": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "records": {
+              "type": "array",
+              "maxItems": 0
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "WireRecord": {
+        "type": "object",
+        "properties": {
+          "pairId": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "side": {
+            "type": "string",
+            "enum": [
+              "bid",
+              "ask"
+            ]
+          },
+          "level": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "price": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991
+          },
+          "size": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "seq": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": [
+          "pairId",
+          "side",
+          "level",
+          "price",
+          "size",
+          "seq"
+        ],
+        "additionalProperties": false,
+        "description": "Full upsert of one book level. `price` is an integer in pipettes (ADR-06); `size` is thousands of base currency, 0 = the level disappeared; `pairId` indexes the instrument catalogue served by the cold plane."
+      }
+    }
+  }
+}

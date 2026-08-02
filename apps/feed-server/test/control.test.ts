@@ -194,6 +194,30 @@ describe('/sim/stats', () => {
   });
 });
 
+describe('CORS preflight (the docs page posts cross-origin)', () => {
+  it('answers OPTIONS with the method/header grant for an allowed origin', async () => {
+    const port = await startServer();
+    const res = await fetch(`http://127.0.0.1:${port}/sim/rate`, {
+      method: 'OPTIONS',
+      headers: { Origin: ALLOWED_ORIGIN, 'Access-Control-Request-Method': 'POST' },
+    });
+    expect(res.status).toBe(204);
+    expect(res.headers.get('access-control-allow-origin')).toBe(ALLOWED_ORIGIN);
+    expect(res.headers.get('access-control-allow-methods')).toContain('POST');
+    expect(res.headers.get('access-control-allow-headers')).toContain('Content-Type');
+  });
+
+  it('grants nothing to a foreign origin', async () => {
+    const port = await startServer();
+    const res = await fetch(`http://127.0.0.1:${port}/sim/rate`, {
+      method: 'OPTIONS',
+      headers: { Origin: 'https://evil.example', 'Access-Control-Request-Method': 'POST' },
+    });
+    expect(res.status).toBe(204);
+    expect(res.headers.get('access-control-allow-origin')).toBeNull();
+  });
+});
+
 describe('percentile', () => {
   it('nearest-rank on small sets, 0 on empty', () => {
     expect(percentile([], 95)).toBe(0);

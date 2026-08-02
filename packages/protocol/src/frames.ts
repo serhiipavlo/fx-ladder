@@ -40,7 +40,8 @@ export interface Frame {
   records: WireRecord[];
 }
 
-const wireRecordSchema = z.strictObject({
+/** Runtime schema of one wire record — also feeds the generated API docs. */
+export const wireRecordSchema = z.strictObject({
   pairId: z.number().int().min(0),
   side: z.enum(['bid', 'ask']),
   level: z.number().int().min(0),
@@ -49,7 +50,8 @@ const wireRecordSchema = z.strictObject({
   seq: z.number().int().min(0),
 });
 
-const frameEnvelopeSchema = z.strictObject({
+/** Runtime schema of the frame envelope — also feeds the generated API docs. */
+export const frameEnvelopeSchema = z.strictObject({
   frameType: z.string(),
   count: z.number().int().min(0),
   firstSeq: z.number().int().min(0),

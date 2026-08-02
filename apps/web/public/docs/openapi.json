@@ -1,0 +1,365 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "FX Ladder — control plane",
+    "version": "0.1.0",
+    "description": "The `/sim/*` endpoints change the behaviour of the simulated world (architecture §8): tests and demos command the market instead of waiting for luck. Every body is parsed by the same Zod schemas the server enforces — this document is generated from them (`pnpm docs:api`). The market data itself rides a WebSocket, documented in [the AsyncAPI half](./index.html#feed) of this page."
+  },
+  "servers": [
+    {
+      "url": "/",
+      "description": "same origin (local dev via the Vite proxy)"
+    },
+    {
+      "url": "https://fx-ladder-feed.onrender.com",
+      "description": "live demo backend (free instance — may cold-start ~1 min)"
+    }
+  ],
+  "paths": {
+    "/healthz": {
+      "get": {
+        "summary": "Liveness probe",
+        "tags": [
+          "ops"
+        ],
+        "responses": {
+          "200": {
+            "description": "Server is up.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Health"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/sim/seed": {
+      "post": {
+        "summary": "Reseed the market",
+        "description": "Replaces the market with a fresh one grown from this seed. Identical (seed, commands) produce bit-identical record streams (architecture §5.1). Connected clients receive a mid-stream SNAPSHOT that keeps their wire dense.",
+        "tags": [
+          "control plane"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SimSeedBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Applied.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Body failed the shared domain schema; nothing reached the simulator.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/sim/rate": {
+      "post": {
+        "summary": "Set the record rate",
+        "description": "Records per second across all pairs. Capped at 10 000 for v0.1 — the cap ratchets with v0.2's 50k target.",
+        "tags": [
+          "control plane"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SimRateBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Applied.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Body failed the shared domain schema; nothing reached the simulator.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/sim/gap": {
+      "post": {
+        "summary": "Tear a hole into every stream",
+        "description": "Jumps every per-connection seq counter by `skipSeqs`: exactly one provable gap per wire, for exercising the client gap detector (NFR-08).",
+        "tags": [
+          "control plane"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SimGapBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Applied.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Body failed the shared domain schema; nothing reached the simulator.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/sim/stats": {
+      "get": {
+        "summary": "Simulator telemetry",
+        "description": "The numbers the perf gate reads: counters, current rate, tick-duration percentiles.",
+        "tags": [
+          "control plane"
+        ],
+        "responses": {
+          "200": {
+            "description": "Current stats.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SimStats"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "SimSeedBody": {
+        "type": "object",
+        "properties": {
+          "seed": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 4294967295
+          }
+        },
+        "required": [
+          "seed"
+        ],
+        "additionalProperties": false
+      },
+      "SimRateBody": {
+        "type": "object",
+        "properties": {
+          "updatesPerSec": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 10000
+          }
+        },
+        "required": [
+          "updatesPerSec"
+        ],
+        "additionalProperties": false
+      },
+      "SimGapBody": {
+        "type": "object",
+        "properties": {
+          "skipSeqs": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100000
+          }
+        },
+        "required": [
+          "skipSeqs"
+        ],
+        "additionalProperties": false
+      },
+      "Ok": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "ok"
+        ],
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "const": true
+          }
+        }
+      },
+      "ValidationError": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "error",
+          "issues"
+        ],
+        "properties": {
+          "error": {
+            "type": "string",
+            "const": "validation failed"
+          },
+          "issues": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "path",
+                "message"
+              ],
+              "properties": {
+                "path": {
+                  "type": "string",
+                  "description": "Field that failed, dot-joined."
+                },
+                "message": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      },
+      "Health": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "ok",
+          "uptimeMs"
+        ],
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "const": true
+          },
+          "uptimeMs": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "SimStats": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "generated",
+          "sent",
+          "updatesPerSec",
+          "clients",
+          "uptimeMs",
+          "tick"
+        ],
+        "properties": {
+          "generated": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Records produced by the model since start."
+          },
+          "sent": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Records sent across all clients."
+          },
+          "updatesPerSec": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "clients": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "uptimeMs": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "tick": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "p50",
+              "p95",
+              "p99",
+              "max",
+              "samples"
+            ],
+            "description": "Tick-duration percentiles (ms) over the last 1024 ticks.",
+            "properties": {
+              "p50": {
+                "type": "number",
+                "minimum": 0
+              },
+              "p95": {
+                "type": "number",
+                "minimum": 0
+              },
+              "p99": {
+                "type": "number",
+                "minimum": 0
+              },
+              "max": {
+                "type": "number",
+                "minimum": 0
+              },
+              "samples": {
+                "type": "integer",
+                "minimum": 0
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
