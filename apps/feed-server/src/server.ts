@@ -2,7 +2,7 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'node:ht
 import type { AddressInfo } from 'node:net';
 import type { Duplex } from 'node:stream';
 
-import type { ExecutionReport, SimOrderBody } from '@fx/domain';
+import { INSTRUMENTS, type ExecutionReport, type SimOrderBody } from '@fx/domain';
 import { assembleFrame, encodeFrame, FX_SUBPROTOCOL, heartbeatFrame } from '@fx/protocol';
 import {
   createExecutionEngine,
@@ -17,7 +17,7 @@ import { WebSocket, WebSocketServer } from 'ws';
 
 import { handleInstruments } from './cold';
 import type { FeedServerConfig } from './config';
-import { handleSimRequest, percentile, type SimStats } from './control';
+import { FieldError, handleSimRequest, percentile, type SimStats } from './control';
 import { createWarmPlane } from './warm';
 
 export interface FeedServer {
@@ -48,6 +48,21 @@ const ENGINE_SEED_SALT = 0x9e37_79b9;
 
 const engineSeed = (seed: number): number => (seed ^ ENGINE_SEED_SALT) >>> 0;
 
+/**
+ * The blotter burst draws pair/side/qty from a third stream for the same
+ * reason the engine has a second one: burst composition must perturb neither
+ * the market's records nor the engine's own script draws.
+ */
+const BLOTTER_SEED_SALT = 0x85eb_ca6b;
+
+const blotterSeed = (seed: number): number => (seed ^ BLOTTER_SEED_SALT) >>> 0;
+
+/**
+ * Ceiling on live (non-terminal) orders across bursts — the §8 guardrail
+ * style: one crude limit, the reason stated, recovery by waiting or reseeding.
+ */
+const MAX_LIVE_ORDERS = 10_000;
+
 export function createFeedServer(config: FeedServerConfig): FeedServer {
   const allowedOrigins = new Set(config.allowedOrigins);
   const t0 = performance.now();
@@ -61,6 +76,7 @@ export function createFeedServer(config: FeedServerConfig): FeedServer {
   );
   let orderCounter = 0;
   let ledger: Ledger = createLedger();
+  let blotterPrng = xoshiro128(blotterSeed(config.seed));
   const lastLook = { holdMs: 40, rejectRate: 0 };
   // Sequencing is per connection: density of seq is a per-wire contract
   // (architecture §6.2), and a snapshot sent to a newcomer must not tear a
@@ -219,6 +235,7 @@ export function createFeedServer(config: FeedServerConfig): FeedServer {
         rejectRate: lastLook.rejectRate,
       });
       ledger = createLedger();
+      blotterPrng = xoshiro128(blotterSeed(seed));
       // Connected clients' books are stale wholesale: push each a fresh
       // SNAPSHOT that keeps its wire dense — same mechanics as resync (ADR-08).
       const ts = serverTs();
@@ -257,6 +274,27 @@ export function createFeedServer(config: FeedServerConfig): FeedServer {
       engine.setLastLook(holdMs, rejectRate);
     },
     submitOrder: submitOrderShared,
+    blotter(rows: number): { submitted: number } {
+      const s = engine.stats();
+      const live = s.submitted - s.filled - s.canceled - s.rejected;
+      if (live + rows > MAX_LIVE_ORDERS) {
+        throw new FieldError('rows', `engine holds ${live} live orders; retry once the burst settles, or reseed`);
+      }
+      // Through the ordinary door, one order at a time: the ledger registers,
+      // the engine scripts, every report rides the subscription — the 5000
+      // rows the grid renders exist in the same books as any ticket's order.
+      for (let i = 0; i < rows; i += 1) {
+        const pairId = blotterPrng.nextUint32() % INSTRUMENTS.length;
+        submitOrderShared({
+          pair: INSTRUMENTS[pairId]!.symbol,
+          pairId,
+          side: blotterPrng.nextUint32() % 2 === 0 ? 'buy' : 'sell',
+          qtyK: 1 + (blotterPrng.nextUint32() % 2000),
+          tif: blotterPrng.nextFloat() < 0.25 ? 'IOC' : 'DAY',
+        });
+      }
+      return { submitted: rows };
+    },
     disconnect(graceful: boolean, afterMs: number): void {
       // Different endings demand different client reactions (§7.1): 1000 is a
       // deliberate goodbye (no reconnect), 4000 is a simulated crash

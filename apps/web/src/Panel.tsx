@@ -130,6 +130,14 @@ export function Panel({ store, instruments, pollMs = 1000 }: PanelProps): React.
         <button style={button} data-testid="freeze" onClick={() => run(post('/sim/freeze', { pair, ms: 10_000 }))}>
           freeze 10 s
         </button>
+        <span style={{ marginLeft: '1rem' }}>blotter:</span>
+        <button
+          style={button}
+          data-testid="blotter-burst"
+          onClick={() => run(post('/sim/blotter', { rows: 5000 }))}
+        >
+          burst 5000 orders
+        </button>
       </div>
 
       <div style={{ ...row, marginTop: '0.5rem' }}>

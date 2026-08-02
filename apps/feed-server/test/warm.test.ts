@@ -323,6 +323,53 @@ describe('executionReports (done-when of T-0.4.3)', () => {
     await expect(runOperation(client, `query { trades(pair: "ZZZZZZ") { clOrdId } }`)).rejects.toThrow(/unknown pair/);
   });
 
+  it('a /sim/blotter burst rides the subscription: enriched, complete, grammar-clean', { timeout: 15_000 }, async () => {
+    const port = await startServer();
+    const client = gql(port);
+    const sink: ExecutionReport[] = [];
+    collectReports(client, sink);
+    await settle(100);
+
+    const res = await fetch(`http://127.0.0.1:${port}/sim/blotter`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ rows: 25 }),
+    });
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ ok: true, submitted: 25 });
+
+    const byOrder = (): Map<string, ExecutionReport[]> => {
+      const grouped = new Map<string, ExecutionReport[]>();
+      for (const r of sink) {
+        const list = grouped.get(r.clOrdId) ?? [];
+        list.push(r);
+        grouped.set(r.clOrdId, list);
+      }
+      return grouped;
+    };
+    await until(() => {
+      const grouped = byOrder();
+      if (grouped.size < 25) return false;
+      return [...grouped.values()].every((reports) => isTerminalStatus(reports[reports.length - 1]!.ordStatus));
+    });
+
+    // Synthetic orders are indistinguishable on the wire: enriched from the
+    // ledger registration and folding clean through the §5.6 machine.
+    const grouped = byOrder();
+    expect(grouped.size).toBe(25);
+    const pairs = new Set<string>();
+    for (const [, reports] of grouped) {
+      const first = reports[0]! as ExecutionReport & { pair: string; orderQtyK: number };
+      pairs.add(first.pair);
+      expect(first.orderQtyK).toBeGreaterThanOrEqual(1);
+      expect(first.orderQtyK).toBeLessThanOrEqual(2000);
+      let progress: OrderProgress | null = null;
+      for (const r of reports) progress = applyReport(progress, r, first.orderQtyK);
+      expect(isTerminalStatus(progress!.status)).toBe(true);
+    }
+    expect(pairs.size).toBeGreaterThan(1); // the burst spreads across the catalogue
+  });
+
   it('a filtered subscription sees exactly its own order', async () => {
     const port = await startServer();
     const client = gql(port);

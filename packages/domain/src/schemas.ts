@@ -75,6 +75,17 @@ export const simLastLookBodySchema = z.strictObject({
 export type SimLastLookBody = z.infer<typeof simLastLookBodySchema>;
 
 /**
+ * POST /sim/blotter — load data that exists for real (architecture §5.4,
+ * AC-11): `rows` synthetic orders enter through the same submit path as every
+ * ticket, so the burst fills the ledger and rides the warm subscription. The
+ * cap is the AC's own number.
+ */
+export const simBlotterBodySchema = z.strictObject({
+  rows: z.number().int().min(1).max(5000),
+});
+export type SimBlotterBody = z.infer<typeof simBlotterBodySchema>;
+
+/**
  * POST /sim/order — the dev-harness door into the execution engine (T-0.3.6).
  * The user-facing order loop arrives with the warm plane in v0.4; this body
  * exists so the event grammar can be exercised and observed today.

@@ -1,4 +1,5 @@
 import {
+  simBlotterBodySchema,
   simDisconnectBodySchema,
   simFreezeBodySchema,
   simGapBodySchema,
@@ -172,6 +173,16 @@ export function buildOpenApi(): JsonSchema {
           'warm plane in v0.4.',
         'SimOrderBody',
       ),
+      '/sim/blotter': controlPost(
+        'Blotter load burst',
+        '`rows` synthetic orders (≤ 5000 — the AC-11 number) enter through the same submit path as ' +
+          'any ticket: the ledger registers them, the engine scripts their lifecycles, every report ' +
+          'rides the GraphQL subscription — load data for the blotter exists for real (architecture ' +
+          '§5.4). Composition is drawn from a seeded stream: reseed and the same burst replays. A ' +
+          'crude ceiling of 10 000 live orders refuses bursts on top of a full book with a ' +
+          'field-level 400.',
+        'SimBlotterBody',
+      ),
       '/sim/stats': {
         get: {
           summary: 'Simulator telemetry',
@@ -197,6 +208,7 @@ export function buildOpenApi(): JsonSchema {
         SimFreezeBody: fromZod(simFreezeBodySchema),
         SimLastLookBody: fromZod(simLastLookBodySchema),
         SimOrderBody: fromZod(simOrderBodySchema),
+        SimBlotterBody: fromZod(simBlotterBodySchema),
         Instrument: {
           type: 'object',
           additionalProperties: false,
@@ -214,7 +226,9 @@ export function buildOpenApi(): JsonSchema {
         },
         Ok: {
           type: 'object',
-          additionalProperties: false,
+          description:
+            'Endpoint-specific fields may accompany `ok`: `clOrdId`/`immediate` on /sim/order, ' +
+            '`submitted` on /sim/blotter.',
           required: ['ok'],
           properties: { ok: { type: 'boolean', const: true } },
         },

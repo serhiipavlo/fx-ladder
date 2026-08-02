@@ -445,6 +445,47 @@
         }
       }
     },
+    "/sim/blotter": {
+      "post": {
+        "summary": "Blotter load burst",
+        "description": "`rows` synthetic orders (≤ 5000 — the AC-11 number) enter through the same submit path as any ticket: the ledger registers them, the engine scripts their lifecycles, every report rides the GraphQL subscription — load data for the blotter exists for real (architecture §5.4). Composition is drawn from a seeded stream: reseed and the same burst replays. A crude ceiling of 10 000 live orders refuses bursts on top of a full book with a field-level 400.",
+        "tags": [
+          "control plane"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SimBlotterBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Applied.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Body failed the shared domain schema; nothing reached the simulator.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/sim/stats": {
       "get": {
         "summary": "Simulator telemetry",
@@ -647,6 +688,20 @@
         ],
         "additionalProperties": false
       },
+      "SimBlotterBody": {
+        "type": "object",
+        "properties": {
+          "rows": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 5000
+          }
+        },
+        "required": [
+          "rows"
+        ],
+        "additionalProperties": false
+      },
       "Instrument": {
         "type": "object",
         "additionalProperties": false,
@@ -698,7 +753,7 @@
       },
       "Ok": {
         "type": "object",
-        "additionalProperties": false,
+        "description": "Endpoint-specific fields may accompany `ok`: `clOrdId`/`immediate` on /sim/order, `submitted` on /sim/blotter.",
         "required": [
           "ok"
         ],
