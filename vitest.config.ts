@@ -3,6 +3,15 @@ import { defineConfig } from 'vitest/config';
 export default defineConfig({
   test: {
     environment: 'node',
+    server: {
+      deps: {
+        // graphql-ws must share OUR graphql instance: vitest resolves the
+        // workspace's graphql to its src build (development condition) while
+        // native ESM would hand graphql-ws the dist build — two realms, and
+        // graphql's instanceOf guard rightly refuses mixed realms.
+        inline: ['graphql-ws'],
+      },
+    },
     include: [
       'packages/*/src/**/*.test.ts',
       'packages/*/test/**/*.test.ts',

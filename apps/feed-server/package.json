@@ -12,6 +12,8 @@
     "@fx/domain": "workspace:*",
     "@fx/protocol": "workspace:*",
     "@fx/sim-core": "workspace:*",
+    "graphql": "^17.0.2",
+    "graphql-ws": "^6.2.0",
     "ws": "^8.18.0"
   },
   "devDependencies": {
