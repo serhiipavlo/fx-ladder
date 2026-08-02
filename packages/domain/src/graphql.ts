@@ -64,6 +64,8 @@ export const GRAPHQL_SCHEMA_SDL = /* GraphQL */ `
     pair: String!
     side: Side!
     orderQtyK: Int!
+    "Dense per-order event number, stamped at publish — the §6.2 idea on the warm plane: a hole is provable loss, a repeat is a provable duplicate."
+    eventSeq: Int!
     execType: ExecType!
     ordStatus: OrdStatus!
     "Fill price in pipettes; TRADE only."
@@ -74,6 +76,28 @@ export const GRAPHQL_SCHEMA_SDL = /* GraphQL */ `
     leavesQty: Int!
     rejectReason: RejectReason
     transactTime: Float!
+  }
+
+  """
+  Current state of one order — the reconnect snapshot (ADR-08 retold on the
+  warm plane): after a drop the client takes state wholesale and resumes
+  events; eventSeq says which events this state already contains.
+  """
+  type OrderState {
+    clOrdId: ID!
+    pair: String!
+    side: Side!
+    orderQtyK: Int!
+    ordStatus: OrdStatus!
+    cumQty: Int!
+    leavesQty: Int!
+    "Price of the latest fill in pipettes."
+    lastPx: Int
+    rejectReason: RejectReason
+    "Events folded into this state; a report with eventSeq at or below is already inside."
+    eventSeq: Int!
+    "Sim-clock ms of the latest folded event."
+    updatedAt: Float!
   }
 
   "A completed fill, flattened for the blotter."
@@ -101,6 +125,8 @@ export const GRAPHQL_SCHEMA_SDL = /* GraphQL */ `
   type Query {
     trades(pair: String): [Trade!]!
     positions: [Position!]!
+    "Every order's current state — the warm plane's snapshot-on-reconnect."
+    orders: [OrderState!]!
   }
 
   type Mutation {

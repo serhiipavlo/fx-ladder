@@ -25,8 +25,17 @@ export interface OrderInput {
   tif: TimeInForce;
 }
 
+/**
+ * A report stamped with its dense per-order number at publish time — the
+ * §6.2 idea on the warm plane: a hole is provable loss, a repeat a provable
+ * duplicate, and reconnect reconciliation becomes arithmetic.
+ */
+export interface SequencedExecutionReport extends ExecutionReport {
+  eventSeq: number;
+}
+
 /** The wire shape of a report: enriched with the order's registration data. */
-export interface EnrichedExecutionReport extends ExecutionReport {
+export interface EnrichedExecutionReport extends SequencedExecutionReport {
   pair: string;
   side: OrderSide;
   orderQtyK: number;

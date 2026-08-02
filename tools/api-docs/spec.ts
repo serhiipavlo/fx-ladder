@@ -149,8 +149,10 @@ export function buildOpenApi(): JsonSchema {
       '/sim/disconnect': controlPost(
         'Drop every client',
         'Graceful (`close 1000` — the client must not reconnect: the goodbye is deliberate) versus a ' +
-          'simulated crash (`close 4000` — the client comes back with backoff + jitter). `afterMs` ' +
-          'delays the drop (architecture §7.1; AC-04, NFR-07).',
+          'simulated crash (`close 4000` — the client comes back with backoff + jitter). A crash also ' +
+          'drops the `/graphql` warm sockets — the whole process "died" — and owes the client ' +
+          'resubscription plus snapshot reconciliation (T-0.4.8); a graceful goodbye is a hot-plane ' +
+          'demonstration and leaves them alone. `afterMs` delays the drop (architecture §7.1; AC-04, NFR-07).',
         'SimDisconnectBody',
       ),
       '/sim/news': controlPost(

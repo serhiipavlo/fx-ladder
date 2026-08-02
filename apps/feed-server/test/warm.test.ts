@@ -40,6 +40,9 @@ function gql(port: number): Client {
     webSocketImpl: WebSocket,
     retryAttempts: 0,
     lazy: false,
+    // Non-lazy clients report terminal closes to console.error by default;
+    // tests kill sockets on purpose and assert the outcomes themselves.
+    onNonLazyError: () => undefined,
   });
   clients.push(client);
   return client;
@@ -72,12 +75,13 @@ function collectReports(
   sink: ExecutionReport[],
   clOrdId?: string,
   onEvent?: () => void,
+  onError?: (err: unknown) => void,
 ): () => void {
   return client.subscribe<{ executionReports: ExecutionReport }>(
     {
       query: `subscription Reports($clOrdId: ID) {
         executionReports(clOrdId: $clOrdId) {
-          clOrdId pair side orderQtyK execType ordStatus lastPx lastQty cumQty leavesQty rejectReason transactTime
+          clOrdId pair side orderQtyK eventSeq execType ordStatus lastPx lastQty cumQty leavesQty rejectReason transactTime
         }
       }`,
       variables: { clOrdId: clOrdId ?? null },
@@ -88,6 +92,10 @@ function collectReports(
         onEvent?.();
       },
       error: (err) => {
+        if (onError !== undefined) {
+          onError(err);
+          return;
+        }
         throw err instanceof Error ? err : new Error(JSON.stringify(err));
       },
       complete: () => undefined,
@@ -366,8 +374,142 @@ describe('executionReports (done-when of T-0.4.3)', () => {
       let progress: OrderProgress | null = null;
       for (const r of reports) progress = applyReport(progress, r, first.orderQtyK);
       expect(isTerminalStatus(progress!.status)).toBe(true);
+      // The §6.2 idea on the warm plane: per-order eventSeq is dense from 1 —
+      // a hole is provable loss, a repeat a provable duplicate (T-0.4.8).
+      const seqs = reports.map((r) => (r as ExecutionReport & { eventSeq: number }).eventSeq);
+      expect(seqs).toEqual(Array.from({ length: reports.length }, (_, i) => i + 1));
     }
     expect(pairs.size).toBeGreaterThan(1); // the burst spreads across the catalogue
+  });
+
+  it('the orders query serves the server-side fold: the reconnect snapshot (T-0.4.8)', async () => {
+    const port = await startServer();
+    const client = gql(port);
+    const sink: ExecutionReport[] = [];
+    collectReports(client, sink);
+    await settle(100);
+
+    await runOperation(client, SUBMIT, { input: { clOrdId: 'SNAP', pair: 'EURUSD', side: 'buy', qtyK: 250, tif: 'DAY' } });
+    await until(() => sink.some((r) => r.clOrdId === 'SNAP' && isTerminalStatus(r.ordStatus)));
+
+    const { orders } = await runOperation<{
+      orders: Array<{
+        clOrdId: string;
+        pair: string;
+        side: string;
+        orderQtyK: number;
+        ordStatus: string;
+        cumQty: number;
+        leavesQty: number;
+        eventSeq: number;
+        updatedAt: number;
+      }>;
+    }>(
+      client,
+      `query { orders { clOrdId pair side orderQtyK ordStatus cumQty leavesQty lastPx rejectReason eventSeq updatedAt } }`,
+    );
+    expect(orders).toHaveLength(1);
+    const snap = orders[0]!;
+    const seen = sink.filter((r) => r.clOrdId === 'SNAP');
+    // The snapshot IS the fold of the events the wire carried: same status,
+    // same quantities, and eventSeq equals the number of reports delivered.
+    expect(snap).toMatchObject({
+      clOrdId: 'SNAP',
+      pair: 'EURUSD',
+      side: 'buy',
+      orderQtyK: 250,
+      ordStatus: 'FILLED',
+      cumQty: 250,
+      leavesQty: 0,
+      eventSeq: seen.length,
+      updatedAt: seen[seen.length - 1]!.transactTime,
+    });
+  });
+
+  it('a forced crash drops the warm socket too; events fired into the outage are recovered from the snapshot', { timeout: 15_000 }, async () => {
+    const port = await startServer();
+    // Slow the lifecycle so the whole order plays out while nobody listens.
+    await fetch(`http://127.0.0.1:${port}/sim/lastlook`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ holdMs: 300, rejectRate: 0 }),
+    });
+
+    const before = gql(port);
+    const closed = new Promise<number>((resolve) => {
+      before.on('closed', (event) => resolve((event as { code: number }).code));
+    });
+    const seenBefore: ExecutionReport[] = [];
+    // This subscription is MEANT to die with the socket — its error is the point.
+    collectReports(before, seenBefore, 'GONE', undefined, () => undefined);
+    await settle(100);
+
+    const submitted = await fetch(`http://127.0.0.1:${port}/sim/order`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ clOrdId: 'GONE', pair: 'EURUSD', side: 'buy', qtyK: 400 }),
+    });
+    expect(submitted.status).toBe(200);
+
+    // The crash lands before the last-look window opens: the entire
+    // lifecycle fires into the outage.
+    const dropped = await fetch(`http://127.0.0.1:${port}/sim/disconnect`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ graceful: false }),
+    });
+    expect(dropped.status).toBe(200);
+    expect(await closed).toBe(4000); // the warm plane crashed with the rest
+    expect(seenBefore).toHaveLength(0);
+
+    await settle(1200); // NEW + fills play out with no subscriber anywhere
+
+    // The reconnected client takes state wholesale (ADR-08): the snapshot
+    // carries the whole outage — nothing lost, and with no events left to
+    // deliver, nothing to duplicate.
+    const after = gql(port);
+    const { orders } = await runOperation<{
+      orders: Array<{ clOrdId: string; ordStatus: string; cumQty: number; leavesQty: number; eventSeq: number }>;
+    }>(after, `query { orders { clOrdId ordStatus cumQty leavesQty eventSeq } }`);
+    const gone = orders.find((o) => o.clOrdId === 'GONE')!;
+    expect(gone.ordStatus).toBe('FILLED');
+    expect(gone.cumQty).toBe(400);
+    expect(gone.leavesQty).toBe(0);
+    expect(gone.eventSeq).toBeGreaterThanOrEqual(2); // NEW + at least one fill, all absorbed
+
+    // The plane lives on: a fresh order on the new socket streams densely from 1.
+    const seenAfter: ExecutionReport[] = [];
+    collectReports(after, seenAfter, 'BACK');
+    await settle(100);
+    await runOperation(after, SUBMIT, { input: { clOrdId: 'BACK', pair: 'GBPUSD', side: 'sell', qtyK: 100, tif: 'DAY' } });
+    await until(() => seenAfter.some((r) => isTerminalStatus(r.ordStatus)));
+    const seqs = seenAfter.map((r) => (r as ExecutionReport & { eventSeq: number }).eventSeq);
+    expect(seqs).toEqual(Array.from({ length: seenAfter.length }, (_, i) => i + 1));
+  });
+
+  it('a graceful goodbye is a hot-plane story: the warm socket stays open', async () => {
+    const port = await startServer();
+    const client = gql(port);
+    let closedCode: number | null = null;
+    client.on('closed', (event) => {
+      closedCode = (event as { code: number }).code;
+    });
+    const sink: ExecutionReport[] = [];
+    collectReports(client, sink);
+    await settle(100);
+
+    const res = await fetch(`http://127.0.0.1:${port}/sim/disconnect`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ graceful: true }),
+    });
+    expect(res.status).toBe(200);
+    await settle(300);
+    expect(closedCode).toBeNull();
+
+    // Still connected and still delivering.
+    await runOperation(client, SUBMIT, { input: { clOrdId: 'ALIVE', pair: 'EURUSD', side: 'buy', qtyK: 50, tif: 'DAY' } });
+    await until(() => sink.some((r) => r.clOrdId === 'ALIVE'));
   });
 
   it('a filtered subscription sees exactly its own order', async () => {

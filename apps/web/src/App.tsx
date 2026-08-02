@@ -88,8 +88,9 @@ export function App(): React.JSX.Element {
   const [store, setStore] = useState<FeedStore | null>(null);
   const [health, setHealth] = useState('fetching…');
   const [waking, setWaking] = useState(false);
-  // Page-lifetime Apollo client; the ws link is lazy and reconnects itself.
-  const [warmClient] = useState(() => createWarmClient());
+  // Page-lifetime Apollo client; the ws link is lazy and reconnects itself,
+  // and onReconnect drives the T-0.4.8 state reconciliation in the section.
+  const [warm] = useState(() => createWarmClient());
   // The catalogue is the server's, cached per the §7.2 contract; the built-in
   // copy renders as placeholder while the canonical one arrives.
   const { data: instruments = [] } = useQuery(instrumentsQueryOptions);
@@ -141,8 +142,8 @@ export function App(): React.JSX.Element {
           <StatusLine store={store} />
           <Ladder store={store} instruments={instruments} />
           <WakePanel store={store} waking={waking} onWake={() => void wake().then(() => store.resume())} />
-          <ApolloProvider client={warmClient}>
-            <TradingSection feedStore={store} instruments={instruments} />
+          <ApolloProvider client={warm.client}>
+            <TradingSection feedStore={store} instruments={instruments} onReconnect={warm.onReconnect} />
           </ApolloProvider>
           <Panel store={store} instruments={instruments} />
         </>
