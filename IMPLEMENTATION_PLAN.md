@@ -291,7 +291,7 @@ Atomic tasks in execution order, grouped by release. Each has a **deliverable** 
 
 Tasks marked ∥ may run in parallel with the previous one; everything else is sequential.
 
-### v0.0.1 — Bootstrap
+### v0.0.1 — Bootstrap *(tagged 2026-08-02)*
 
 **T-0.0.1 · Monorepo scaffold**
 *Deliverable:* root `package.json`, `pnpm-workspace.yaml`, shared `tsconfig.base.json`, the five package directories with stub entry points, and the §2.4 command set.
@@ -321,7 +321,7 @@ Tasks marked ∥ may run in parallel with the previous one; everything else is s
 *Deliverable:* `DEPLOY.md` with the exact rollback commands and the measured time of one deliberate rollback.
 *Done when:* the previous revision has actually served traffic once and the elapsed time is written down.
 
-### v0.1.0 — MVP
+### v0.1.0 — MVP *(tagged 2026-08-02)*
 
 **T-0.1.1 · `domain` foundations**
 *Deliverable:* instrument catalogue for ~5 majors (`symbol`, `base`, `quote`, `precision`, `pipDigit`, `lotSizeK`, `minQtyK`, `tier`); pipette conversion and formatting; Zod schemas for the control-plane bodies of this release.

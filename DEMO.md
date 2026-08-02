@@ -3,6 +3,16 @@
 One demo line per release (plan §2.3). The full 5-minute scripted runbook
 arrives with v1.0.0.
 
+## v0.1.0
+
+Open <https://fx-ladder-web.onrender.com>: five pairs tick live in the ladder,
+one batched frame per tick (visible in DevTools → Network → /feed). Kill the
+network and restore — the heartbeat watchdog declares the feed dead within
+3 s, the client reconnects and resnapshots. Then tear the stream on purpose:
+`/docs` → `POST /sim/gap` → Try it out — the `gaps` counter proves the loss
+arithmetically and the ladder recovers the same way: reconnect, fresh
+snapshot, live again. Prices correct, no duplicates, no frozen ghosts.
+
 ## v0.0.1
 
 Open <https://fx-ladder-web.onrender.com> on a phone: the page loads, shows
