@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@fx/domain": "workspace:*"
+    "@fx/domain": "workspace:*",
+    "zod": "^4.4.3"
   }
 }
