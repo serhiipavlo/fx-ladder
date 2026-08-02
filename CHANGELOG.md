@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.4.0 — 2026-08-03
+
+Control: the warm plane (plan §3, phase 3). The full order loop in the user's hands — GraphQL over the same socket, execution reports as a subscription, an AG Grid blotter that eats 5000-row bursts, the demo as data, and reconnects that cannot lie about money.
+
+- warm plane (ADR-05): `graphql-ws` on the same process and port as `/feed`, routed by path; `submitOrder` acks before any outcome — even immediate rejections defer onto the next macrotask and arrive as **events**; `executionReports` subscription: every event exactly once, in order, enriched from the ledger registration (`pair`/`side`/`orderQtyK`) so a blotter needs no local registry
+- ledger in `sim-core`: average-cost positions (extending averages in, reducing realises against the average, crossing reopens at the fill price), trades log, `orderMeta` for wire enrichment; P&L in pipette·K; 100 % coverage held
+- the §7.3 P&L split on screen, asserted at the component: realised comes from the server and moves only with trade events (positions refetch exactly then); unrealised is the client's multiplication against the hot mid, ticking with every feed frame
+- Apollo Client v4 over the one WS for all operations (the production HTTP/WS split point marked in code); subscription events route **past React state** into a coalescing store — the §6.4 lesson replayed on the warm side: without `ignoreResults` a burst capped the client at ~200 messages/s, with it the 5000-order burst lands in ~3 s
+- AG Grid blotter (AC-10, AC-11): delta row updates keyed by `clOrdId` — the user's sort model and scroll offset survive the stream; `POST /sim/blotter { rows ≤ 5000 }` fills the books through the ordinary submit path from a third seeded PRNG stream (reseed replays the same burst) behind a crude 10 000-live-order ceiling; live: 5000 orders → 4344 filled + 656 IOC-canceled, 10 039 trades, feed flush p95 under the 16.7 ms budget throughout
+- scenario engine: `POST /sim/scenario` plays spec §8 **as data** — eleven timeline rows (calm → spike → unbatched-and-back → crash → recovery → freeze → news → last look armed), each proven to parse through its own `/sim/*` schema; `speed` compresses offsets (×1 = the live five-minute demo, tests replay it in 2.4 s); `/sim/stats` narrates the play (`applied`/`steps`); identical twice from the same seed, a new play cancels the old
+- subscription reconnect (ADR-08 retold on the warm plane): every report carries a dense per-order `eventSeq` stamped at publish — a repeat is provably a duplicate, a hole provably loss; recovery takes the `orders` snapshot wholesale and resumes events, the store queueing in-flight reports and deduplicating by arithmetic; `/sim/disconnect { graceful: false }` crashes the `/graphql` sockets too — the whole process "died"
+- full-journey E2E: seed → scenario (crash included — both planes drop and recover mid-run) → order → `NEW` → partial → `FILLED` in the grid → long 500K with unrealised ticking → round-trip sell → flat with realised on screen; **10/10 consecutive green**, zero page errors
+
 ## v0.3.0 — 2026-08-02
 
 The market can be traded against (plan §3, phase 2): the order lifecycle exists as data — scripted executions carrying a correct FIX event grammar — plus the cold plane. The engine room, proven honestly; the user-facing loop arrives with the warm plane in v0.4.

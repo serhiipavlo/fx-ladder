@@ -431,7 +431,7 @@ Tasks marked ∥ may run in parallel with the previous one; everything else is s
 *Deliverable:* client fetches the catalogue through React Query with `staleTime` aligned to the server's `max-age`.
 *Done when:* a remount inside the window issues no network request; after expiry it issues a conditional one that returns `304` (assert via MSW).
 
-### v0.4.0 — Warm plane
+### v0.4.0 — Warm plane *(tagged 2026-08-03)*
 
 **T-0.4.1 · GraphQL server on the same port**
 *Deliverable:* schema in `domain`; `graphql-ws` mounted on `/graphql` in the existing server process, routed by path (ADR-05).

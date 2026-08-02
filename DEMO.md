@@ -3,6 +3,21 @@
 One demo line per release (plan §2.3). The full 5-minute scripted runbook
 arrives with v1.0.0.
 
+## v0.4.0
+
+The trade section under the ladder. **submit** — the ack lands instantly,
+then the blotter assembles the order's life from typed events: `NEW`, a
+partial, `FILLED`, each priced off the moving book. The position goes long
+and unrealised P&L ticks with the mid **between** events, while realised
+moves only when a trade books — the §7.3 split on one screen. Sell the same
+size: flat, realised written by the server. `blotter: burst 5000 orders`
+floods the grid through the real engine — sort and scroll survive, the
+ladder never drops a frame. `disconnect hard` mid-order — the warm socket
+crashes with the rest and the blotter returns whole: a repeat is provably a
+duplicate, a hole provably loss, so neither can render. Finally
+`scenario: demo-5min` — the whole §8 show from one click, identical every
+time.
+
 ## v0.3.0
 
 The engine room. DevTools → Network: `/api/instruments` loads once, then a
