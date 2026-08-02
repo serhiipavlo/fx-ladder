@@ -85,6 +85,9 @@ export function App(): React.JSX.Element {
       <p>
         healthz: <code>{health}</code>
       </p>
+      <p>
+        <a href="/docs/">API docs</a> — control plane (OpenAPI) + feed (AsyncAPI)
+      </p>
       {connection === 'disconnected' ? (
         <p>
           <button
