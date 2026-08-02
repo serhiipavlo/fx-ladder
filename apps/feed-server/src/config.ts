@@ -15,6 +15,13 @@ export interface FeedServerConfig {
    * the surviving half of ADR-09). The tick never waits for anyone.
    */
   slowClientBufferBytes: number;
+  /** Concurrent WS clients allowed; the (N+1)-th handshake is refused (architecture §8). */
+  maxClients: number;
+  /**
+   * A connection older than this closes with 1000 and a stated reason — an
+   * abandoned tab must not hold the public link open forever (architecture §8).
+   */
+  sessionCeilingMs: number;
 }
 
 const DEV_ORIGINS = 'http://localhost:5173,http://127.0.0.1:5173';
@@ -31,5 +38,7 @@ export function configFromEnv(env: Record<string, string | undefined>): FeedServ
     seed: 42,
     updatesPerSec: 300,
     slowClientBufferBytes: 1_000_000,
+    maxClients: 20,
+    sessionCeilingMs: 30 * 60_000,
   };
 }
