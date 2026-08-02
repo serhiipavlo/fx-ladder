@@ -29,7 +29,11 @@ function StatusLine({ store }: { store: FeedStore }): React.JSX.Element {
 
   return (
     <p>
-      feed: <strong style={{ color }}>{label}</strong> ({FX_SUBPROTOCOL}) — frames {stats.frames}, records{' '}
+      feed:{' '}
+      <strong style={{ color }} data-testid="feed-status">
+        {label}
+      </strong>{' '}
+      ({FX_SUBPROTOCOL}) — frames {stats.frames}, records{' '}
       {stats.records}, heartbeats {stats.heartbeats}, gaps <span data-testid="gaps">{stats.gaps}</span>, last seq{' '}
       {stats.lastSeq ?? '—'}
     </p>

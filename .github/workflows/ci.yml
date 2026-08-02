@@ -24,3 +24,9 @@ jobs:
       - run: pnpm verify
 
       - run: pnpm build
+
+      - run: npx playwright install --with-deps chromium
+
+      # E2E against the local feed-server only — a red run means code broke,
+      # never cloud weather (revised ADR-03).
+      - run: pnpm test:e2e
