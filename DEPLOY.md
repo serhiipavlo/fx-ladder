@@ -1,49 +1,49 @@
-# Deploy — FX Ladder
+# Deploy — FX Ladder (Render)
 
-Two independent tracks from one tag (architecture §9): the feed-server image
-goes to ghcr → Azure Container Apps; the static web build goes to Azure Static
-Web Apps. Release = annotated tag `vX.Y.Z` (plan §2.2).
+Two independent tracks from one tag (architecture §9, ADR-11 revised): the
+feed-server image goes to ghcr and is deployed to a **Render Web Service**
+(prebuilt image, deploy hook pinning the exact tag); the web build goes to a
+**Render Static Site** (Render builds it from the repo). Both on the free
+tier — cold starts are accepted deliberately, the page carries a wake button.
 
-## One-time provisioning (repo owner, Azure CLI)
+## One-time provisioning (repo owner, Render dashboard)
 
-```bash
-az group create --name fx-ladder --location westeurope
+1. **Web service (image-backed).** New → Web Service → *Existing image* →
+   `ghcr.io/serhiipavlo/fx-ladder/feed-server:latest`
+   - Instance type **Free**, region Frankfurt
+   - Health check path `/healthz`
+   - Env: `FX_ALLOWED_ORIGINS=https://<static-site>.onrender.com,http://localhost:5173`
 
-az containerapp env create --name fx-env --resource-group fx-ladder --location westeurope
+   ghcr packages are **private by default** — after the first pushed image,
+   make the package public (GitHub → Packages → `feed-server` → settings →
+   visibility) or add a registry credential in Render (PAT with
+   `read:packages`). The service needs an existing image, so push the first
+   tag (or one manual `docker push`) before creating it.
 
-# First revision from the public image built by the release workflow.
-az containerapp create \
-  --name fx-feed-server \
-  --resource-group fx-ladder \
-  --environment fx-env \
-  --image ghcr.io/serhiipavlo/fx-ladder/feed-server:latest \
-  --target-port 8080 \
-  --ingress external \
-  --min-replicas 1 --max-replicas 1 \
-  --revisions-mode multiple \
-  --env-vars FX_ALLOWED_ORIGINS=<swa-url>,http://localhost:5173
+2. **Static site.** New → Static Site → connect the GitHub repo
+   - Build command:
+     `npm install -g pnpm@11.18.0 && pnpm install --frozen-lockfile && pnpm --filter @fx/web run build`
+   - Publish directory: `apps/web/dist`
+   - Env: `VITE_FEED_URL=https://<web-service>.onrender.com`
+   - **Auto-Deploy: off** (releases are tag-driven via the hook)
+   - Pull Request Previews: on
 
-az staticwebapp create --name fx-ladder-web --resource-group fx-ladder --location westeurope
-```
-
-Also set a **spending alert** on the subscription (v0.0.1 scope):
-Cost Management → Budgets → monthly budget with an email alert.
+3. Copy both **deploy hook URLs** (each service → Settings → Deploy Hook).
 
 ## GitHub configuration
 
 | Kind | Name | Value |
 |---|---|---|
-| secret | `AZURE_CREDENTIALS` | output of `az ad sp create-for-rbac --role contributor --scopes /subscriptions/<sub>/resourceGroups/fx-ladder --sdk-auth` |
-| secret | `AZURE_SWA_TOKEN` | `az staticwebapp secrets list --name fx-ladder-web --query properties.apiKey -o tsv` |
-| variable | `AZURE_RESOURCE_GROUP` | `fx-ladder` |
-| variable | `AZURE_CONTAINERAPP` | `fx-feed-server` |
-| variable | `FEED_PUBLIC_URL` | `https://<containerapp-fqdn>` |
-| variable | `WEB_PUBLIC_URL` | `https://<swa-hostname>` |
+| secret | `RENDER_SERVER_DEPLOY_HOOK` | deploy hook URL of the web service |
+| secret | `RENDER_WEB_DEPLOY_HOOK` | deploy hook URL of the static site |
+| variable | `FEED_PUBLIC_URL` | `https://<web-service>.onrender.com` |
+| variable | `WEB_PUBLIC_URL` | `https://<static-site>.onrender.com` |
 
-Deploy jobs in `release.yml` are skipped while these variables are unset, so CI
-stays green before Azure exists. After the SWA hostname is known, add it to the
-container's `FX_ALLOWED_ORIGINS` — it is both the CORS allowlist for fetch
-paths and the Origin allowlist for the WS upgrade (architecture §7.1, §9.2).
+`FEED_PUBLIC_URL` is also the gate: deploy and smoke jobs in `release.yml`
+skip while it is unset, so CI stays green before Render exists. Once the
+static-site hostname is known, put it into the service's
+`FX_ALLOWED_ORIGINS` — one env feeds both halves of the same defence: CORS on
+the fetch paths and the Origin allowlist on the WS upgrade (architecture §7.1, §9.2).
 
 ## Release
 
@@ -54,33 +54,44 @@ git push origin v0.0.1
 
 The `release` workflow builds and pushes
 `ghcr.io/serhiipavlo/fx-ladder/feed-server:{vX.Y.Z,latest}` (linux/amd64),
-updates the Container App, builds web with `VITE_FEED_URL` and uploads it to
-SWA, then runs the smoke check against the public URLs. A red smoke marks the
-release failed.
+triggers the server deploy hook with `imgURL=<exact version tag>`, then the
+static-site hook, then runs the smoke check with retries against the public
+URLs. A red smoke marks the release failed.
 
 Manual smoke, any time:
 
 ```bash
-node scripts/smoke.mjs https://<containerapp-fqdn> https://<swa-hostname>
+node scripts/smoke.mjs https://<web-service>.onrender.com https://<static-site>.onrender.com
 ```
+
+## Free-tier behaviour (accepted deliberately)
+
+- The instance **spins down after 15 min without inbound traffic**; the next
+  request wakes it in up to ~1 min. The page shows an honest state and a
+  "Wake the server" button instead of pretending the link is broken.
+- Our heartbeat is outbound-only, so an idle viewer does not keep the
+  instance awake indefinitely; the reconnect story (v0.1.0+) covers the cut,
+  and v0.2.0's session ceiling makes bounded sessions policy anyway.
+- **750 instance-hours/month** (spin-down conserves them) and a bounded
+  egress allotment (~100 GB/month). At v0.2.0's 50k updates/s the stream
+  costs ~6 MB/s ≈ 21 GB/h — full-rate streaming budget is roughly five hours
+  a month. Demos run minutes at full rate; the public idle link stays at a
+  low rate. No payment method attached ⇒ overrun halts the service, it never
+  bills.
 
 ## Rollback
 
-Container Apps keeps revisions; every image is version-tagged in ghcr.
+Every image is version-tagged in ghcr; Render redeploys whatever tag the
+hook pins.
 
 ```bash
-# list revisions, newest first
-az containerapp revision list --name fx-feed-server --resource-group fx-ladder -o table
-
-# activate the previous revision and route all traffic to it
-az containerapp revision activate --revision <previous-revision-name> --resource-group fx-ladder
-az containerapp ingress traffic set --name fx-feed-server --resource-group fx-ladder \
-  --revision-weight <previous-revision-name>=100
+# roll the server back to the previous version
+curl -fsS "$RENDER_SERVER_DEPLOY_HOOK&imgURL=ghcr.io/serhiipavlo/fx-ladder/feed-server:<previous-tag>"
 ```
 
-Web rolls back by re-running `deploy-web` from the previous tag (or
-`pnpm --filter @fx/web build` from the tag locally and SWA CLI upload).
+Dashboard alternative for both services: Deploys → pick the previous deploy →
+Rollback (static-site deploys are kept and roll back instantly).
 
-**Rollback drill (T-0.0.7): pending.** To be executed once against live Azure:
-roll back to the previous revision, verify it serves traffic (smoke), record
+**Rollback drill (T-0.0.7): pending.** To be executed once against live
+Render: roll the server back one tag, verify with the smoke script, record
 the elapsed time here.

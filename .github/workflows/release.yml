@@ -35,50 +35,27 @@ jobs:
             ${{ env.IMAGE }}:${{ github.ref_name }}
             ${{ env.IMAGE }}:latest
 
-  # Deploy jobs are gated on repo variables so the workflow stays green until
-  # Azure is provisioned (see DEPLOY.md). Protocol-bumping releases deploy
-  # paired: server first, web immediately after (plan §2.2) — hence `needs`.
+  # Render deploys are triggered by deploy hooks (secrets). All three jobs are
+  # gated on FEED_PUBLIC_URL so the workflow stays green until Render is
+  # provisioned (DEPLOY.md). Paired order per plan §2.2: server first, web after.
   deploy-server:
     needs: image
-    if: vars.AZURE_CONTAINERAPP != ''
+    if: vars.FEED_PUBLIC_URL != ''
     runs-on: ubuntu-latest
     steps:
-      - uses: azure/login@v2
-        with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
-
-      - run: >
-          az containerapp update
-          --name ${{ vars.AZURE_CONTAINERAPP }}
-          --resource-group ${{ vars.AZURE_RESOURCE_GROUP }}
-          --image ${{ env.IMAGE }}:${{ github.ref_name }}
+      # imgURL pins the exact version tag; every other component of the
+      # reference must match the image URL configured on the Render service.
+      - run: curl -fsS "${{ secrets.RENDER_SERVER_DEPLOY_HOOK }}&imgURL=${{ env.IMAGE }}:${{ github.ref_name }}"
 
   deploy-web:
     needs: deploy-server
     if: vars.FEED_PUBLIC_URL != ''
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-
-      - uses: pnpm/action-setup@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: pnpm
-
-      - run: pnpm install --frozen-lockfile
-
-      - run: pnpm --filter @fx/web run build
-        env:
-          VITE_FEED_URL: ${{ vars.FEED_PUBLIC_URL }}
-
-      - uses: Azure/static-web-apps-deploy@v1
-        with:
-          azure_static_web_apps_api_token: ${{ secrets.AZURE_SWA_TOKEN }}
-          action: upload
-          app_location: apps/web/dist
-          skip_app_build: true
+      # Render builds the static site from the tracked branch tip with
+      # VITE_FEED_URL set in the Render dashboard; in trunk-based flow the
+      # tag and the branch tip coincide.
+      - run: curl -fsS "${{ secrets.RENDER_WEB_DEPLOY_HOOK }}"
 
   smoke:
     needs: [deploy-server, deploy-web]
@@ -91,5 +68,13 @@ jobs:
         with:
           node-version: 22
 
-      # A red smoke marks the release failed (plan §2.2).
-      - run: node scripts/smoke.mjs ${{ vars.FEED_PUBLIC_URL }} ${{ vars.WEB_PUBLIC_URL }}
+      # Hooks return before the deploy lands and a free instance may be
+      # cold-starting, so the smoke retries before declaring the release
+      # failed (plan §2.2).
+      - run: |
+          for i in $(seq 1 10); do
+            node scripts/smoke.mjs "${{ vars.FEED_PUBLIC_URL }}" "${{ vars.WEB_PUBLIC_URL }}" && exit 0
+            echo "smoke attempt $i failed; retrying in 30 s"
+            sleep 30
+          done
+          exit 1

@@ -8,7 +8,7 @@
 
 The primary goal of this plan is **versioned delivery**: ship a deployed MVP as early as possible, then improve it in small, tagged, always-demonstrable increments. Concretely:
 
-1. **Every version is deployed, not just deployable.** A tag that never reached Azure is a rehearsal, not a release. The public link is live from the very first version and never goes dark afterwards.
+1. **Every version is deployed, not just deployable.** A tag that never reached the cloud is a rehearsal, not a release. The public link is live from the very first version and never goes dark afterwards.
 2. **Every version has a demo.** Each release must add something a viewer can *see or trigger* — a new behavior, a new failure mode handled, a new number on the stats panel. If a release has no demo line, its scope is wrong.
 3. **Riskiest integration first.** The most expensive risks in this project are integration risks (WebSockets surviving the cloud ingress proxy, CORS between the static-host and container domains, a container image that builds the same way everywhere). They are burned down in v0.0.1, while the system is nearly empty — not discovered a day before the show. This is the walking-skeleton rule from architecture §13, promoted to a release of its own.
 4. **The system is whole at every tag.** No release ships "half a plane". A data plane either exists end-to-end (server → wire → client) or is explicitly absent. Half-built verticals are allowed on branches, never on `main`.
@@ -36,10 +36,10 @@ Semantic-versioning shape, pre-1.0 semantics:
 
 - **Trunk-based development.** Short-lived branches into `main`; `main` is always green and always deployable. No long-running `develop` branch — with a team of one it only manufactures merge conflicts.
 - **Conventional commits** (`feat:`, `fix:`, `perf:`, `test:`, `docs:`) — the changelog is generated, not remembered.
-- **Release = annotated tag `vX.Y.Z`** → GitHub Release with generated changelog → GitHub Actions deploys: web to Static Web Apps, feed-server image to ghcr and then to Container Apps. A post-deploy smoke check (open page, `/healthz`, one WS handshake, one heartbeat received) must pass or the release is marked failed.
-- **PR previews**: SWA builds a preview environment per pull request for anything touching `web` — free review builds, per architecture §9.
-- **Rollback is a first-class path**: Container Apps keeps revisions, and every image is tagged by version in ghcr. Rolling back = activating the previous revision (or re-deploying the previous tag). Practiced once deliberately in v0.0.1 so the first real rollback is not also the first attempt.
-- **Two deploy tracks, one wire protocol.** Web (SWA) and server (ACA) roll out independently, so every deploy has a short window where new web talks to old server or vice versa. For ordinary releases this is a seconds-long blip — clients recover via reconnect + snapshot. A release that bumps the protocol version deploys **paired** (server first, web immediately after) and rolls back paired too; the client's reaction to a failed `fx.vN` handshake is a "reload page" prompt, never a blind retry. PR previews always talk to the production backend — a preview of a protocol-changing PR is expectedly broken; known and accepted, not a bug.
+- **Release = annotated tag `vX.Y.Z`** → GitHub Release with generated changelog → GitHub Actions deploys: feed-server image to ghcr and then to the Render web service via a deploy hook pinning the exact image tag; web via the Render static-site hook (Render builds it with `VITE_FEED_URL`). A post-deploy smoke check (open page, `/healthz`, one WS handshake, one heartbeat received) must pass or the release is marked failed.
+- **PR previews**: Render builds a preview environment per pull request for anything touching `web` — free review builds, per architecture §9.
+- **Rollback is a first-class path**: every image is tagged by version in ghcr, and the Render deploy hook redeploys whichever tag it pins (the dashboard keeps previous deploys too). Rolling back = re-deploying the previous tag. Practiced once deliberately in v0.0.1 so the first real rollback is not also the first attempt.
+- **Two deploy tracks, one wire protocol.** Web (static site) and server (container) roll out independently, so every deploy has a short window where new web talks to old server or vice versa. For ordinary releases this is a seconds-long blip — clients recover via reconnect + snapshot. A release that bumps the protocol version deploys **paired** (server first, web immediately after) and rolls back paired too; the client's reaction to a failed `fx.vN` handshake is a "reload page" prompt, never a blind retry. PR previews always talk to the production backend — a preview of a protocol-changing PR is expectedly broken; known and accepted, not a bug.
 
 ### 2.3 Definition of Done — every release
 
@@ -48,7 +48,7 @@ A tag may be cut only when all of the following hold:
 - [ ] CI green: typecheck, boundary linter, unit + property tests, protocol roundtrip fuzz
 - [ ] `sim-core` coverage at 100 % for everything that exists (cheap by construction — architecture §4, §11)
 - [ ] Perf gate passes at the threshold **of this release** (from v0.1.0 on; thresholds per §3; ratchet-only)
-- [ ] Deployed to Azure; post-deploy smoke check green
+- [ ] Deployed to the public URLs (Render); post-deploy smoke check green
 - [ ] `CHANGELOG.md` updated; demo line for the release written down in `DEMO.md`
 - [ ] Any reversed or revised decision reflected in the ADR list (as was done for ADR-03)
 
@@ -130,13 +130,13 @@ The architecture's Phase 1 is deliberately split into two releases: v0.1.0 prove
 - `feed-server`: Node `http` + `ws` serving `/healthz` and a trivial `/feed` WS that sends one heartbeat frame per second — just enough traffic to prove the proxy path and idle-timeout behavior.
 - `web`: placeholder page that connects to `/feed`, shows connection state, and makes one cross-origin `fetch` to `/healthz`, printing the result. The WS handshake only proves the Origin allowlist — CORS lives on the fetch path, and without this call the third integration risk would survive the release unproven.
 - CI: typecheck, lint, unit-test job (trivial tests), Docker build, push to ghcr.
-- CD: deploy the container and the static site; post-deploy smoke check; spending alert configured on the subscription.
+- CD: deploy the container and the static site; post-deploy smoke check; free-plan limits written down (750 instance-hours/month, egress allotment) — no payment method attached, so overrun halts the service instead of billing.
 - Local dev loop verified on Windows (the actual dev machine): pure-JS `ws` means no native module and no prebuilt-binary hunt — this is one of the reasons it was chosen (architecture §7.1).
 - One deliberate rollback exercised and timed.
 
 **Demo.** Open the link on a phone: page loads, shows "connected", heartbeat counter ticks. Unimpressive on purpose — the demo *is* the pipeline.
 
-**Exit criteria.** Public URL serves the page over the real network; `wss://` handshake succeeds through the ingress; the cross-origin `/healthz` fetch succeeds from the SWA page; CI green on a PR; rollback to previous revision verified.
+**Exit criteria.** Public URL serves the page over the real network; `wss://` handshake succeeds through the ingress; the cross-origin `/healthz` fetch succeeds from the static-site page; CI green on a PR; rollback to the previous image tag verified.
 
 **Explicitly out.** Any market model. Any real protocol beyond the heartbeat frame.
 
@@ -234,7 +234,7 @@ The architecture's Phase 1 is deliberately split into two releases: v0.1.0 prove
 - Chaos drills: kill the container mid-stream — clients reconnect with jittered backoff (no thundering herd, §7.1) and resnapshot cleanly; a restart is documented as "a new trading day" (ADR-10), written where a viewer sees it.
 - Optional secret header on `/sim/*` behind a flag (the one-hour hardening from §8/§14) — default off for the public demo, documented.
 - Perf report with measured numbers (sustained rate, p95 server tick, p95 client frame time, naive versus coalesced) published in the README; risk register (§14) re-walked and updated.
-- `DEMO.md` runbook: the 5-minute script step by step, plus the fallback path per revised ADR-03 — the same server run locally (`docker run` / dev mode) if the venue's network or Azure fails.
+- `DEMO.md` runbook: the 5-minute script step by step, plus the fallback path per revised ADR-03 — the same server run locally (`docker run` / dev mode) if the venue's network or the cloud fails.
 - ADR set finalized; changelog complete since v0.0.1.
 
 **Exit criteria.** The scripted demo executed **twice in a row from a clean state** (fresh container, fresh browser) with zero manual fixes; one full rehearsal over a deliberately bad network (throttled) survives on the strength of the reconnect story.
