@@ -2,6 +2,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 
 import {
   pairIdOf,
+  simBlotterBodySchema,
   simDisconnectBodySchema,
   simFreezeBodySchema,
   simGapBodySchema,
@@ -61,6 +62,7 @@ export interface ControlDeps {
   freeze(pairId: number, ms: number): void;
   setLastLook(holdMs: number, rejectRate: number): void;
   submitOrder(input: SimOrderBody & { pairId: number }): { clOrdId: string; immediate: ExecutionReport[] };
+  blotter(rows: number): { submitted: number };
   stats(): SimStats;
 }
 
@@ -195,6 +197,9 @@ export function handleSimRequest(
           }
         }),
       );
+      return;
+    case '/sim/blotter':
+      route('POST', () => void handlePost(req, res, simBlotterBodySchema, (body) => deps.blotter(body.rows)));
       return;
     case '/sim/disconnect':
       route('POST', () =>

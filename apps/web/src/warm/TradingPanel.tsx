@@ -1,22 +1,18 @@
 import { gql } from '@apollo/client';
 import { useMutation, useQuery, useSubscription } from '@apollo/client/react';
-import {
-  formatPrice,
-  instrumentBySymbol,
-  pairIdOf,
-  type EnrichedExecutionReport,
-  type Instrument,
-} from '@fx/domain';
+import { pairIdOf, type EnrichedExecutionReport, type Instrument } from '@fx/domain';
 import { useEffect, useState, useSyncExternalStore } from 'react';
 
 import type { FeedStore } from '../stream/store';
-import { createOrdersStore, type OrdersStore } from './orders';
+import { OrdersBlotter } from './Blotter';
+import { createOrdersStore } from './orders';
 import { midOf, unrealisedPnl } from './pnl';
 
 // The trading section (T-0.4.5): a ticket that acks instantly, a blotter that
 // assembles order state from subscription events, and positions with the
 // §7.3 P&L split — realised from the server, unrealised multiplied against
-// the hot mid on every render the feed causes.
+// the hot mid on every render the feed causes. The blotter itself is AG Grid
+// since T-0.4.6 — see Blotter.tsx.
 
 export const SUBMIT_ORDER = gql`
   mutation Submit($input: OrderInput!) {
@@ -66,50 +62,6 @@ export interface PositionData {
 
 const cell: React.CSSProperties = { padding: '0.1rem 0.75rem 0.1rem 0', textAlign: 'right' };
 const cellLeft: React.CSSProperties = { ...cell, textAlign: 'left' };
-
-/** Presentational blotter — a plain table until AG Grid lands in T-0.4.6. */
-export function OrdersBlotter({ orders }: { orders: OrdersStore }): React.JSX.Element {
-  useSyncExternalStore(orders.subscribe, () => orders.version());
-  const rows = orders.rows();
-  return (
-    <table style={{ borderCollapse: 'collapse', fontSize: '0.9em' }} data-testid="blotter">
-      <thead>
-        <tr style={{ color: '#586e75' }}>
-          <th style={cellLeft}>clOrdId</th>
-          <th style={cellLeft}>pair</th>
-          <th style={cellLeft}>side</th>
-          <th style={cell}>qty</th>
-          <th style={cellLeft}>status</th>
-          <th style={cell}>cum</th>
-          <th style={cell}>leaves</th>
-          <th style={cell}>last px</th>
-          <th style={cellLeft}>reason</th>
-        </tr>
-      </thead>
-      <tbody>
-        {rows.map((row) => (
-          <tr key={row.clOrdId} data-testid={`order-${row.clOrdId}`}>
-            <td style={cellLeft}>{row.clOrdId}</td>
-            <td style={cellLeft}>{row.pair}</td>
-            <td style={{ ...cellLeft, color: row.side === 'buy' ? '#2aa198' : '#dc322f' }}>{row.side}</td>
-            <td style={cell}>{row.orderQtyK}K</td>
-            <td style={cellLeft} data-testid={`status-${row.clOrdId}`}>
-              {row.status}
-            </td>
-            <td style={cell}>{row.cumQty}</td>
-            <td style={cell}>{row.leavesQty}</td>
-            <td style={cell}>
-              {row.lastPx === null
-                ? '—'
-                : formatPrice(row.lastPx, instrumentBySymbol(row.pair)?.precision ?? 5)}
-            </td>
-            <td style={cellLeft}>{row.rejectReason ?? ''}</td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  );
-}
 
 /**
  * Positions with the split asserted by test: `realisedPnl` re-renders only
@@ -251,6 +203,11 @@ export function TradingSection({
     onData: ({ data }) => {
       if (data.data) orders.ingest(data.data.executionReports);
     },
+    // The §6.4 principle on the warm side: events route past React state into
+    // the coalescing store. Without this, every report re-renders the whole
+    // section — a /sim/blotter burst caps the client at a few hundred
+    // messages a second.
+    ignoreResults: true,
   });
   const { data: positionsData, refetch } = useQuery<{ positions: PositionData[] }>(POSITIONS_QUERY, {
     fetchPolicy: 'cache-and-network',

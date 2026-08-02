@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { simGapBodySchema, simRateBodySchema, simSeedBodySchema } from './schemas';
+import { simBlotterBodySchema, simGapBodySchema, simRateBodySchema, simSeedBodySchema } from './schemas';
 
 describe('control-plane schemas (done-when of T-0.1.1: each rejects malformed bodies)', () => {
   it('POST /sim/seed accepts a uint32 seed', () => {
@@ -39,6 +39,18 @@ describe('control-plane schemas (done-when of T-0.1.1: each rejects malformed bo
     'POST /sim/gap rejects %j',
     (bad) => {
       expect(simGapBodySchema.safeParse(bad).success).toBe(false);
+    },
+  );
+
+  it('POST /sim/blotter accepts up to the AC-11 row count', () => {
+    expect(simBlotterBodySchema.parse({ rows: 1 })).toEqual({ rows: 1 });
+    expect(simBlotterBodySchema.parse({ rows: 5000 })).toEqual({ rows: 5000 });
+  });
+
+  it.each([{}, { rows: 0 }, { rows: 5001 }, { rows: 2.5 }, { rows: '5000' }, { rows: 5000, extra: 1 }])(
+    'POST /sim/blotter rejects %j',
+    (bad) => {
+      expect(simBlotterBodySchema.safeParse(bad).success).toBe(false);
     },
   );
 });

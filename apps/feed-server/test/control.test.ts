@@ -392,6 +392,53 @@ describe('/sim/order and /sim/lastlook (done-when of T-0.3.3, T-0.3.5, T-0.3.6)'
   });
 });
 
+describe('/sim/blotter (done-when of T-0.4.6, server half)', () => {
+  it('a burst fills the books through the real submit path', { timeout: 15_000 }, async () => {
+    const port = await startServer({ updatesPerSec: 500 });
+    const res = await post(port, '/sim/blotter', { rows: 40 });
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ ok: true, submitted: 40 });
+
+    await settle(1500); // scripts play out: hold 40 ms + up to 3 fills at 120 ms
+    const stats = (await getStats(port)).executions;
+    expect(stats.submitted).toBe(40);
+    expect(stats.filled + stats.canceled).toBe(40); // qty is always valid, nothing frozen
+    expect(stats.trades).toBeGreaterThan(0);
+  });
+
+  it('reseed → identical burst: composition and outcomes are deterministic', { timeout: 15_000 }, async () => {
+    const port = await startServer({ updatesPerSec: 500 });
+
+    async function capture(): Promise<unknown> {
+      expect((await post(port, '/sim/seed', { seed: 7 })).status).toBe(200);
+      expect((await post(port, '/sim/blotter', { rows: 30 })).status).toBe(200);
+      await settle(1500);
+      return (await getStats(port)).executions;
+    }
+
+    // Reseed resets all three PRNG streams (market, engine, blotter): the
+    // same seed replays the same burst — fills, partials, cancels and all.
+    expect(await capture()).toEqual(await capture());
+  });
+
+  it('the live-order ceiling refuses a burst on top of a full book, naming the field', { timeout: 15_000 }, async () => {
+    const port = await startServer();
+    // Hold every order at last look for 10 s: all of them stay live.
+    expect((await post(port, '/sim/lastlook', { holdMs: 10_000, rejectRate: 0 })).status).toBe(200);
+    expect((await post(port, '/sim/blotter', { rows: 5000 })).status).toBe(200);
+    expect((await post(port, '/sim/blotter', { rows: 5000 })).status).toBe(200);
+
+    const refused = await post(port, '/sim/blotter', { rows: 1 });
+    expect(refused.status).toBe(400);
+    const body = (await refused.json()) as { issues: Array<{ path: string; message: string }> };
+    expect(body.issues[0]!.path).toBe('rows');
+    expect(body.issues[0]!.message).toContain('live orders');
+
+    expect((await post(port, '/sim/blotter', { rows: 0 })).status).toBe(400);
+    expect((await post(port, '/sim/blotter', { rows: 5001 })).status).toBe(400);
+  });
+});
+
 describe('CORS preflight (the docs page posts cross-origin)', () => {
   it('answers OPTIONS with the method/header grant for an allowed origin', async () => {
     const port = await startServer();

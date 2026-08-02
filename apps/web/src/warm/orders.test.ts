@@ -21,9 +21,12 @@ function report(partial: Partial<EnrichedExecutionReport>): EnrichedExecutionRep
   };
 }
 
+/** Synchronous scheduler: every ingest flushes immediately, as pre-T-0.4.6. */
+const sync = { scheduleNotify: (cb: () => void) => cb() };
+
 describe('orders store', () => {
   it('assembles order state from the event stream, not from any final object', () => {
-    const store = createOrdersStore();
+    const store = createOrdersStore(sync);
     let notified = 0;
     let trades = 0;
     store.subscribe(() => (notified += 1));
@@ -52,7 +55,7 @@ describe('orders store', () => {
   });
 
   it('a lying sequence throws instead of rendering wrong money', () => {
-    const store = createOrdersStore();
+    const store = createOrdersStore(sync);
     store.ingest(report({}));
     expect(() =>
       store.ingest(
@@ -62,7 +65,7 @@ describe('orders store', () => {
   });
 
   it('orders sort by recency and keep independent lifecycles', () => {
-    const store = createOrdersStore();
+    const store = createOrdersStore(sync);
     store.ingest(report({ clOrdId: 'A', transactTime: 1 }));
     store.ingest(report({ clOrdId: 'B', pair: 'GBPUSD', side: 'sell', transactTime: 5 }));
     store.ingest(
@@ -71,5 +74,42 @@ describe('orders store', () => {
     const rows = store.rows();
     expect(rows.map((r) => r.clOrdId)).toEqual(['A', 'B']);
     expect(rows[1]!.status).toBe('NEW');
+  });
+
+  it('a burst coalesces into one flush; the fold itself never lags the wire', () => {
+    const queue: Array<() => void> = [];
+    const store = createOrdersStore({ scheduleNotify: (cb) => queue.push(cb) });
+    let notified = 0;
+    let trades = 0;
+    store.subscribe(() => (notified += 1));
+    store.onTrade(() => (trades += 1));
+
+    for (let i = 0; i < 100; i += 1) {
+      store.ingest(report({ clOrdId: `B-${i}`, transactTime: i }));
+    }
+    store.ingest(
+      report({ clOrdId: 'B-0', execType: 'TRADE', ordStatus: 'FILLED', lastPx: 1, lastQty: 300, cumQty: 300, leavesQty: 0, transactTime: 200 }),
+    );
+
+    // State applied message by message — rows and version never lag…
+    expect(store.rows()).toHaveLength(100);
+    expect(store.rows()[0]!.status).toBe('FILLED');
+    expect(notified).toBe(0); // …but nobody rendered mid-burst
+    expect(queue).toHaveLength(1);
+
+    queue.shift()!();
+    expect(notified).toBe(1); // one render pass for the whole burst
+    expect(trades).toBe(1); // one positions refetch, only because a TRADE was inside
+    expect(queue).toHaveLength(0); // quiet after the flush
+  });
+
+  it('rows are referentially stable per version — the grid diffs deltas, not rebuilds', () => {
+    const store = createOrdersStore(sync);
+    store.ingest(report({}));
+    const first = store.rows();
+    expect(store.rows()).toBe(first);
+    store.ingest(report({ clOrdId: 'B', transactTime: 2 }));
+    expect(store.rows()).not.toBe(first);
+    expect(store.rows()).toBe(store.rows());
   });
 });
