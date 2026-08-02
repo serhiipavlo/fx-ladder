@@ -7,8 +7,13 @@ function backendOrigin(): string {
   return configured === undefined || configured === '' ? window.location.origin : configured;
 }
 
+/** Absolute URL of a backend fetch path (healthz, /sim/*, /api/*). */
+export function backendUrl(path: string): string {
+  return new URL(path, backendOrigin()).toString();
+}
+
 export function healthzUrl(): string {
-  return new URL('/healthz', backendOrigin()).toString();
+  return backendUrl('/healthz');
 }
 
 export function feedWsUrl(): string {

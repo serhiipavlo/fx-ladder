@@ -3,6 +3,7 @@ import { useEffect, useState, useSyncExternalStore } from 'react';
 
 import { feedWsUrl, healthzUrl } from './backend';
 import { Ladder } from './Ladder';
+import { Panel } from './Panel';
 import { connectFeedStream } from './stream/connect';
 import { createFeedStore, type FeedStore } from './stream/store';
 
@@ -41,17 +42,7 @@ function StatusLine({ store }: { store: FeedStore }): React.JSX.Element {
         {stats.lastSeq ?? '—'}
       </p>
       <p>
-        render:{' '}
-        <button
-          data-testid="render-mode"
-          onClick={() => store.setRenderMode(render.mode === 'coalesced' ? 'naive' : 'coalesced')}
-          style={{ font: 'inherit', padding: '0.1rem 0.6rem', cursor: 'pointer' }}
-        >
-          {render.mode}
-        </button>{' '}
-        — renders {render.renders}, msg p95{' '}
-        <span data-testid="msg-p95">{render.messageP95.toFixed(2)}</span> ms, flush p95{' '}
-        <span data-testid="flush-p95">{render.flushP95.toFixed(2)}</span> ms
+        render: <strong>{render.mode}</strong> — renders {render.renders} (switch lives in the demo panel)
       </p>
     </>
   );
@@ -139,6 +130,7 @@ export function App(): React.JSX.Element {
           <StatusLine store={store} />
           <Ladder store={store} />
           <WakePanel store={store} waking={waking} onWake={() => void wake().then(() => store.resume())} />
+          <Panel store={store} />
         </>
       )}
       <p>
