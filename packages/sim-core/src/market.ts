@@ -172,22 +172,26 @@ export function createMarket(seed: number, updatesPerSec = 1000): Market {
         lastNow = now;
         return [];
       }
-      const budget = carry + ((now - lastNow) * rate) / 1000;
-      let remaining = Math.floor(budget);
-      carry = budget - remaining;
+      // The action sequence is a pure function of the PRNG: how the budget is
+      // sliced into ticks decides only how many actions have run by `now`,
+      // never which ones. A mid move may overdraw the current slice — the
+      // deficit carries forward — so every stream from one (seed, commands)
+      // pair is a prefix of the same infinite record stream (§5.1).
+      let credit = carry + ((now - lastNow) * rate) / 1000;
       lastNow = now;
 
       const out: LevelRecord[] = [];
-      while (remaining > 0) {
+      while (credit >= 1) {
         const pair = pairs[prng.nextUint32() % pairs.length] as PairState;
-        if (remaining >= midMoveCost && prng.nextFloat() < 0.25) {
+        if (prng.nextFloat() < 0.25) {
           moveMid(pair, out);
-          remaining -= midMoveCost;
+          credit -= midMoveCost;
         } else {
           jiggleSize(pair, out);
-          remaining -= 1;
+          credit -= 1;
         }
       }
+      carry = credit;
       return out;
     },
 

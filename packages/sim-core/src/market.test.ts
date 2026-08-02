@@ -123,11 +123,34 @@ describe('rate contract', () => {
     expect(Math.abs(total - 1000)).toBeLessThanOrEqual(2 * BOOK_LEVELS);
   });
 
-  it('small budgets still make progress without mid-moves overdrawing them', () => {
+  it('small budgets still make progress; a mid move may overdraw and carry a deficit', () => {
     const market = createMarket(9, 1000);
     market.advance(0);
-    const batch = market.advance(2); // budget of 2 records — below the mid-move cost
-    expect(batch.length).toBe(2);
+    const batch = market.advance(2); // budget of 2 records
+    expect(batch.length).toBeGreaterThanOrEqual(1);
+    expect(batch.length).toBeLessThanOrEqual(1 + 2 * BOOK_LEVELS);
+  });
+
+  it('the record stream is slicing-invariant: many small advances prefix-match one big one', () => {
+    fc.assert(
+      fc.property(seedArb, fc.integer({ min: 2, max: 20 }), (seed, slices) => {
+        const coarse = createMarket(seed, 2000);
+        coarse.advance(0);
+        const oneShot = coarse.advance(1000);
+
+        const fine = createMarket(seed, 2000);
+        fine.advance(0);
+        const sliced: LevelRecord[] = [];
+        for (let i = 1; i <= slices; i += 1) sliced.push(...fine.advance((1000 * i) / slices));
+
+        // Float rounding at slice edges may shift the cut by an action or two;
+        // everything up to the shorter length must match record for record.
+        const prefix = Math.min(oneShot.length, sliced.length);
+        expect(prefix).toBeGreaterThan(100);
+        expect(sliced.slice(0, prefix)).toEqual(oneShot.slice(0, prefix));
+      }),
+      { numRuns: 25 },
+    );
   });
 });
 
