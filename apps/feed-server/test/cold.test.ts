@@ -56,6 +56,17 @@ describe('cold plane (done-when of T-0.3.4)', () => {
     expect(second.headers.get('cache-control')).toBe('public, max-age=3600');
   });
 
+  it('a weak-prefixed ETag still matches — compressing proxies downgrade tags (RFC 7232)', async () => {
+    const port = await startServer();
+    const first = await fetch(`http://127.0.0.1:${port}/api/instruments`);
+    const weak = `W/${first.headers.get('etag')!}`;
+
+    const second = await fetch(`http://127.0.0.1:${port}/api/instruments`, {
+      headers: { 'If-None-Match': weak },
+    });
+    expect(second.status).toBe(304);
+  });
+
   it('a stale or foreign ETag gets the full body again', async () => {
     const port = await startServer();
     const res = await fetch(`http://127.0.0.1:${port}/api/instruments`, {

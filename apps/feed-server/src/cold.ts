@@ -18,9 +18,16 @@ const BODY = JSON.stringify(INSTRUMENTS);
 const ETAG = etagOf(INSTRUMENTS);
 const CACHE_CONTROL = `public, max-age=${INSTRUMENTS_MAX_AGE_S}`;
 
+/**
+ * If-None-Match uses WEAK comparison (RFC 7232 §3.2): a compressing proxy —
+ * Render's included — legitimately downgrades our strong tag to `W/"…"`, and
+ * the client echoes that form back. Found live on the deployed instance.
+ */
+const weakNormalize = (tag: string): string => tag.trim().replace(/^W\//, '');
+
 export function handleInstruments(req: IncomingMessage, res: ServerResponse): void {
-  const offered = (req.headers['if-none-match'] ?? '').split(',').map((tag) => tag.trim());
-  if (offered.includes(ETAG)) {
+  const offered = (req.headers['if-none-match'] ?? '').split(',').map(weakNormalize);
+  if (offered.includes(weakNormalize(ETAG))) {
     // Nothing changed since the version the client holds: headers only.
     res.writeHead(304, { ETag: ETAG, 'Cache-Control': CACHE_CONTROL });
     res.end();
