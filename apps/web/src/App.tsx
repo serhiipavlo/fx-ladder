@@ -15,6 +15,7 @@ function StatusLine({ store }: { store: FeedStore }): React.JSX.Element {
   const status = store.core.status();
   const stats = store.core.stats();
 
+  const closeInfo = store.lastClose();
   const label =
     socket === 'open'
       ? status === 'live'
@@ -24,8 +25,8 @@ function StatusLine({ store }: { store: FeedStore }): React.JSX.Element {
           : 'connecting'
       : socket === 'connecting'
         ? 'connecting'
-        : 'disconnected — retrying';
-  const color = label === 'live' ? '#2aa198' : label.startsWith('disconnected') ? '#dc322f' : '#b58900';
+        : (closeInfo?.decision.label ?? 'disconnected — retrying');
+  const color = label === 'live' ? '#2aa198' : store.terminal() || label.includes('lost') ? '#dc322f' : '#b58900';
 
   return (
     <p>
@@ -36,6 +37,36 @@ function StatusLine({ store }: { store: FeedStore }): React.JSX.Element {
       ({FX_SUBPROTOCOL}) — frames {stats.frames}, records{' '}
       {stats.records}, heartbeats {stats.heartbeats}, gaps <span data-testid="gaps">{stats.gaps}</span>, last seq{' '}
       {stats.lastSeq ?? '—'}
+    </p>
+  );
+}
+
+function WakePanel({
+  store,
+  waking,
+  onWake,
+}: {
+  store: FeedStore;
+  waking: boolean;
+  onWake: () => void;
+}): React.JSX.Element | null {
+  useSyncExternalStore(store.subscribe, () => store.version());
+  if (store.socketState() !== 'closed') return null;
+  return (
+    <p>
+      <button
+        onClick={onWake}
+        disabled={waking}
+        style={{ font: 'inherit', padding: '0.4rem 1rem', cursor: waking ? 'wait' : 'pointer' }}
+      >
+        {waking ? 'waking the server…' : store.terminal() ? 'Reconnect' : 'Wake the server'}
+      </button>
+      <br />
+      <small>
+        {store.terminal()
+          ? (store.lastClose()?.decision.label ?? 'stopped')
+          : 'free instance sleeps after ~15 min idle; waking takes up to a minute'}
+      </small>
     </p>
   );
 }
@@ -91,19 +122,7 @@ export function App(): React.JSX.Element {
         <>
           <StatusLine store={store} />
           <Ladder store={store} />
-          {store.socketState() === 'closed' ? (
-            <p>
-              <button
-                onClick={() => void wake()}
-                disabled={waking}
-                style={{ font: 'inherit', padding: '0.4rem 1rem', cursor: waking ? 'wait' : 'pointer' }}
-              >
-                {waking ? 'waking the server…' : 'Wake the server'}
-              </button>
-              <br />
-              <small>free instance sleeps after ~15 min idle; waking takes up to a minute</small>
-            </p>
-          ) : null}
+          <WakePanel store={store} waking={waking} onWake={() => void wake().then(() => store.resume())} />
         </>
       )}
       <p>

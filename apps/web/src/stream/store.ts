@@ -1,4 +1,4 @@
-import type { FeedStreamHandle, SocketState } from './connect';
+import type { CloseInfo, FeedStreamHandle, SocketState } from './connect';
 import type { StreamCore, StreamEvent } from './core';
 
 // React-facing wrapper over the stream: one subscription list, primitive
@@ -11,6 +11,9 @@ export interface FeedStore {
   core: StreamCore;
   socketState(): SocketState;
   lastResync(): StreamEvent | null;
+  lastClose(): CloseInfo | null;
+  terminal(): boolean;
+  resume(): void;
   version(): number;
   pairVersion(pairId: number): number;
   close(): void;
@@ -35,6 +38,9 @@ export function createFeedStore(connect: (onChange: () => void) => FeedStreamHan
     core: handle.core,
     socketState: () => handle.socketState(),
     lastResync: () => handle.lastResync(),
+    lastClose: () => handle.lastClose(),
+    terminal: () => handle.terminal(),
+    resume: () => handle.resume(),
     version: () => handle.core.version(),
     pairVersion: (pairId) => handle.core.pairVersions().get(pairId) ?? 0,
     close: () => handle.close(),
