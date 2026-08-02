@@ -81,6 +81,8 @@ export function createFeedStore(
   const listeners = new Set<() => void>();
   let mode: RenderMode = 'coalesced';
   let framePending = false;
+  /** Store-local changes (mode flips) must move the snapshot too. */
+  let localVersion = 0;
 
   let messages = 0;
   let renders = 0;
@@ -128,11 +130,12 @@ export function createFeedStore(
     lastClose: () => handle.lastClose(),
     terminal: () => handle.terminal(),
     resume: () => handle.resume(),
-    version: () => handle.core.version(),
+    version: () => handle.core.version() + localVersion,
     pairVersion: (pairId) => handle.core.pairVersions().get(pairId) ?? 0,
     renderMode: () => mode,
     setRenderMode(next) {
       mode = next;
+      localVersion += 1;
       notifyNow(); // the toggle itself must be visible immediately
     },
     renderStats: () => ({
