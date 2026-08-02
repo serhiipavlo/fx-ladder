@@ -1,0 +1,43 @@
+# Render Blueprint — declarative provisioning for the two deploy tracks
+# (architecture §9, ADR-11 revision). Instantiated once in the dashboard
+# (New → Blueprint → this repo); afterwards service settings sync from this
+# file on commits to master, so infra changes ride the same git flow as code.
+#
+# The two hostname literals below assume both service names are free on
+# onrender.com. If Render suffixes a name at first sync, correct the literals
+# here and commit — the next sync applies the fix.
+
+services:
+  # feed-server: hot/cold/control planes in one container, deployed from the
+  # ghcr image built by the release workflow. Releases pin the exact version
+  # tag via the deploy hook (imgURL=...:vX.Y.Z); `latest` names the default,
+  # and every release pushes the same bits to both tags.
+  - type: web
+    name: fx-ladder-feed
+    runtime: image
+    image:
+      url: ghcr.io/serhiipavlo/fx-ladder/feed-server:latest
+    plan: free
+    region: frankfurt
+    healthCheckPath: /healthz
+    envVars:
+      # One env feeds both halves of the defence: CORS on fetch paths and the
+      # Origin allowlist on the WS upgrade (architecture §7.1, §9.2).
+      - key: FX_ALLOWED_ORIGINS
+        value: https://fx-ladder-web.onrender.com,http://localhost:5173
+
+  # web: static build with CDN and TLS. Render builds it from this repo when
+  # the release workflow fires the deploy hook; per-commit auto-deploys stay
+  # off so releases remain tag-driven (plan §2.2). PR previews stay on.
+  - type: web
+    name: fx-ladder-web
+    runtime: static
+    buildCommand: npm install -g pnpm@11.18.0 && pnpm install --frozen-lockfile && pnpm --filter @fx/web run build
+    staticPublishPath: apps/web/dist
+    autoDeployTrigger: off
+    previews:
+      generation: automatic
+    envVars:
+      # Backend origin baked into the bundle at build time (architecture §9.2).
+      - key: VITE_FEED_URL
+        value: https://fx-ladder-feed.onrender.com

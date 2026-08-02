@@ -6,44 +6,45 @@ feed-server image goes to ghcr and is deployed to a **Render Web Service**
 **Render Static Site** (Render builds it from the repo). Both on the free
 tier — cold starts are accepted deliberately, the page carries a wake button.
 
-## One-time provisioning (repo owner, Render dashboard)
+## One-time provisioning (repo owner)
 
-1. **Web service (image-backed).** New → Web Service → *Existing image* →
-   `ghcr.io/serhiipavlo/fx-ladder/feed-server:latest`
-   - Instance type **Free**, region Frankfurt
-   - Health check path `/healthz`
-   - Env: `FX_ALLOWED_ORIGINS=https://<static-site>.onrender.com,http://localhost:5173`
+Both services are declared in [`render.yaml`](render.yaml) — a Render
+Blueprint: infra-as-code that the free tier actually supports (the Terraform
+provider cannot create free-plan web services). After instantiation, service
+settings sync from that file on commits to master; change env vars there,
+not in the dashboard (a sync overwrites dashboard edits of managed settings).
 
-   ghcr packages are **private by default** — after the first pushed image,
-   make the package public (GitHub → Packages → `feed-server` → settings →
-   visibility) or add a registry credential in Render (PAT with
-   `read:packages`). The service needs an existing image, so push the first
-   tag (or one manual `docker push`) before creating it.
+1. **Make the image pullable.** The image-backed service needs an existing
+   image: push the first tag (or one manual `docker push`), then make the
+   ghcr package public (GitHub → Packages → `feed-server` → settings →
+   visibility) — or keep it private and add a registry credential in Render
+   (PAT with `read:packages`), referenced from `image.creds` in `render.yaml`.
 
-2. **Static site.** New → Static Site → connect the GitHub repo
-   - Build command:
-     `npm install -g pnpm@11.18.0 && pnpm install --frozen-lockfile && pnpm --filter @fx/web run build`
-   - Publish directory: `apps/web/dist`
-   - Env: `VITE_FEED_URL=https://<web-service>.onrender.com`
-   - **Auto-Deploy: off** (releases are tag-driven via the hook)
-   - Pull Request Previews: on
+2. **Instantiate the Blueprint.** Dashboard → New → Blueprint → connect this
+   repo → apply. Render creates `fx-ladder-feed` (web service, free,
+   Frankfurt) and `fx-ladder-web` (static site) exactly as declared.
 
-3. Copy both **deploy hook URLs** (each service → Settings → Deploy Hook).
+3. **Check the hostnames.** The env literals in `render.yaml` assume
+   `fx-ladder-feed.onrender.com` / `fx-ladder-web.onrender.com`. If Render
+   suffixed a name at first sync, correct both literals in `render.yaml` and
+   commit — the next sync applies the fix.
+
+4. Copy both **deploy hook URLs** (each service → Settings → Deploy Hook).
 
 ## GitHub configuration
 
 | Kind | Name | Value |
 |---|---|---|
-| secret | `RENDER_SERVER_DEPLOY_HOOK` | deploy hook URL of the web service |
-| secret | `RENDER_WEB_DEPLOY_HOOK` | deploy hook URL of the static site |
-| variable | `FEED_PUBLIC_URL` | `https://<web-service>.onrender.com` |
-| variable | `WEB_PUBLIC_URL` | `https://<static-site>.onrender.com` |
+| secret | `RENDER_SERVER_DEPLOY_HOOK` | deploy hook URL of `fx-ladder-feed` |
+| secret | `RENDER_WEB_DEPLOY_HOOK` | deploy hook URL of `fx-ladder-web` |
+| variable | `FEED_PUBLIC_URL` | `https://fx-ladder-feed.onrender.com` |
+| variable | `WEB_PUBLIC_URL` | `https://fx-ladder-web.onrender.com` |
 
 `FEED_PUBLIC_URL` is also the gate: deploy and smoke jobs in `release.yml`
-skip while it is unset, so CI stays green before Render exists. Once the
-static-site hostname is known, put it into the service's
-`FX_ALLOWED_ORIGINS` — one env feeds both halves of the same defence: CORS on
-the fetch paths and the Origin allowlist on the WS upgrade (architecture §7.1, §9.2).
+skip while it is unset, so CI stays green before Render exists. The
+allowlist that feeds both halves of the same defence — CORS on the fetch
+paths and the Origin allowlist on the WS upgrade (architecture §7.1, §9.2) —
+lives in `render.yaml` as `FX_ALLOWED_ORIGINS`.
 
 ## Release
 
@@ -61,7 +62,7 @@ URLs. A red smoke marks the release failed.
 Manual smoke, any time:
 
 ```bash
-node scripts/smoke.mjs https://<web-service>.onrender.com https://<static-site>.onrender.com
+node scripts/smoke.mjs https://fx-ladder-feed.onrender.com https://fx-ladder-web.onrender.com
 ```
 
 ## Free-tier behaviour (accepted deliberately)
