@@ -401,7 +401,7 @@ Tasks marked ∥ may run in parallel with the previous one; everything else is s
 *Deliverable:* gate raised to 50k updates/s, recording p95 tick, bytes/s (~6 MB/s expected for JSON) and p95 client frame time.
 *Done when:* green in CI at the new thresholds, reproduced once manually against the deployed instance, and the measured numbers are written into the thresholds file as the new ratchet.
 
-### v0.3.0 — Executions and the cold plane
+### v0.3.0 — Executions and the cold plane *(tagged 2026-08-02)*
 
 **T-0.3.1 · FIX event model in `domain`**
 *Deliverable:* `ExecType`, `OrdStatus` (including terminal `CANCELED`/`EXPIRED`), `RejectReason`, quantity fields, and the state machine from architecture §5.6.

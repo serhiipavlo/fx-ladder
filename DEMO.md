@@ -3,6 +3,23 @@
 One demo line per release (plan §2.3). The full 5-minute scripted runbook
 arrives with v1.0.0.
 
+## v0.3.0
+
+The engine room. DevTools → Network: `/api/instruments` loads once, then a
+refresh answers `304` with an empty body — the client's `staleTime` and the
+server's `max-age` are the same number by construction. The machine:
+
+```bash
+node scripts/orders-burst.mjs https://fx-ladder-feed.onrender.com 30
+```
+
+— thirty synthetic orders expand into scripted lifecycles and the executions
+mix moves in `/sim/stats`: trades, partials, fills, an IOC leftover canceled.
+Turn last look up (`POST /sim/lastlook {"holdMs":80,"rejectRate":0.5}`) and
+the same burst starts bouncing with `REJECTED / LAST_LOOK` after its hold
+window. Freeze a pair first and an order for it rejects with `STALE_PRICE` —
+the server is the truth about freshness, not the client's belief.
+
 ## v0.2.0
 
 Open the demo panel under the ladder. `rate 50k` — twelve pairs stream
