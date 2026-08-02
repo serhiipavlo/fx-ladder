@@ -19,11 +19,12 @@ describe('control-plane schemas (done-when of T-0.1.1: each rejects malformed bo
     expect(simSeedBodySchema.safeParse(bad).success).toBe(false);
   });
 
-  it('POST /sim/rate accepts a positive rate within the v0.1 cap', () => {
+  it('POST /sim/rate accepts rates up to the v0.2 cap', () => {
     expect(simRateBodySchema.parse({ updatesPerSec: 5000 })).toEqual({ updatesPerSec: 5000 });
+    expect(simRateBodySchema.parse({ updatesPerSec: 50_000 })).toEqual({ updatesPerSec: 50_000 });
   });
 
-  it.each([{}, { updatesPerSec: 0 }, { updatesPerSec: -5 }, { updatesPerSec: 50_000 }, { updatesPerSec: 'fast' }])(
+  it.each([{}, { updatesPerSec: 0 }, { updatesPerSec: -5 }, { updatesPerSec: 500_000 }, { updatesPerSec: 'fast' }])(
     'POST /sim/rate rejects %j',
     (bad) => {
       expect(simRateBodySchema.safeParse(bad).success).toBe(false);

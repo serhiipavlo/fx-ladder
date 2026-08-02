@@ -71,7 +71,7 @@ describe('validation at the border (done-when of T-0.1.6)', () => {
     const port = await startServer();
     const before = await getStats(port);
 
-    const res = await post(port, '/sim/rate', { updatesPerSec: 50_000 }); // over the v0.1 cap
+    const res = await post(port, '/sim/rate', { updatesPerSec: 500_000 }); // over the v0.2 cap
     expect(res.status).toBe(400);
     const body = (await res.json()) as { error: string; issues: Array<{ path: string; message: string }> };
     expect(body.error).toBe('validation failed');

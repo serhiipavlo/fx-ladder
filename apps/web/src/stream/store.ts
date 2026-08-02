@@ -1,10 +1,35 @@
+import { percentile } from '@fx/domain';
+
 import type { CloseInfo, FeedStreamHandle, SocketState } from './connect';
 import type { StreamCore, StreamEvent } from './core';
 
-// React-facing wrapper over the stream: one subscription list, primitive
-// version snapshots. Rows subscribe to their pair's counter, the status
-// panel to the global one — that split is what keeps a single pair's update
-// from re-rendering the rest (NFR-03).
+// React-facing wrapper over the stream — and the home of the release's
+// centrepiece (architecture §6.4): HOW state changes reach React is a mode.
+//
+//   naive     — notify listeners synchronously on every wire message; with
+//               the server in batch:false that is a render per update, the
+//               honest first implementation of every realtime dashboard.
+//   coalesced — apply state immediately (the protocol core never lags), but
+//               fold all notifications between animation frames into ONE
+//               flush per frame: rendering happens at screen pace no matter
+//               what the wire does.
+//
+// The instrumentation measures both sides of that story: per-message handling
+// (decode + apply + any synchronous render) and per-flush render cost.
+
+export type RenderMode = 'naive' | 'coalesced';
+
+export interface RenderStats {
+  mode: RenderMode;
+  /** Wire messages processed. */
+  messages: number;
+  /** Listener flushes (≈ React render passes) triggered by the stream. */
+  renders: number;
+  /** p95 of per-message handling, ms — includes the sync render in naive mode. */
+  messageP95: number;
+  /** p95 of a coalesced flush, ms. */
+  flushP95: number;
+}
 
 export interface FeedStore {
   subscribe(listener: () => void): () => void;
@@ -16,7 +41,28 @@ export interface FeedStore {
   resume(): void;
   version(): number;
   pairVersion(pairId: number): number;
+  renderMode(): RenderMode;
+  setRenderMode(mode: RenderMode): void;
+  renderStats(): RenderStats;
   close(): void;
+}
+
+export interface FeedStoreOptions {
+  /** Frame scheduler; requestAnimationFrame in production, injectable for tests. */
+  scheduleFrame?: (callback: () => void) => void;
+  /** Clock for the instrumentation; performance.now in production. */
+  nowFn?: () => number;
+}
+
+const SAMPLE_RING = 512;
+
+function pushSample(ring: number[], cursor: { at: number }, value: number): void {
+  if (ring.length < SAMPLE_RING) {
+    ring.push(value);
+  } else {
+    ring[cursor.at] = value;
+    cursor.at = (cursor.at + 1) % SAMPLE_RING;
+  }
 }
 
 /**
@@ -24,11 +70,52 @@ export interface FeedStore {
  * production passes `connectFeedStream`, tests pass a handle around a bare
  * core and keep the notifier to drive renders by hand.
  */
-export function createFeedStore(connect: (onChange: () => void) => FeedStreamHandle): FeedStore {
+export function createFeedStore(
+  connect: (onChange: () => void) => FeedStreamHandle,
+  options: FeedStoreOptions = {},
+): FeedStore {
+  const scheduleFrame =
+    options.scheduleFrame ?? ((callback: () => void) => window.requestAnimationFrame(() => callback()));
+  const now = options.nowFn ?? ((): number => performance.now());
+
   const listeners = new Set<() => void>();
-  const handle = connect(() => {
+  let mode: RenderMode = 'coalesced';
+  let framePending = false;
+
+  let messages = 0;
+  let renders = 0;
+  const messageSamples: number[] = [];
+  const messageCursor = { at: 0 };
+  const flushSamples: number[] = [];
+  const flushCursor = { at: 0 };
+
+  function notifyNow(): void {
+    renders += 1;
     for (const listener of listeners) listener();
-  });
+  }
+
+  function onChange(): void {
+    const started = now();
+    messages += 1;
+    if (mode === 'naive') {
+      // The whole cost lands here, synchronously — this is the number that
+      // explodes when the wire is unbatched (§6.4).
+      notifyNow();
+      pushSample(messageSamples, messageCursor, now() - started);
+      return;
+    }
+    pushSample(messageSamples, messageCursor, now() - started);
+    if (framePending) return;
+    framePending = true;
+    scheduleFrame(() => {
+      framePending = false;
+      const flushStarted = now();
+      notifyNow();
+      pushSample(flushSamples, flushCursor, now() - flushStarted);
+    });
+  }
+
+  const handle = connect(onChange);
 
   return {
     subscribe(listener) {
@@ -43,6 +130,18 @@ export function createFeedStore(connect: (onChange: () => void) => FeedStreamHan
     resume: () => handle.resume(),
     version: () => handle.core.version(),
     pairVersion: (pairId) => handle.core.pairVersions().get(pairId) ?? 0,
+    renderMode: () => mode,
+    setRenderMode(next) {
+      mode = next;
+      notifyNow(); // the toggle itself must be visible immediately
+    },
+    renderStats: () => ({
+      mode,
+      messages,
+      renders,
+      messageP95: percentile(messageSamples, 95),
+      flushP95: percentile(flushSamples, 95),
+    }),
     close: () => handle.close(),
   };
 }

@@ -11,9 +11,9 @@ export const simSeedBodySchema = z.strictObject({
 });
 export type SimSeedBody = z.infer<typeof simSeedBodySchema>;
 
-/** POST /sim/rate — capped low for v0.1.0 (plan §3); the cap ratchets up in v0.2.0. */
+/** POST /sim/rate — v0.2.0 cap: room above the 50k target (plan §3); ratchet-only. */
 export const simRateBodySchema = z.strictObject({
-  updatesPerSec: z.number().int().min(1).max(10_000),
+  updatesPerSec: z.number().int().min(1).max(100_000),
 });
 export type SimRateBody = z.infer<typeof simRateBodySchema>;
 
