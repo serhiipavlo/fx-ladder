@@ -3,6 +3,18 @@
 One demo line per release (plan §2.3). The full 5-minute scripted runbook
 arrives with v1.0.0.
 
+## v0.2.0
+
+Open the demo panel under the ladder. `rate 50k` — twelve pairs stream
+smoothly, one batched frame per tick. Flip **render** to `naive` and turn
+**server batching off** — the interface stutters within seconds under a frame
+per update; flip both back and it breathes again: the bottleneck lives
+between the socket and the render, not on the wire. `news +80 ×6` on GBPUSD —
+the spike and the spread widening ripple through the ladder together and decay
+away. `disconnect hard` — the client names the crash and returns with jittered
+backoff. `freeze 10 s` on USDJPY — one row dims to **· stale** while everything
+around it ticks: the channel is provably alive, the pair is provably quiet.
+
 ## v0.1.0
 
 Open <https://fx-ladder-web.onrender.com>: five pairs tick live in the ladder,

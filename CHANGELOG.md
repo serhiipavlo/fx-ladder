@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.2.0 — 2026-08-02
+
+The failure toolkit and the render contrast (plan §3): every failure the architecture promises is now demonstrable on command, and the client render switch puts the real bottleneck on screen.
+
+- catalogue grows to 12 pairs — majors, crosses, exotics (deliberately jumpy, wide-spread); the first five `pairId`s stay wire-frozen; `/sim/news` lands a mid jump and a spread widening together, decaying to the exact baseline over 10 s
+- close-code contract complete: `1000`/`4000`/`4001`/`4002` with `POST /sim/disconnect` (graceful vs simulated crash, `afterMs`) and the one-threshold slow-client guard — a stalled consumer is cut with `4001` while every other wire stays dense and the tick never blocks (surviving half of ADR-09)
+- client reconnect policy: per-code reaction table, exponential backoff capped at 10 s with full-range jitter; terminal closes surface the server's reason next to a **Reconnect** button
+- `POST /sim/mode` (`batch:false` = one frame per update — the §6.4 pathology on demand), `POST /sim/freeze` (a pair goes quiet, the client marks it **stale**, not disconnected — AC-06), stats extended with `framesSent`/`batch`
+- **the centrepiece**: the render switch — naive per-message notification vs one `requestAnimationFrame` flush per screen frame, with per-message and per-flush p95 instrumentation exported for the gate and shown live
+- guardrails for the unattended link: client cap (503 with the reason stated), 30-minute session ceiling closing `1000` with "press Reconnect to continue"
+- demo panel: every demo line of the release from the page alone — rate presets to 50k, batch/render toggles, news/freeze per pair, gap, disconnects, reseed, live server/client counters
+- perf gate at target, both halves of AC-01 in CI: **50k updates/s sustained** (received 50 031/s), server tick p95 **0.639 ms**, **3.62 MiB/s** JSON wire cost recorded, client coalesced flush p95 **0.004 ms** via the sans-I/O replay harness
+
 ## v0.1.1 — 2026-08-02
 
 - fix: the post-deploy smoke expected the v0.0.1 unconditional heartbeat; since v0.1.0 a wire opens with a SNAPSHOT and heartbeats only through silence — the smoke now asserts the snapshot. The v0.1.0 release run went red on exactly this check while the deploy itself was healthy.

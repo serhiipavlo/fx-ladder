@@ -367,7 +367,7 @@ Tasks marked ∥ may run in parallel with the previous one; everything else is s
 *Deliverable:* `pnpm gate:perf` feeding 5k updates/s, measuring p95 tick duration and bytes/s; thresholds in a versioned file next to the script.
 *Done when:* the gate prints its numbers, passes at the v0.1 threshold, and fails when the threshold is halved.
 
-### v0.2.0 — Failure toolkit and render contrast
+### v0.2.0 — Failure toolkit and render contrast *(tagged 2026-08-02)*
 
 **T-0.2.1 · Full instrument set and news**
 *Deliverable:* complete pair list; `/sim/news` applying a price jump plus a decaying spread multiplier.
