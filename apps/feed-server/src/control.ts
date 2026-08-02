@@ -1,6 +1,13 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 
-import { pairIdOf, simGapBodySchema, simNewsBodySchema, simRateBodySchema, simSeedBodySchema } from '@fx/domain';
+import {
+  pairIdOf,
+  simDisconnectBodySchema,
+  simGapBodySchema,
+  simNewsBodySchema,
+  simRateBodySchema,
+  simSeedBodySchema,
+} from '@fx/domain';
 
 // Control plane v1 (architecture §8): /sim/* changes the behaviour of the
 // world; every body is parsed by the shared domain schemas — a request either
@@ -30,6 +37,7 @@ export interface ControlDeps {
   setRate(updatesPerSec: number): void;
   skipSeqs(count: number): void;
   news(pairId: number, pips: number, spreadX: number): void;
+  disconnect(graceful: boolean, afterMs: number): void;
   stats(): SimStats;
 }
 
@@ -130,6 +138,11 @@ export function handleSimRequest(
       return;
     case '/sim/gap':
       route('POST', () => void handlePost(req, res, simGapBodySchema, (body) => deps.skipSeqs(body.skipSeqs)));
+      return;
+    case '/sim/disconnect':
+      route('POST', () =>
+        void handlePost(req, res, simDisconnectBodySchema, (body) => deps.disconnect(body.graceful, body.afterMs)),
+      );
       return;
     case '/sim/news':
       route('POST', () =>

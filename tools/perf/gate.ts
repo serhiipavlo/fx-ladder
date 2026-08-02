@@ -32,6 +32,7 @@ const server = createFeedServer({
   tickMs: 8,
   seed: 42,
   updatesPerSec: thresholds.feedUpdatesPerSec,
+  slowClientBufferBytes: 8_000_000, // the gate measures throughput, not the guard
 });
 const port = await server.listen();
 

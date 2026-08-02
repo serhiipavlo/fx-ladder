@@ -39,6 +39,7 @@ export function createFeedServer(config: FeedServerConfig): FeedServer {
   // (architecture §6.2), and a snapshot sent to a newcomer must not tear a
   // hole into anyone else's stream.
   const clients = new Map<WebSocket, ClientState>();
+  const pendingDisconnects = new Set<NodeJS.Timeout>();
   let closed = false;
 
   // Telemetry for /sim/stats — the numbers the perf gate reads (plan §3).
@@ -89,6 +90,13 @@ export function createFeedServer(config: FeedServerConfig): FeedServer {
       // One send per client per tick (§7.1); seq assigned last, per wire (§6.2).
       for (const [ws, state] of clients) {
         if (ws.readyState !== WebSocket.OPEN) continue;
+        if (ws.bufferedAmount > config.slowClientBufferBytes) {
+          // Slow consumer: the deliberately crude guard (§7.1) — one threshold,
+          // one close, no degradation modes. Recovery is the ordinary
+          // reconnect-and-resnapshot; the tick waits for no one.
+          ws.close(4001, 'slow consumer: send queue over limit');
+          continue;
+        }
         const { frame, nextSeq } = assembleFrame('DELTA', updates, state.nextSeq, ts);
         ws.send(encodeFrame(frame));
         state.nextSeq = nextSeq;
@@ -140,6 +148,20 @@ export function createFeedServer(config: FeedServerConfig): FeedServer {
     news(pairId: number, pips: number, spreadX: number): void {
       // The shock and the owed both-side refresh ride the next tick (§5.3).
       market.news(pairId, pips, spreadX);
+    },
+    disconnect(graceful: boolean, afterMs: number): void {
+      // Different endings demand different client reactions (§7.1): 1000 is a
+      // deliberate goodbye (no reconnect), 4000 is a simulated crash
+      // (reconnect with backoff + jitter).
+      const timer = setTimeout(() => {
+        pendingDisconnects.delete(timer);
+        for (const ws of clients.keys()) {
+          if (ws.readyState !== WebSocket.OPEN) continue;
+          if (graceful) ws.close(1000, 'disconnected by control plane');
+          else ws.close(4000, 'simulated crash');
+        }
+      }, afterMs);
+      pendingDisconnects.add(timer);
     },
     stats(): SimStats {
       return {
@@ -243,6 +265,7 @@ export function createFeedServer(config: FeedServerConfig): FeedServer {
       closed = true;
       clearInterval(tick);
       clearInterval(heartbeat);
+      for (const timer of pendingDisconnects) clearTimeout(timer);
       for (const client of wss.clients) client.close(1000, 'server shutting down');
       return new Promise((resolve, reject) => {
         wss.close(() => {
