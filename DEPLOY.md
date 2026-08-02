@@ -93,6 +93,10 @@ curl -fsS "$RENDER_SERVER_DEPLOY_HOOK&imgURL=ghcr.io/serhiipavlo/fx-ladder/feed-
 Dashboard alternative for both services: Deploys → pick the previous deploy →
 Rollback (static-site deploys are kept and roll back instantly).
 
-**Rollback drill (T-0.0.7): pending.** To be executed once against live
-Render: roll the server back one tag, verify with the smoke script, record
-the elapsed time here.
+**Rollback drill (T-0.0.7): executed 2026-08-02.**
+`gh workflow run rollback -f tag=v0.0.1` → **28 s** from workflow trigger to
+the rolled-back container serving traffic (uptime reset observed on
+`/healthz`; the new instance was up ~7 s before Render switched traffic to
+it), smoke green immediately after. Only one version existed at drill time,
+so this was a same-tag redeploy — it proves the mechanics and the timing; a
+distinct-version rollback happens naturally at the next release.
