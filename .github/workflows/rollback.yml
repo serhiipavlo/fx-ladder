@@ -1,0 +1,17 @@
+name: rollback
+
+# Manual rollback of the feed server to any version tag present in ghcr
+# (DEPLOY.md). The deploy hook stays secret inside Actions; the operator
+# only picks the tag.
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Image tag to roll the feed server back to (e.g. v0.0.1)'
+        required: true
+
+jobs:
+  rollback-server:
+    runs-on: ubuntu-latest
+    steps:
+      - run: curl -fsS "${{ secrets.RENDER_SERVER_DEPLOY_HOOK }}&imgURL=ghcr.io/${{ github.repository }}/feed-server:${{ inputs.tag }}"
