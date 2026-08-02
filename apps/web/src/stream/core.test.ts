@@ -1,3 +1,4 @@
+import { INSTRUMENTS } from '@fx/domain';
 import gapJson from '@fx/protocol/fixtures/gap-stream.json';
 import heartbeatJson from '@fx/protocol/fixtures/heartbeat-silence.json';
 import midstreamJson from '@fx/protocol/fixtures/midstream-snapshot.json';
@@ -24,7 +25,7 @@ describe('normal stream', () => {
 
     expect(events).toEqual([]);
     expect(core.status()).toBe('live');
-    expect(core.books().size).toBe(5);
+    expect(core.books().size).toBe(INSTRUMENTS.length);
     for (const [, book] of core.books()) {
       expect(book.bids[0]!.price).toBeLessThan(book.asks[0]!.price);
     }

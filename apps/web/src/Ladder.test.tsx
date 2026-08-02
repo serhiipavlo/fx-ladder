@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { INSTRUMENTS } from '@fx/domain';
 import normalJson from '@fx/protocol/fixtures/normal-stream.json';
 import { assembleFrame, encodeFrame, type Frame } from '@fx/protocol';
 import { act, cleanup, render, screen } from '@testing-library/react';
@@ -46,7 +47,7 @@ describe('ladder (done-when of T-0.1.8)', () => {
     expect(screen.getByTestId('row-EURUSD').textContent).toContain('1.08503');
     expect(screen.getByTestId('row-USDJPY').textContent).toContain('156.996');
     expect(screen.getByTestId('row-USDJPY').textContent).toContain('157.004');
-    expect(screen.getAllByTestId(/^row-/)).toHaveLength(5);
+    expect(screen.getAllByTestId(/^row-/)).toHaveLength(INSTRUMENTS.length);
   });
 
   it("a single pair's update does not re-render the other rows", () => {

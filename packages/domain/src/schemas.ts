@@ -22,3 +22,20 @@ export const simGapBodySchema = z.strictObject({
   skipSeqs: z.number().int().min(1).max(100_000),
 });
 export type SimGapBody = z.infer<typeof simGapBodySchema>;
+
+/**
+ * POST /sim/news — price jump plus a decaying spread multiplier (architecture
+ * §5.3, §8). The pair's existence is checked against the catalogue on the
+ * server; the schema pins the shape.
+ */
+export const simNewsBodySchema = z.strictObject({
+  pair: z.string().regex(/^[A-Z]{6}$/, 'pair is a six-letter symbol like GBPUSD'),
+  pips: z
+    .number()
+    .int()
+    .min(-1000)
+    .max(1000)
+    .refine((v) => v !== 0, 'pips must be non-zero'),
+  spreadX: z.number().min(1).max(20),
+});
+export type SimNewsBody = z.infer<typeof simNewsBodySchema>;

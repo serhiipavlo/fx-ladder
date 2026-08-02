@@ -2,7 +2,7 @@ import { INSTRUMENTS, pairIdOf } from '@fx/domain';
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
 
-import { BOOK_LEVELS, createMarket, type LevelRecord, type Market } from './market';
+import { BOOK_LEVELS, createMarket, NEWS_DECAY_MS, type LevelRecord, type Market } from './market';
 
 const seedArb = fc.integer({ min: 0, max: 0xffff_ffff });
 
@@ -170,6 +170,83 @@ describe('clock and input validation', () => {
     expect(() => createMarket(1, 0)).toThrow();
     expect(() => createMarket(1, 1.5)).toThrow();
     expect(() => createMarket(1).setRate(-5)).toThrow();
+  });
+});
+
+describe('news (done-when of T-0.2.1)', () => {
+  const GBPUSD = pairIdOf('GBPUSD');
+
+  function spreadOf(market: Market, pairId: number): number {
+    const book = bookFromSnapshot(market.snapshot()).get(pairId)!;
+    return book.asks[0]! - book.bids[0]!;
+  }
+
+  it('widens the spread by the requested factor and jumps the mid, other pairs untouched', () => {
+    const market = createMarket(42, 1000);
+    market.advance(0);
+    const before = new Map(INSTRUMENTS.map((_, id) => [id, spreadOf(market, id)]));
+    const midBefore = bookFromSnapshot(market.snapshot()).get(GBPUSD)!;
+
+    market.news(GBPUSD, 80, 6);
+    const batch = market.advance(10);
+
+    // The shock rides the wire immediately: a full both-side refresh of the pair.
+    const refreshed = batch.filter((r) => r.pairId === GBPUSD);
+    expect(refreshed.length).toBeGreaterThanOrEqual(2 * BOOK_LEVELS);
+
+    expect(spreadOf(market, GBPUSD)).toBe(before.get(GBPUSD)! * 6);
+    const midAfter = bookFromSnapshot(market.snapshot()).get(GBPUSD)!;
+    // +80 pips = +800 pipettes on the mid. The observable book center carries
+    // a ±0.5 parity artifact: bidTop = mid − ceil(spread/2), so an odd base
+    // spread shifts the center half a pipette off the true mid.
+    const centerBefore = (midBefore.bids[0]! + midBefore.asks[0]!) / 2;
+    const centerAfter = (midAfter.bids[0]! + midAfter.asks[0]!) / 2;
+    expect(Math.abs(centerAfter - centerBefore - 800)).toBeLessThanOrEqual(1);
+
+    for (const [id, spread] of before) {
+      if (id !== GBPUSD) expect(spreadOf(market, id), `pair ${id} untouched`).toBe(spread);
+    }
+  });
+
+  it('the spread decays back to the exact baseline and stays there', () => {
+    const market = createMarket(7, 1000);
+    market.advance(0);
+    const base = spreadOf(market, GBPUSD);
+
+    market.news(GBPUSD, -50, 4);
+    market.advance(10);
+    expect(spreadOf(market, GBPUSD)).toBe(base * 4);
+
+    market.advance(10 + NEWS_DECAY_MS / 2);
+    const halfway = spreadOf(market, GBPUSD);
+    expect(halfway).toBeGreaterThan(base);
+    expect(halfway).toBeLessThan(base * 4);
+
+    market.advance(10 + NEWS_DECAY_MS + 1);
+    expect(spreadOf(market, GBPUSD)).toBe(base);
+    market.advance(10 + NEWS_DECAY_MS + 500);
+    expect(spreadOf(market, GBPUSD)).toBe(base);
+  });
+
+  it('news commands at fixed times keep two runs bit-identical', () => {
+    function run(): unknown[][] {
+      const market = createMarket(11, 2000);
+      market.advance(0);
+      const batches = [market.advance(100)];
+      market.news(GBPUSD, 40, 3);
+      batches.push(market.advance(200), market.advance(12_500));
+      return batches;
+    }
+    expect(run()).toEqual(run());
+  });
+
+  it('rejects unknown pairs and malformed shocks', () => {
+    const market = createMarket(1);
+    expect(() => market.news(999, 10, 2)).toThrow(/pairId/);
+    expect(() => market.news(0, 0, 2)).toThrow(/pips/);
+    expect(() => market.news(0, 1.5, 2)).toThrow(/pips/);
+    expect(() => market.news(0, 10, 0.5)).toThrow(/spreadX/);
+    expect(() => market.news(0, 10, 25)).toThrow(/spreadX/);
   });
 });
 
