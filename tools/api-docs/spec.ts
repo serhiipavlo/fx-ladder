@@ -2,8 +2,10 @@ import {
   simDisconnectBodySchema,
   simFreezeBodySchema,
   simGapBodySchema,
+  simLastLookBodySchema,
   simModeBodySchema,
   simNewsBodySchema,
+  simOrderBodySchema,
   simRateBodySchema,
   simSeedBodySchema,
 } from '@fx/domain';
@@ -130,6 +132,20 @@ export function buildOpenApi(): JsonSchema {
           '(architecture §5.3). Unknown pairs are a field-level 400.',
         'SimNewsBody',
       ),
+      '/sim/lastlook': controlPost(
+        'Arm last look',
+        'The two knobs of §5.5: every order is held `holdMs` before any answer and bounces with ' +
+          '`REJECTED / LAST_LOOK` with probability `rejectRate` — the controlled rejections of demo step 6.',
+        'SimLastLookBody',
+      ),
+      '/sim/order': controlPost(
+        'Submit a synthetic order',
+        'The dev-harness door into the execution engine (T-0.3.6): the order expands into a scripted ' +
+          'event sequence counted in `/sim/stats`. Immediate rejections (INVALID_QTY, STALE_PRICE on a ' +
+          'frozen pair) come back in the response as `immediate`; the user-facing loop arrives with the ' +
+          'warm plane in v0.4.',
+        'SimOrderBody',
+      ),
       '/sim/stats': {
         get: {
           summary: 'Simulator telemetry',
@@ -153,6 +169,8 @@ export function buildOpenApi(): JsonSchema {
         SimDisconnectBody: fromZod(simDisconnectBodySchema),
         SimModeBody: fromZod(simModeBodySchema),
         SimFreezeBody: fromZod(simFreezeBodySchema),
+        SimLastLookBody: fromZod(simLastLookBodySchema),
+        SimOrderBody: fromZod(simOrderBodySchema),
         Ok: {
           type: 'object',
           additionalProperties: false,
@@ -197,6 +215,29 @@ export function buildOpenApi(): JsonSchema {
             sent: { type: 'integer', minimum: 0, description: 'Records sent across all clients.' },
             framesSent: { type: 'integer', minimum: 0, description: 'Frames sent across all clients.' },
             batch: { type: 'boolean', description: 'Current /sim/mode: tick frames vs frame-per-update.' },
+            executions: {
+              type: 'object',
+              additionalProperties: false,
+              required: ['submitted', 'trades', 'partials', 'filled', 'canceled', 'rejected', 'lastLook'],
+              description: 'Execution-engine counters (T-0.3.6): the numbers a dev-harness burst moves.',
+              properties: {
+                submitted: { type: 'integer', minimum: 0 },
+                trades: { type: 'integer', minimum: 0 },
+                partials: { type: 'integer', minimum: 0, description: 'TRADEs that left the order alive.' },
+                filled: { type: 'integer', minimum: 0 },
+                canceled: { type: 'integer', minimum: 0 },
+                rejected: { type: 'integer', minimum: 0 },
+                lastLook: {
+                  type: 'object',
+                  additionalProperties: false,
+                  required: ['holdMs', 'rejectRate'],
+                  properties: {
+                    holdMs: { type: 'integer', minimum: 0 },
+                    rejectRate: { type: 'number', minimum: 0, maximum: 1 },
+                  },
+                },
+              },
+            },
             updatesPerSec: { type: 'integer', minimum: 1 },
             clients: { type: 'integer', minimum: 0 },
             uptimeMs: { type: 'integer', minimum: 0 },

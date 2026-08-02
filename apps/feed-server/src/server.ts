@@ -2,8 +2,9 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'node:ht
 import type { AddressInfo } from 'node:net';
 import type { Duplex } from 'node:stream';
 
+import type { SimOrderBody } from '@fx/domain';
 import { assembleFrame, encodeFrame, FX_SUBPROTOCOL, heartbeatFrame } from '@fx/protocol';
-import { createMarket, type Market } from '@fx/sim-core';
+import { createExecutionEngine, createMarket, xoshiro128, type ExecutionEngine, type Market } from '@fx/sim-core';
 import { WebSocket, WebSocketServer } from 'ws';
 
 import type { FeedServerConfig } from './config';
@@ -28,6 +29,15 @@ const HEARTBEAT_SWEEP_MS = 250;
 /** Ring size for tick-duration samples feeding the /sim/stats percentiles. */
 const TICK_SAMPLES = 1024;
 
+/**
+ * The engine draws from its own PRNG grown from a derived seed: order flow
+ * must not perturb the market's random stream, or /sim/seed bit-identity
+ * would depend on order timing.
+ */
+const ENGINE_SEED_SALT = 0x9e37_79b9;
+
+const engineSeed = (seed: number): number => (seed ^ ENGINE_SEED_SALT) >>> 0;
+
 export function createFeedServer(config: FeedServerConfig): FeedServer {
   const allowedOrigins = new Set(config.allowedOrigins);
   const t0 = performance.now();
@@ -36,6 +46,11 @@ export function createFeedServer(config: FeedServerConfig): FeedServer {
 
   let updatesPerSec = config.updatesPerSec;
   let market: Market = createMarket(config.seed, updatesPerSec);
+  let engine: ExecutionEngine = createExecutionEngine(xoshiro128(engineSeed(config.seed)), (pairId) =>
+    market.topOfBook(pairId),
+  );
+  let orderCounter = 0;
+  const lastLook = { holdMs: 40, rejectRate: 0 };
   // Sequencing is per connection: density of seq is a per-wire contract
   // (architecture §6.2), and a snapshot sent to a newcomer must not tear a
   // hole into anyone else's stream.
@@ -89,6 +104,9 @@ export function createFeedServer(config: FeedServerConfig): FeedServer {
   const tick = setInterval(() => {
     const started = performance.now();
     const ts = serverTs();
+    // Scheduled execution events materialise on the same clock; their
+    // transport is the warm plane (v0.4) — today they feed the stats.
+    engine.advance(ts);
     const updates = market.advance(ts);
     if (updates.length > 0) {
       generated += updates.length;
@@ -145,6 +163,11 @@ export function createFeedServer(config: FeedServerConfig): FeedServer {
   const controlDeps = {
     reseed(seed: number): void {
       market = createMarket(seed, updatesPerSec);
+      // Reseed is a new trading day (ADR-10): open orders do not survive it.
+      engine = createExecutionEngine(xoshiro128(engineSeed(seed)), (pairId) => market.topOfBook(pairId), {
+        holdMs: lastLook.holdMs,
+        rejectRate: lastLook.rejectRate,
+      });
       // Connected clients' books are stale wholesale: push each a fresh
       // SNAPSHOT that keeps its wire dense — same mechanics as resync (ADR-08).
       const ts = serverTs();
@@ -177,6 +200,22 @@ export function createFeedServer(config: FeedServerConfig): FeedServer {
     freeze(pairId: number, ms: number): void {
       market.freeze(pairId, ms);
     },
+    setLastLook(holdMs: number, rejectRate: number): void {
+      lastLook.holdMs = holdMs;
+      lastLook.rejectRate = rejectRate;
+      engine.setLastLook(holdMs, rejectRate);
+    },
+    submitOrder(input: SimOrderBody & { pairId: number }) {
+      const clOrdId = input.clOrdId ?? `srv-${(orderCounter += 1)}`;
+      // The server is the truth about freshness (§7.3): the check runs against
+      // the market's own state at processing time, never the client's belief.
+      const immediate = engine.submit(
+        { clOrdId, pairId: input.pairId, side: input.side, qtyK: input.qtyK, tif: input.tif },
+        serverTs(),
+        { stale: market.isFrozen(input.pairId) },
+      );
+      return { clOrdId, immediate };
+    },
     disconnect(graceful: boolean, afterMs: number): void {
       // Different endings demand different client reactions (§7.1): 1000 is a
       // deliberate goodbye (no reconnect), 4000 is a simulated crash
@@ -200,6 +239,7 @@ export function createFeedServer(config: FeedServerConfig): FeedServer {
         updatesPerSec,
         clients: clients.size,
         uptimeMs: serverTs(),
+        executions: { ...engine.stats(), lastLook: { ...lastLook } },
         tick: {
           p50: percentile(tickDurations, 50),
           p95: percentile(tickDurations, 95),

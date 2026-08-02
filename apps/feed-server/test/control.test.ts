@@ -328,6 +328,70 @@ describe('/sim/disconnect (done-when of T-0.2.2)', () => {
   });
 });
 
+describe('/sim/order and /sim/lastlook (done-when of T-0.3.3, T-0.3.5, T-0.3.6)', () => {
+  it('a burst moves fills, partials and rejects; raising rejectRate shifts the mix', { timeout: 15_000 }, async () => {
+    const port = await startServer({ updatesPerSec: 500 });
+
+    for (let i = 0; i < 12; i += 1) {
+      const res = await post(port, '/sim/order', {
+        pair: 'EURUSD',
+        side: i % 2 === 0 ? 'buy' : 'sell',
+        qtyK: 400,
+        tif: 'IOC',
+      });
+      expect(res.status).toBe(200);
+    }
+    await settle(1500); // scripts play out: hold 40 ms + up to 3 fills at 120 ms
+    const first = (await getStats(port)).executions;
+    expect(first.submitted).toBe(12);
+    expect(first.filled + first.canceled).toBe(12);
+    expect(first.trades).toBeGreaterThan(0);
+    expect(first.partials).toBeGreaterThan(0);
+    expect(first.rejected).toBe(0);
+
+    expect((await post(port, '/sim/lastlook', { holdMs: 60, rejectRate: 1 })).status).toBe(200);
+    for (let i = 0; i < 5; i += 1) {
+      const res = await post(port, '/sim/order', { pair: 'GBPUSD', side: 'buy', qtyK: 100 });
+      expect(res.status).toBe(200);
+      const body = (await res.json()) as { immediate: unknown[] };
+      expect(body.immediate).toHaveLength(0); // held, not answered yet
+    }
+    await settle(600);
+    const second = (await getStats(port)).executions;
+    expect(second.rejected).toBe(5); // every held order bounced with LAST_LOOK
+    expect(second.lastLook).toEqual({ holdMs: 60, rejectRate: 1 });
+  });
+
+  it('a frozen pair rejects with STALE_PRICE even though the client believed the price fresh', async () => {
+    const port = await startServer();
+    // The race, constructed exactly (§7.3): the world changes after the
+    // client's last look at the price and before the order lands.
+    expect((await post(port, '/sim/freeze', { pair: 'USDJPY', ms: 5000 })).status).toBe(200);
+    const res = await post(port, '/sim/order', { pair: 'USDJPY', side: 'buy', qtyK: 100 });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { clOrdId: string; immediate: Array<{ execType: string; rejectReason: string }> };
+    expect(body.immediate).toHaveLength(1);
+    expect(body.immediate[0]!.execType).toBe('REJECTED');
+    expect(body.immediate[0]!.rejectReason).toBe('STALE_PRICE');
+  });
+
+  it('unknown pair, duplicate clOrdId and malformed bodies are field-level 400s', async () => {
+    const port = await startServer();
+    const unknown = await post(port, '/sim/order', { pair: 'ZZZZZZ', side: 'buy', qtyK: 10 });
+    expect(unknown.status).toBe(400);
+
+    expect((await post(port, '/sim/order', { clOrdId: 'DUP', pair: 'EURUSD', side: 'buy', qtyK: 10 })).status).toBe(200);
+    const dup = await post(port, '/sim/order', { clOrdId: 'DUP', pair: 'EURUSD', side: 'sell', qtyK: 10 });
+    expect(dup.status).toBe(400);
+    const dupBody = (await dup.json()) as { issues: Array<{ path: string }> };
+    expect(dupBody.issues[0]!.path).toBe('clOrdId');
+
+    expect((await post(port, '/sim/order', { pair: 'EURUSD', side: 'hold', qtyK: 10 })).status).toBe(400);
+    expect((await post(port, '/sim/lastlook', { holdMs: -1, rejectRate: 0 })).status).toBe(400);
+    expect((await post(port, '/sim/lastlook', { holdMs: 10, rejectRate: 2 })).status).toBe(400);
+  });
+});
+
 describe('CORS preflight (the docs page posts cross-origin)', () => {
   it('answers OPTIONS with the method/header grant for an allowed origin', async () => {
     const port = await startServer();
