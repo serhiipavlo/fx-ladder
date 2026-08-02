@@ -1,4 +1,6 @@
-import { FX_SUBPROTOCOL } from '@fx/protocol';
+import { INSTRUMENTS } from '@fx/domain';
+import { decodeFrame, FX_SUBPROTOCOL, type Frame } from '@fx/protocol';
+import { BOOK_LEVELS } from '@fx/sim-core';
 import { afterEach, describe, expect, it } from 'vitest';
 import { WebSocket } from 'ws';
 
@@ -6,9 +8,18 @@ import type { FeedServerConfig } from '../src/config';
 import { createFeedServer, type FeedServer } from '../src/server';
 
 const ALLOWED_ORIGIN = 'http://localhost:5173';
+const SNAPSHOT_RECORDS = INSTRUMENTS.length * 2 * BOOK_LEVELS;
 
 function testConfig(overrides: Partial<FeedServerConfig> = {}): FeedServerConfig {
-  return { port: 0, allowedOrigins: [ALLOWED_ORIGIN], heartbeatIntervalMs: 1000, ...overrides };
+  return {
+    port: 0,
+    allowedOrigins: [ALLOWED_ORIGIN],
+    heartbeatIntervalMs: 1000,
+    tickMs: 10,
+    seed: 42,
+    updatesPerSec: 2000,
+    ...overrides,
+  };
 }
 
 const servers: FeedServer[] = [];
@@ -36,29 +47,108 @@ function handshake(url: string, protocols: string[], headers: Record<string, str
   });
 }
 
+/**
+ * Opens /feed and starts collecting frames *before* the open event resolves —
+ * the snapshot arrives immediately after the 101, so a listener attached any
+ * later can lose it. Frames decode through the real codec, which also runs
+ * its density checks on every one of them.
+ */
+function openFeed(port: number): Promise<{ ws: WebSocket; frames: Frame[] }> {
+  const frames: Frame[] = [];
+  const ws = new WebSocket(`ws://127.0.0.1:${port}/feed`, [FX_SUBPROTOCOL], {
+    headers: { Origin: ALLOWED_ORIGIN },
+  });
+  sockets.push(ws);
+  ws.on('message', (data) => {
+    const frame = decodeFrame(String(data));
+    if (frame !== null) frames.push(frame);
+  });
+  return new Promise((resolve, reject) => {
+    ws.on('open', () => resolve({ ws, frames }));
+    ws.on('error', reject);
+  });
+}
+
+const settle = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
+
 afterEach(async () => {
   for (const ws of sockets.splice(0)) ws.terminate();
   await Promise.all(servers.splice(0).map((server) => server.close()));
 });
 
-describe('/feed handshake', () => {
-  it('a fx.v1 client receives at least 3 heartbeats in 3.5 s', { timeout: 8000 }, async () => {
+describe('hot plane (done-when of T-0.1.5)', () => {
+  it('sends a full snapshot first, then deltas with seq dense across frames', { timeout: 10_000 }, async () => {
     const { port } = await startServer();
-    const frames: Array<Record<string, unknown>> = [];
+    const { frames } = await openFeed(port);
+    await settle(600);
 
-    const result = await handshake(`ws://127.0.0.1:${port}/feed`, [FX_SUBPROTOCOL], { Origin: ALLOWED_ORIGIN });
-    if (result.outcome !== 'open') throw new Error(`handshake refused: ${String(result.status)}`);
-    expect(result.ws.protocol).toBe(FX_SUBPROTOCOL);
-    result.ws.on('message', (data) => frames.push(JSON.parse(String(data)) as Record<string, unknown>));
+    const first = frames[0]!;
+    expect(first.frameType).toBe('SNAPSHOT');
+    expect(first.firstSeq).toBe(0);
+    expect(first.count).toBe(SNAPSHOT_RECORDS);
 
-    await new Promise((resolve) => setTimeout(resolve, 3500));
-    const heartbeats = frames.filter((frame) => frame['frameType'] === 'HEARTBEAT');
-    expect(heartbeats.length).toBeGreaterThanOrEqual(3);
-    // Header shape per architecture §6.1 — no records, last assigned seq.
-    expect(heartbeats[0]).toMatchObject({ count: 0, firstSeq: 0 });
-    expect(typeof heartbeats[0]?.['serverTs']).toBe('number');
+    const deltas = frames.slice(1).filter((f) => f.frameType === 'DELTA');
+    expect(deltas.length).toBeGreaterThanOrEqual(2);
+    let expected = SNAPSHOT_RECORDS;
+    for (const delta of deltas) {
+      expect(delta.firstSeq).toBe(expected);
+      expected += delta.count;
+    }
   });
 
+  it('a heartbeat arrives during an idle second and carries the last assigned seq', { timeout: 10_000 }, async () => {
+    // rate 1 → roughly one delta per second; a 300 ms heartbeat interval fits
+    // several heartbeats into each silent stretch between deltas.
+    const { port } = await startServer({ updatesPerSec: 1, heartbeatIntervalMs: 300 });
+    const { frames } = await openFeed(port);
+    await settle(2500);
+
+    const heartbeats = frames.filter((f) => f.frameType === 'HEARTBEAT');
+    expect(heartbeats.length).toBeGreaterThanOrEqual(1);
+    for (const hb of heartbeats) {
+      expect(hb.count).toBe(0);
+      expect(hb.records).toEqual([]);
+      expect(hb.firstSeq).toBeGreaterThanOrEqual(SNAPSHOT_RECORDS - 1);
+    }
+  });
+
+  it('two clients each get their own dense stream', { timeout: 10_000 }, async () => {
+    const { port } = await startServer();
+    const { frames: framesA } = await openFeed(port);
+    await settle(200);
+    const { frames: framesB } = await openFeed(port); // connects mid-stream, gets its own basis
+    await settle(500);
+
+    expect(framesB[0]!.frameType).toBe('SNAPSHOT');
+    expect(framesB[0]!.firstSeq).toBe(0);
+    // Density on each wire independently (decodeFrame already checked
+    // intra-frame density; here we check across frames).
+    for (const frames of [framesA, framesB]) {
+      const data = frames.filter((f) => f.frameType !== 'HEARTBEAT');
+      for (let i = 1; i < data.length; i += 1) {
+        expect(data[i]!.firstSeq).toBe(data[i - 1]!.firstSeq + data[i - 1]!.count);
+      }
+    }
+  });
+
+  it('an inbound client message is a protocol error: close 4002', { timeout: 10_000 }, async () => {
+    const { port } = await startServer();
+    const { ws } = await openFeed(port);
+    const closeCode = new Promise<number>((resolve) => ws.on('close', (code) => resolve(code)));
+    ws.send('hello?');
+    expect(await closeCode).toBe(4002);
+  });
+
+  it('graceful shutdown closes a streaming client with 1000', async () => {
+    const { server, port } = await startServer();
+    const { ws } = await openFeed(port);
+    const closeCode = new Promise<number>((resolve) => ws.on('close', (code) => resolve(code)));
+    await server.close();
+    expect(await closeCode).toBe(1000);
+  });
+});
+
+describe('/feed handshake guards', () => {
   it('a client offering fx.v0 is rejected at the handshake', async () => {
     const { port } = await startServer();
     const result = await handshake(`ws://127.0.0.1:${port}/feed`, ['fx.v0']);
@@ -77,16 +167,6 @@ describe('/feed handshake', () => {
     const { port } = await startServer();
     const result = await handshake(`ws://127.0.0.1:${port}/nope`, [FX_SUBPROTOCOL]);
     expect(result).toEqual({ outcome: 'refused', status: 404 });
-  });
-
-  it('graceful shutdown closes the client with 1000', async () => {
-    const { server, port } = await startServer();
-    const result = await handshake(`ws://127.0.0.1:${port}/feed`, [FX_SUBPROTOCOL]);
-    if (result.outcome !== 'open') throw new Error('handshake unexpectedly refused');
-
-    const closeCode = new Promise<number>((resolve) => result.ws.on('close', (code) => resolve(code)));
-    await server.close();
-    expect(await closeCode).toBe(1000);
   });
 });
 

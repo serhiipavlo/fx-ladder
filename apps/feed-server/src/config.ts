@@ -3,6 +3,12 @@ export interface FeedServerConfig {
   /** Origins allowed on the WS upgrade and echoed as CORS on fetch paths (architecture §7.1, §9.2). */
   allowedOrigins: readonly string[];
   heartbeatIntervalMs: number;
+  /** Server tick — one frame per client per tick (architecture §6.1: 5–10 ms). */
+  tickMs: number;
+  /** Default market seed; /sim/seed replaces it at runtime. */
+  seed: number;
+  /** Default record rate; modest so the unattended public link stays cheap. /sim/rate raises it. */
+  updatesPerSec: number;
 }
 
 const DEV_ORIGINS = 'http://localhost:5173,http://127.0.0.1:5173';
@@ -15,5 +21,8 @@ export function configFromEnv(env: Record<string, string | undefined>): FeedServ
       .map((origin) => origin.trim())
       .filter((origin) => origin.length > 0),
     heartbeatIntervalMs: 1000,
+    tickMs: 8,
+    seed: 42,
+    updatesPerSec: 300,
   };
 }

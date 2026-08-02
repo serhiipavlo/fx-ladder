@@ -2,7 +2,8 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'node:ht
 import type { AddressInfo } from 'node:net';
 import type { Duplex } from 'node:stream';
 
-import { encodeFrame, FX_SUBPROTOCOL, heartbeatFrame } from '@fx/protocol';
+import { assembleFrame, encodeFrame, FX_SUBPROTOCOL, heartbeatFrame } from '@fx/protocol';
+import { createMarket } from '@fx/sim-core';
 import { WebSocket, WebSocketServer } from 'ws';
 
 import type { FeedServerConfig } from './config';
@@ -14,22 +15,76 @@ export interface FeedServer {
   close(): Promise<void>;
 }
 
+interface ClientState {
+  nextSeq: number;
+  lastSentTs: number;
+}
+
+/** How often silence is checked for; the heartbeat interval itself is config. */
+const HEARTBEAT_SWEEP_MS = 250;
+
 export function createFeedServer(config: FeedServerConfig): FeedServer {
   const allowedOrigins = new Set(config.allowedOrigins);
-  const startedAt = Date.now();
-  // No market model yet: the last assigned seq stays 0 until the hot plane
-  // lands (T-0.1.5). Heartbeats carry it so the client can prove completeness.
-  const lastSeq = 0;
+  const t0 = performance.now();
+  /** Monotonic ms since server start — the wire's serverTs and the model's now. */
+  const serverTs = (): number => Math.round(performance.now() - t0);
 
+  const market = createMarket(config.seed, config.updatesPerSec);
+  // Sequencing is per connection: density of seq is a per-wire contract
+  // (architecture §6.2), and a snapshot sent to a newcomer must not tear a
+  // hole into anyone else's stream.
+  const clients = new Map<WebSocket, ClientState>();
   let closed = false;
 
   const httpServer = createServer(handleRequest);
   const wss = new WebSocketServer({
     noServer: true,
-    // Reject any handshake that does not offer fx.v1 — an incompatible client
-    // must fail loudly at the door, not decode garbage (architecture §6.1).
     handleProtocols: (protocols) => (protocols.has(FX_SUBPROTOCOL) ? FX_SUBPROTOCOL : false),
   });
+
+  wss.on('connection', (ws: WebSocket) => {
+    // Snapshot on connect: full book, seq basis 0 — reconnect-and-resnapshot
+    // reuses exactly this path (ADR-08).
+    const ts = serverTs();
+    const { frame, nextSeq } = assembleFrame('SNAPSHOT', market.snapshot(), 0, ts);
+    ws.send(encodeFrame(frame));
+    clients.set(ws, { nextSeq, lastSentTs: ts });
+
+    ws.on('message', () => {
+      // The v0.1 data plane is strictly server → client; any inbound frame is
+      // a protocol error. The full close-code table lands in v0.2 (§7.1).
+      ws.close(4002, 'protocol error: unexpected client message');
+    });
+    ws.on('close', () => {
+      clients.delete(ws);
+    });
+  });
+
+  const tick = setInterval(() => {
+    const ts = serverTs();
+    const updates = market.advance(ts);
+    if (updates.length === 0) return;
+    // One send per client per tick (§7.1); seq assigned last, per wire (§6.2).
+    for (const [ws, state] of clients) {
+      if (ws.readyState !== WebSocket.OPEN) continue;
+      const { frame, nextSeq } = assembleFrame('DELTA', updates, state.nextSeq, ts);
+      ws.send(encodeFrame(frame));
+      state.nextSeq = nextSeq;
+      state.lastSentTs = ts;
+    }
+  }, config.tickMs);
+
+  const heartbeat = setInterval(() => {
+    const ts = serverTs();
+    for (const [ws, state] of clients) {
+      if (ws.readyState !== WebSocket.OPEN) continue;
+      if (ts - state.lastSentTs < config.heartbeatIntervalMs) continue;
+      // Silence becomes a signal: channel alive, market quiet — and the last
+      // assigned seq proves completeness without new data (§6.3).
+      ws.send(encodeFrame(heartbeatFrame(state.nextSeq - 1, ts)));
+      state.lastSentTs = ts;
+    }
+  }, HEARTBEAT_SWEEP_MS);
 
   function handleRequest(req: IncomingMessage, res: ServerResponse): void {
     const pathname = new URL(req.url ?? '/', 'http://placeholder').pathname;
@@ -43,7 +98,7 @@ export function createFeedServer(config: FeedServerConfig): FeedServer {
 
     if (req.method === 'GET' && pathname === '/healthz') {
       res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ ok: true, uptimeMs: Date.now() - startedAt }));
+      res.end(JSON.stringify({ ok: true, uptimeMs: serverTs() }));
       return;
     }
 
@@ -82,13 +137,6 @@ export function createFeedServer(config: FeedServerConfig): FeedServer {
     });
   });
 
-  const heartbeat = setInterval(() => {
-    const frame = encodeFrame(heartbeatFrame(lastSeq, Date.now() - startedAt));
-    for (const client of wss.clients) {
-      if (client.readyState === WebSocket.OPEN) client.send(frame);
-    }
-  }, config.heartbeatIntervalMs);
-
   return {
     listen() {
       return new Promise((resolve, reject) => {
@@ -102,6 +150,7 @@ export function createFeedServer(config: FeedServerConfig): FeedServer {
     close() {
       if (closed) return Promise.resolve();
       closed = true;
+      clearInterval(tick);
       clearInterval(heartbeat);
       for (const client of wss.clients) client.close(1000, 'server shutting down');
       return new Promise((resolve, reject) => {
