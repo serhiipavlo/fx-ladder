@@ -40,10 +40,11 @@ let records = 0;
 let bytes = 0;
 
 const ws = new WebSocket(`ws://127.0.0.1:${port}/feed`, 'fx.v1');
-ws.onmessage = (event: MessageEvent<string>) => {
+ws.onmessage = (event: MessageEvent) => {
   if (!measuring) return;
-  bytes += event.data.length;
-  const frame = decodeFrame(event.data);
+  const text = String(event.data);
+  bytes += text.length;
+  const frame = decodeFrame(text);
   if (frame !== null) records += frame.count;
 };
 await new Promise<void>((resolve, reject) => {
