@@ -11,13 +11,19 @@ const stateColor: Record<ConnectionState, string> = {
   disconnected: '#dc322f',
 };
 
+const WAKE_DEADLINE_MS = 90_000;
+const WAKE_RETRY_MS = 3_000;
+
 export function App(): React.JSX.Element {
   const [connection, setConnection] = useState<ConnectionState>('connecting');
   const [heartbeats, setHeartbeats] = useState(0);
   const [lastFrame, setLastFrame] = useState<HeartbeatFrame | null>(null);
   const [health, setHealth] = useState('fetching…');
+  const [attempt, setAttempt] = useState(1);
+  const [waking, setWaking] = useState(false);
 
   useEffect(() => {
+    setConnection('connecting');
     const ws = new WebSocket(feedWsUrl(), FX_SUBPROTOCOL);
     ws.onopen = () => setConnection('connected');
     ws.onclose = () => setConnection('disconnected');
@@ -29,7 +35,7 @@ export function App(): React.JSX.Element {
       }
     };
     return () => ws.close();
-  }, []);
+  }, [attempt]);
 
   useEffect(() => {
     // The one deliberately cross-origin fetch of the walking skeleton: on the
@@ -39,7 +45,31 @@ export function App(): React.JSX.Element {
       .then((res) => res.json())
       .then((body: unknown) => setHealth(JSON.stringify(body)))
       .catch((err: unknown) => setHealth(`error: ${err instanceof Error ? err.message : String(err)}`));
-  }, []);
+  }, [attempt]);
+
+  // The free Render instance spins down after ~15 min without inbound traffic
+  // and takes up to a minute to cold-start (ADR-11 revision). Waking = knock
+  // on /healthz until it answers, then reconnect the feed.
+  async function wake(): Promise<void> {
+    setWaking(true);
+    setHealth('waking…');
+    const deadline = Date.now() + WAKE_DEADLINE_MS;
+    while (Date.now() < deadline) {
+      try {
+        const res = await fetch(healthzUrl());
+        if (res.ok) {
+          setWaking(false);
+          setAttempt((n) => n + 1);
+          return;
+        }
+      } catch {
+        // still cold — keep knocking
+      }
+      await new Promise((resolve) => setTimeout(resolve, WAKE_RETRY_MS));
+    }
+    setWaking(false);
+    setHealth(`error: server did not wake within ${WAKE_DEADLINE_MS / 1000} s`);
+  }
 
   return (
     <main style={{ fontFamily: 'ui-monospace, monospace', padding: '2rem', lineHeight: 1.8 }}>
@@ -55,6 +85,19 @@ export function App(): React.JSX.Element {
       <p>
         healthz: <code>{health}</code>
       </p>
+      {connection === 'disconnected' ? (
+        <p>
+          <button
+            onClick={() => void wake()}
+            disabled={waking}
+            style={{ font: 'inherit', padding: '0.4rem 1rem', cursor: waking ? 'wait' : 'pointer' }}
+          >
+            {waking ? 'waking the server…' : 'Wake the server'}
+          </button>
+          <br />
+          <small>free instance sleeps after ~15 min idle; waking takes up to a minute</small>
+        </p>
+      ) : null}
     </main>
   );
 }
