@@ -1,0 +1,7 @@
+{
+  "release": "v0.1.0",
+  "feedUpdatesPerSec": 5000,
+  "minReceivedUpdatesPerSec": 4500,
+  "maxP95TickMs": 4,
+  "bytesPerSec": "recorded as a baseline, not gated until v0.2 (plan §3)"
+}
