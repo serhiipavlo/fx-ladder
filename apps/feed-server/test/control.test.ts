@@ -463,7 +463,11 @@ describe('/sim/scenario (done-when of T-0.4.7)', () => {
   }
 
   it('demo-5min plays the full §8 sequence — asserted from /sim/stats — identically twice from the same seed', { timeout: 40_000 }, async () => {
-    const port = await startServer({ updatesPerSec: 1000 });
+    // The buffer ceiling is raised for THIS test only: on a slow CI runner
+    // the spike phase can trip the slow-consumer guard (4001) before the
+    // scripted crash (4000) — both are honest closes, but the assertion
+    // below is about the crash step. The guard has its own test.
+    const port = await startServer({ updatesPerSec: 1000, slowClientBufferBytes: 64 * 1024 * 1024 });
 
     const posture = (s: SimStats): string =>
       `${s.updatesPerSec}/${s.batch}/${s.executions.lastLook.holdMs}/${s.executions.lastLook.rejectRate}`;
