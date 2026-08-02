@@ -194,6 +194,45 @@ describe('/sim/stats', () => {
   });
 });
 
+describe('/sim/news', () => {
+  it('the shock reaches the wire: first refreshed top-of-book carries the widened spread', { timeout: 10_000 }, async () => {
+    const port = await startServer({ updatesPerSec: 100 });
+    const { frames } = await openFeed(port);
+    await settle(150);
+    const framesBefore = frames.length;
+
+    expect((await post(port, '/sim/news', { pair: 'GBPUSD', pips: 80, spreadX: 6 })).status).toBe(200);
+    await settle(250);
+
+    const after = frames.slice(framesBefore).flatMap((f) => f.records);
+    const bid = after.find((r) => r.pairId === 1 && r.side === 'bid' && r.level === 0);
+    const ask = after.find((r) => r.pairId === 1 && r.side === 'ask' && r.level === 0);
+    // GBPUSD base spread is 9 pipettes; the refresh lands at the full ×6.
+    expect(ask!.price - bid!.price).toBe(54);
+  });
+
+  it('unknown pair is a field-level 400 that never reaches the simulator', async () => {
+    const port = await startServer();
+    const res = await post(port, '/sim/news', { pair: 'XXXYYY', pips: 10, spreadX: 2 });
+    expect(res.status).toBe(400);
+    const body = (await res.json()) as { issues: Array<{ path: string; message: string }> };
+    expect(body.issues[0]!.path).toBe('pair');
+    expect(body.issues[0]!.message).toContain('unknown');
+  });
+
+  it.each([
+    [{ pair: 'GBPUSD', pips: 0, spreadX: 2 }, 'pips'],
+    [{ pair: 'GBPUSD', pips: 10, spreadX: 0.5 }, 'spreadX'],
+    [{ pair: 'gbpusd', pips: 10, spreadX: 2 }, 'pair'],
+  ])('rejects %j naming %s', async (bad, field) => {
+    const port = await startServer();
+    const res = await post(port, '/sim/news', bad);
+    expect(res.status).toBe(400);
+    const body = (await res.json()) as { issues: Array<{ path: string }> };
+    expect(body.issues.some((issue) => issue.path.includes(field))).toBe(true);
+  });
+});
+
 describe('CORS preflight (the docs page posts cross-origin)', () => {
   it('answers OPTIONS with the method/header grant for an allowed origin', async () => {
     const port = await startServer();

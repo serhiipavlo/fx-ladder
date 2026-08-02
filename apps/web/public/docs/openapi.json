@@ -159,6 +159,47 @@
         }
       }
     },
+    "/sim/news": {
+      "post": {
+        "summary": "News shock",
+        "description": "Jumps the mid by `pips` and widens the spread by `spreadX`, decaying back to baseline over 10 s — the jump and the widening arrive together, as the economics say they should (architecture §5.3). Unknown pairs are a field-level 400.",
+        "tags": [
+          "control plane"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SimNewsBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Applied.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Body failed the shared domain schema; nothing reached the simulator.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/sim/stats": {
       "get": {
         "summary": "Simulator telemetry",
@@ -222,6 +263,31 @@
         },
         "required": [
           "skipSeqs"
+        ],
+        "additionalProperties": false
+      },
+      "SimNewsBody": {
+        "type": "object",
+        "properties": {
+          "pair": {
+            "type": "string",
+            "pattern": "^[A-Z]{6}$"
+          },
+          "pips": {
+            "type": "integer",
+            "minimum": -1000,
+            "maximum": 1000
+          },
+          "spreadX": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 20
+          }
+        },
+        "required": [
+          "pair",
+          "pips",
+          "spreadX"
         ],
         "additionalProperties": false
       },

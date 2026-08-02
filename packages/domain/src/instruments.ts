@@ -19,7 +19,9 @@ export interface Instrument {
 /**
  * The instrument catalogue. Order is contractual: `pairId` on the wire is the
  * index into this array (architecture §6.1), and the cold plane serves it
- * verbatim (§7.2). Crosses and exotics arrive with v0.2.0.
+ * verbatim (§7.2). Appending is safe; reordering the first five would break
+ * the wire ids shipped with v0.1.0. Crosses are simulated independently —
+ * triangular coherence is backlog (architecture §5.2).
  */
 export const INSTRUMENTS: readonly Instrument[] = [
   { symbol: 'EURUSD', base: 'EUR', quote: 'USD', precision: 5, pipDigit: 4, lotSizeK: 100, minQtyK: 1, tier: 'major' },
@@ -27,6 +29,13 @@ export const INSTRUMENTS: readonly Instrument[] = [
   { symbol: 'USDJPY', base: 'USD', quote: 'JPY', precision: 3, pipDigit: 2, lotSizeK: 100, minQtyK: 1, tier: 'major' },
   { symbol: 'USDCHF', base: 'USD', quote: 'CHF', precision: 5, pipDigit: 4, lotSizeK: 100, minQtyK: 1, tier: 'major' },
   { symbol: 'AUDUSD', base: 'AUD', quote: 'USD', precision: 5, pipDigit: 4, lotSizeK: 100, minQtyK: 1, tier: 'major' },
+  { symbol: 'NZDUSD', base: 'NZD', quote: 'USD', precision: 5, pipDigit: 4, lotSizeK: 100, minQtyK: 1, tier: 'major' },
+  { symbol: 'USDCAD', base: 'USD', quote: 'CAD', precision: 5, pipDigit: 4, lotSizeK: 100, minQtyK: 1, tier: 'major' },
+  { symbol: 'EURGBP', base: 'EUR', quote: 'GBP', precision: 5, pipDigit: 4, lotSizeK: 100, minQtyK: 1, tier: 'cross' },
+  { symbol: 'EURJPY', base: 'EUR', quote: 'JPY', precision: 3, pipDigit: 2, lotSizeK: 100, minQtyK: 1, tier: 'cross' },
+  { symbol: 'GBPJPY', base: 'GBP', quote: 'JPY', precision: 3, pipDigit: 2, lotSizeK: 100, minQtyK: 1, tier: 'cross' },
+  { symbol: 'USDTRY', base: 'USD', quote: 'TRY', precision: 5, pipDigit: 4, lotSizeK: 100, minQtyK: 1, tier: 'exotic' },
+  { symbol: 'USDMXN', base: 'USD', quote: 'MXN', precision: 5, pipDigit: 4, lotSizeK: 100, minQtyK: 1, tier: 'exotic' },
 ];
 
 const bySymbol: ReadonlyMap<string, Instrument> = new Map(INSTRUMENTS.map((i) => [i.symbol, i]));

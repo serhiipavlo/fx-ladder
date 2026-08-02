@@ -1,6 +1,6 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 
-import { simGapBodySchema, simRateBodySchema, simSeedBodySchema } from '@fx/domain';
+import { pairIdOf, simGapBodySchema, simNewsBodySchema, simRateBodySchema, simSeedBodySchema } from '@fx/domain';
 
 // Control plane v1 (architecture §8): /sim/* changes the behaviour of the
 // world; every body is parsed by the shared domain schemas — a request either
@@ -29,7 +29,18 @@ export interface ControlDeps {
   reseed(seed: number): void;
   setRate(updatesPerSec: number): void;
   skipSeqs(count: number): void;
+  news(pairId: number, pips: number, spreadX: number): void;
   stats(): SimStats;
+}
+
+/** Semantic rejection of a schema-valid body — reported like any field issue. */
+export class FieldError extends Error {
+  constructor(
+    public readonly field: string,
+    message: string,
+  ) {
+    super(message);
+  }
 }
 
 const MAX_BODY_BYTES = 16 * 1024;
@@ -83,7 +94,15 @@ async function handlePost<T>(
     });
     return;
   }
-  apply(result.data);
+  try {
+    apply(result.data);
+  } catch (err) {
+    if (err instanceof FieldError) {
+      sendJson(res, 400, { error: 'validation failed', issues: [{ path: err.field, message: err.message }] });
+      return;
+    }
+    throw err;
+  }
   sendJson(res, 200, { ok: true });
 }
 
@@ -111,6 +130,15 @@ export function handleSimRequest(
       return;
     case '/sim/gap':
       route('POST', () => void handlePost(req, res, simGapBodySchema, (body) => deps.skipSeqs(body.skipSeqs)));
+      return;
+    case '/sim/news':
+      route('POST', () =>
+        void handlePost(req, res, simNewsBodySchema, (body) => {
+          const pairId = pairIdOf(body.pair);
+          if (pairId < 0) throw new FieldError('pair', `unknown pair: ${body.pair}`);
+          deps.news(pairId, body.pips, body.spreadX);
+        }),
+      );
       return;
     case '/sim/stats':
       route('GET', () => sendJson(res, 200, deps.stats()));

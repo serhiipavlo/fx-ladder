@@ -3,9 +3,22 @@ import { describe, expect, it } from 'vitest';
 import { INSTRUMENTS, instrumentByPairId, instrumentBySymbol, pairIdOf } from './instruments';
 
 describe('instrument catalogue', () => {
-  it('holds the five majors with unique symbols', () => {
-    expect(INSTRUMENTS.map((i) => i.symbol)).toEqual(['EURUSD', 'GBPUSD', 'USDJPY', 'USDCHF', 'AUDUSD']);
+  it('keeps the v0.1 wire ids stable and appends the rest with unique symbols', () => {
+    // pairId = index is a wire contract (§6.1): the first five may never move.
+    expect(INSTRUMENTS.slice(0, 5).map((i) => i.symbol)).toEqual([
+      'EURUSD',
+      'GBPUSD',
+      'USDJPY',
+      'USDCHF',
+      'AUDUSD',
+    ]);
+    expect(INSTRUMENTS.length).toBe(12);
     expect(new Set(INSTRUMENTS.map((i) => i.symbol)).size).toBe(INSTRUMENTS.length);
+  });
+
+  it('covers all three tiers', () => {
+    const tiers = new Set(INSTRUMENTS.map((i) => i.tier));
+    expect(tiers).toEqual(new Set(['major', 'cross', 'exotic']));
   });
 
   it('quotes JPY pairs at precision 3 with the pip on the 2nd digit, others 5/4', () => {

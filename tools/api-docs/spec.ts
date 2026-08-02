@@ -1,4 +1,4 @@
-import { simGapBodySchema, simRateBodySchema, simSeedBodySchema } from '@fx/domain';
+import { simGapBodySchema, simNewsBodySchema, simRateBodySchema, simSeedBodySchema } from '@fx/domain';
 import { frameEnvelopeSchema, FX_SUBPROTOCOL, wireRecordSchema } from '@fx/protocol';
 import { z } from 'zod';
 
@@ -96,6 +96,13 @@ export function buildOpenApi(): JsonSchema {
           'for exercising the client gap detector (NFR-08).',
         'SimGapBody',
       ),
+      '/sim/news': controlPost(
+        'News shock',
+        'Jumps the mid by `pips` and widens the spread by `spreadX`, decaying back to baseline over ' +
+          '10 s — the jump and the widening arrive together, as the economics say they should ' +
+          '(architecture §5.3). Unknown pairs are a field-level 400.',
+        'SimNewsBody',
+      ),
       '/sim/stats': {
         get: {
           summary: 'Simulator telemetry',
@@ -115,6 +122,7 @@ export function buildOpenApi(): JsonSchema {
         SimSeedBody: fromZod(simSeedBodySchema),
         SimRateBody: fromZod(simRateBodySchema),
         SimGapBody: fromZod(simGapBodySchema),
+        SimNewsBody: fromZod(simNewsBodySchema),
         Ok: {
           type: 'object',
           additionalProperties: false,

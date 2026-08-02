@@ -137,6 +137,10 @@ export function createFeedServer(config: FeedServerConfig): FeedServer {
       // seqs later — exactly one provable hole per client (NFR-08).
       for (const state of clients.values()) state.nextSeq += count;
     },
+    news(pairId: number, pips: number, spreadX: number): void {
+      // The shock and the owed both-side refresh ride the next tick (§5.3).
+      market.news(pairId, pips, spreadX);
+    },
     stats(): SimStats {
       return {
         generated,
