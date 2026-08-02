@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { INSTRUMENTS } from '@fx/domain';
 import type { Frame } from '@fx/protocol';
 import normalJson from '@fx/protocol/fixtures/normal-stream.json';
 import { encodeFrame } from '@fx/protocol';
@@ -51,7 +52,7 @@ describe('demo panel (done-when of T-0.2.7)', () => {
     );
 
     const { store } = makeHarness();
-    render(<Panel store={store} pollMs={0} />);
+    render(<Panel store={store} instruments={INSTRUMENTS} pollMs={0} />);
 
     fireEvent.click(screen.getByTestId('rate-50000'));
     fireEvent.click(screen.getByTestId('gap'));
@@ -72,7 +73,7 @@ describe('demo panel (done-when of T-0.2.7)', () => {
     core.onMessage(encodeFrame(normal[0]!), 0);
     notify();
 
-    render(<Panel store={store} pollMs={0} />);
+    render(<Panel store={store} instruments={INSTRUMENTS} pollMs={0} />);
     expect(store.renderMode()).toBe('coalesced');
     fireEvent.click(screen.getByTestId('render-mode'));
     expect(store.renderMode()).toBe('naive');

@@ -12,6 +12,7 @@
   "dependencies": {
     "@fx/domain": "workspace:*",
     "@fx/protocol": "workspace:*",
+    "@tanstack/react-query": "^5.101.4",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },
@@ -22,6 +23,7 @@
     "@types/react-dom": "^19.0.0",
     "@vitejs/plugin-react": "^4.3.0",
     "jsdom": "^30.0.1",
+    "msw": "^2.15.0",
     "vite": "^6.1.0"
   }
 }

@@ -1,4 +1,4 @@
-import { INSTRUMENTS } from '@fx/domain';
+import type { Instrument } from '@fx/domain';
 import { useEffect, useState, useSyncExternalStore } from 'react';
 
 import { backendUrl } from './backend';
@@ -40,11 +40,13 @@ const row: React.CSSProperties = { display: 'flex', gap: '0.5rem', alignItems: '
 
 export interface PanelProps {
   store: FeedStore;
+  /** The catalogue as served by the cold plane. */
+  instruments: readonly Instrument[];
   /** Server-stats poll period; 0 disables (tests). */
   pollMs?: number;
 }
 
-export function Panel({ store, pollMs = 1000 }: PanelProps): React.JSX.Element {
+export function Panel({ store, instruments, pollMs = 1000 }: PanelProps): React.JSX.Element {
   useSyncExternalStore(store.subscribe, () => store.version());
   const [last, setLast] = useState('—');
   const [server, setServer] = useState<ServerStats | null>(null);
@@ -118,7 +120,7 @@ export function Panel({ store, pollMs = 1000 }: PanelProps): React.JSX.Element {
       <div style={{ ...row, marginTop: '0.5rem' }}>
         <span>pair:</span>
         <select value={pair} onChange={(e) => setPair(e.target.value)} style={{ font: 'inherit' }} data-testid="pair">
-          {INSTRUMENTS.map((i) => (
+          {instruments.map((i) => (
             <option key={i.symbol}>{i.symbol}</option>
           ))}
         </select>
