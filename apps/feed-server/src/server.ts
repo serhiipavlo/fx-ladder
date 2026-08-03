@@ -15,7 +15,15 @@ import {
   type ScenarioStep,
   type SimOrderBody,
 } from '@fx/domain';
-import { assembleFrame, encodeFrame, FX_SUBPROTOCOL, heartbeatFrame } from '@fx/protocol';
+import {
+  assembleFrame,
+  encodeFrame,
+  encodeFrameBinary,
+  FX_SUBPROTOCOL,
+  FX_SUBPROTOCOL_V2,
+  heartbeatFrame,
+  type Frame,
+} from '@fx/protocol';
 import {
   createExecutionEngine,
   createLedger,
@@ -43,6 +51,8 @@ interface ClientState {
   nextSeq: number;
   lastSentTs: number;
   connectedAt: number;
+  /** The wire this connection negotiated: fx.v2 sends binary frames (ADR-12). */
+  binary: boolean;
 }
 
 /**
@@ -170,16 +180,24 @@ export function createFeedServer(config: FeedServerConfig): FeedServer {
   const httpServer = createServer(handleRequest);
   const wss = new WebSocketServer({
     noServer: true,
-    handleProtocols: (protocols) => (protocols.has(FX_SUBPROTOCOL) ? FX_SUBPROTOCOL : false),
+    // Version negotiation is the subprotocol mechanism doing its job: the
+    // newest wire we both speak wins, and a v1-only client stays served.
+    handleProtocols: (protocols) =>
+      protocols.has(FX_SUBPROTOCOL_V2) ? FX_SUBPROTOCOL_V2 : protocols.has(FX_SUBPROTOCOL) ? FX_SUBPROTOCOL : false,
   });
+
+  /** One frame, the connection's own wire: JSON for fx.v1, bytes for fx.v2. */
+  const payloadFor = (state: ClientState, frame: Frame): string | ArrayBuffer =>
+    state.binary ? encodeFrameBinary(frame) : encodeFrame(frame);
 
   wss.on('connection', (ws: WebSocket) => {
     // Snapshot on connect: full book, seq basis 0 — reconnect-and-resnapshot
     // reuses exactly this path (ADR-08).
     const ts = serverTs();
     const { frame, nextSeq } = assembleFrame('SNAPSHOT', market.snapshot(), 0, ts);
-    ws.send(encodeFrame(frame));
-    clients.set(ws, { nextSeq, lastSentTs: ts, connectedAt: ts });
+    const state: ClientState = { nextSeq, lastSentTs: ts, connectedAt: ts, binary: ws.protocol === FX_SUBPROTOCOL_V2 };
+    ws.send(payloadFor(state, frame));
+    clients.set(ws, state);
 
     ws.on('message', () => {
       // The v0.1 data plane is strictly server → client; any inbound frame is
@@ -216,7 +234,7 @@ export function createFeedServer(config: FeedServerConfig): FeedServer {
         if (batchMode) {
           // One send per client per tick (§7.1); seq assigned last, per wire (§6.2).
           const { frame, nextSeq } = assembleFrame('DELTA', updates, state.nextSeq, ts);
-          ws.send(encodeFrame(frame));
+          ws.send(payloadFor(state, frame));
           state.nextSeq = nextSeq;
           framesSent += 1;
           sent += updates.length;
@@ -231,7 +249,7 @@ export function createFeedServer(config: FeedServerConfig): FeedServer {
           const firehose = updates.slice(-UNBATCHED_MAX_FRAMES_PER_TICK);
           for (const update of firehose) {
             const { frame, nextSeq } = assembleFrame('DELTA', [update], state.nextSeq, ts);
-            ws.send(encodeFrame(frame));
+            ws.send(payloadFor(state, frame));
             state.nextSeq = nextSeq;
             framesSent += 1;
           }
@@ -256,7 +274,7 @@ export function createFeedServer(config: FeedServerConfig): FeedServer {
       if (ts - state.lastSentTs < config.heartbeatIntervalMs) continue;
       // Silence becomes a signal: channel alive, market quiet — and the last
       // assigned seq proves completeness without new data (§6.3).
-      ws.send(encodeFrame(heartbeatFrame(state.nextSeq - 1, ts)));
+      ws.send(payloadFor(state, heartbeatFrame(state.nextSeq - 1, ts)));
       state.lastSentTs = ts;
     }
   }, HEARTBEAT_SWEEP_MS);
@@ -332,7 +350,7 @@ export function createFeedServer(config: FeedServerConfig): FeedServer {
       for (const [ws, state] of clients) {
         if (ws.readyState !== WebSocket.OPEN) continue;
         const { frame, nextSeq } = assembleFrame('SNAPSHOT', snapshot, state.nextSeq, ts);
-        ws.send(encodeFrame(frame));
+        ws.send(payloadFor(state, frame));
         state.nextSeq = nextSeq;
         state.lastSentTs = ts;
         sent += frame.count;
@@ -573,7 +591,7 @@ export function createFeedServer(config: FeedServerConfig): FeedServer {
     // handleProtocols=false would instead complete the 101 without a subprotocol
     // and leave the rejection to the client — a quiet failure, not a loud one.
     const offered = (req.headers['sec-websocket-protocol'] ?? '').split(',').map((p) => p.trim());
-    if (!offered.includes(FX_SUBPROTOCOL)) {
+    if (!offered.includes(FX_SUBPROTOCOL) && !offered.includes(FX_SUBPROTOCOL_V2)) {
       refuseUpgrade(socket, 400, 'Bad Request');
       return;
     }

@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 
-import { assembleFrame, decodeFrame, encodeFrame } from '@fx/protocol';
+import { assembleFrame, decodeFrame, decodeFrameBinary, encodeFrame, encodeFrameBinary } from '@fx/protocol';
 import { createMarket } from '@fx/sim-core';
 
 import { createFeedServer } from '../../apps/feed-server/src/server';
@@ -37,7 +37,7 @@ const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout
 // Server half: real server, real socket.
 // ---------------------------------------------------------------------------
 
-async function serverHalf(): Promise<{ received: number; bytesPerSec: number; tickP95: number }> {
+async function serverHalf(protocol: 'fx.v1' | 'fx.v2'): Promise<{ received: number; bytesPerSec: number; tickP95: number }> {
   const server = createFeedServer({
     port: 0,
     allowedOrigins: [],
@@ -56,12 +56,15 @@ async function serverHalf(): Promise<{ received: number; bytesPerSec: number; ti
   let records = 0;
   let bytes = 0;
 
-  const ws = new WebSocket(`ws://127.0.0.1:${port}/feed`, 'fx.v1');
+  const ws = new WebSocket(`ws://127.0.0.1:${port}/feed`, protocol);
+  ws.binaryType = 'arraybuffer'; // fx.v2 frames arrive binary
   ws.onmessage = (event: MessageEvent) => {
     if (!measuring) return;
-    const text = String(event.data);
-    bytes += text.length;
-    const frame = decodeFrame(text);
+    const data = event.data as string | ArrayBuffer;
+    const frame =
+      typeof data === 'string'
+        ? ((bytes += data.length), decodeFrame(data))
+        : ((bytes += data.byteLength), decodeFrameBinary(data));
     if (frame !== null) records += frame.count;
   };
   await new Promise<void>((resolve, reject) => {
@@ -91,7 +94,7 @@ async function serverHalf(): Promise<{ received: number; bytesPerSec: number; ti
 // Client half: the coalesced pipeline against the same firehose, no I/O.
 // ---------------------------------------------------------------------------
 
-function clientHalf(mode: 'naive' | 'coalesced', wire: 'batched' | 'unbatched'): {
+function clientHalf(mode: 'naive' | 'coalesced', wire: 'batched' | 'unbatched', codec: 'json' | 'binary' = 'json'): {
   messageP95: number;
   flushP95: number;
   frames: number;
@@ -109,6 +112,8 @@ function clientHalf(mode: 'naive' | 'coalesced', wire: 'batched' | 'unbatched'):
     lastClose: () => null,
     terminal: () => false,
     resume: () => undefined,
+    wire: () => null,
+    setProtocols: () => undefined,
     close: () => undefined,
   };
   const frameQueue: Array<() => void> = [];
@@ -133,10 +138,11 @@ function clientHalf(mode: 'naive' | 'coalesced', wire: 'batched' | 'unbatched'):
     }
   });
 
+  const encode = codec === 'binary' ? encodeFrameBinary : encodeFrame;
   let nextSeq = 0;
   const snap = assembleFrame('SNAPSHOT', market.snapshot(), nextSeq, 0);
   nextSeq = snap.nextSeq;
-  core.onMessage(encodeFrame(snap.frame), 0);
+  core.onMessage(encode(snap.frame), 0);
   notify();
 
   // Five simulated seconds: 8 ms server ticks, one animation frame per 16 ms.
@@ -150,13 +156,13 @@ function clientHalf(mode: 'naive' | 'coalesced', wire: 'batched' | 'unbatched'):
       if (wire === 'batched') {
         const assembled = assembleFrame('DELTA', updates, nextSeq, half);
         nextSeq = assembled.nextSeq;
-        core.onMessage(encodeFrame(assembled.frame), half);
+        core.onMessage(encode(assembled.frame), half);
         notify();
       } else {
         for (const update of updates) {
           const assembled = assembleFrame('DELTA', [update], nextSeq, half);
           nextSeq = assembled.nextSeq;
-          core.onMessage(encodeFrame(assembled.frame), half);
+          core.onMessage(encode(assembled.frame), half);
           notify();
         }
       }
@@ -176,18 +182,28 @@ function clientHalf(mode: 'naive' | 'coalesced', wire: 'batched' | 'unbatched'):
 
 // ---------------------------------------------------------------------------
 
-const server = await serverHalf();
+// The production wire is fx.v2 — that pass carries the gates; the fx.v1 pass
+// records the contrast the README quotes (ADR-12).
+const server = await serverHalf('fx.v2');
+const serverV1 = await serverHalf('fx.v1');
 const client = clientHalf('coalesced', 'batched');
+const clientBinary = clientHalf('coalesced', 'batched', 'binary');
 const naiveBatched = clientHalf('naive', 'batched');
 const naiveFirehose = clientHalf('naive', 'unbatched');
 const coalescedFirehose = clientHalf('coalesced', 'unbatched');
 
+const kib = (bytesPerSec: number): string =>
+  bytesPerSec >= 1024 * 1024 ? `${(bytesPerSec / (1024 * 1024)).toFixed(2)} MiB/s` : `${(bytesPerSec / 1024).toFixed(0)} KiB/s`;
+
 const rows = [
   ['fed updates/s', thresholds.feedUpdatesPerSec.toFixed(0), ''],
-  ['received updates/s', server.received.toFixed(0), `>= ${thresholds.minReceivedUpdatesPerSec}`],
+  ['received updates/s', server.received.toFixed(0), `>= ${thresholds.minReceivedUpdatesPerSec} (fx.v2)`],
   ['p95 server tick (ms)', server.tickP95.toFixed(3), `<= ${thresholds.maxP95TickMs}`],
-  ['bytes/s (JSON baseline)', `${(server.bytesPerSec / (1024 * 1024)).toFixed(2)} MiB/s`, 'recorded, not gated'],
-  ['client msg p95 (ms)', client.messageP95.toFixed(3), `<= ${thresholds.maxClientMessageP95Ms}`],
+  // The ADR-12 exhibit: one stream, two wires, the byte bill side by side.
+  ['wire fx.v2 (binary)', kib(server.bytesPerSec), 'recorded, not gated'],
+  ['wire fx.v1 (JSON)', kib(serverV1.bytesPerSec), `${(serverV1.bytesPerSec / server.bytesPerSec).toFixed(1)}x the bytes of fx.v2`],
+  ['client msg p95 (ms)', client.messageP95.toFixed(3), `<= ${thresholds.maxClientMessageP95Ms} (JSON decode)`],
+  ['client msg p95 v2 (ms)', clientBinary.messageP95.toFixed(3), `<= ${thresholds.maxClientMessageP95Ms} (binary decode)`],
   ['client flush p95 (ms)', client.flushP95.toFixed(3), `<= ${thresholds.maxClientFlushP95Ms} (60 fps budget)`],
   ['client frames replayed', String(client.frames), ''],
   // The §6.4 contrast, measured on both wire shapes (recorded, not gated):
@@ -219,6 +235,9 @@ if (server.tickP95 > thresholds.maxP95TickMs) {
 }
 if (client.messageP95 > thresholds.maxClientMessageP95Ms) {
   failures.push(`client msg p95 ${client.messageP95.toFixed(3)} ms > ${thresholds.maxClientMessageP95Ms} ms`);
+}
+if (clientBinary.messageP95 > thresholds.maxClientMessageP95Ms) {
+  failures.push(`client msg p95 (binary) ${clientBinary.messageP95.toFixed(3)} ms > ${thresholds.maxClientMessageP95Ms} ms`);
 }
 if (client.flushP95 > thresholds.maxClientFlushP95Ms) {
   failures.push(`client flush p95 ${client.flushP95.toFixed(3)} ms > ${thresholds.maxClientFlushP95Ms} ms`);

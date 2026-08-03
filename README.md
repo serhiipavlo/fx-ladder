@@ -42,10 +42,12 @@ ratchet up — plan §4). Measured 2026-08-03, v1.0.0:
 ```
 perf gate — thresholds v0.2.0, server window 8s after 2s warmup, client replay 5 simulated seconds
   fed updates/s                       50000
-  received updates/s                  50082  >= 45000
-  p95 server tick (ms)                0.562  <= 4
-  bytes/s (JSON baseline)        3.62 MiB/s  recorded, not gated
-  client msg p95 (ms)                 0.001  <= 2
+  received updates/s                  50050  >= 45000 (fx.v2)
+  p95 server tick (ms)                0.356  <= 4
+  wire fx.v2 (binary)             588 KiB/s  recorded, not gated
+  wire fx.v1 (JSON)              3.62 MiB/s  6.3x the bytes of fx.v2
+  client msg p95 (ms)                 0.001  <= 2 (JSON decode)
+  client msg p95 v2 (ms)              0.000  <= 2 (binary decode)
   client flush p95 (ms)               0.003  <= 16.7 (60 fps budget)
   client frames replayed                625
   renders batched n/c             626 / 313  naive renders per message
@@ -57,9 +59,13 @@ GATE GREEN
 Reading it:
 
 - **50k updates/s sustained** through one real WebSocket, with the server's
-  8 ms tick at **p95 0.562 ms** — and the honest cost of staying in JSON
-  recorded next to it (~3.6 MiB/s; the binary wire lives in the post-1.0
-  backlog with its withdrawn ADR).
+  8 ms tick at **p95 0.356 ms**.
+- **One stream, two wires (ADR-12, v1.1.0):** the page negotiates the
+  binary `fx.v2` — fixed 12-byte records, DataView decode — at **588 KiB/s**
+  where the JSON `fx.v1` costs **3.62 MiB/s** for identical content: 6.3×
+  fewer bytes, and the server tick got cheaper too (`JSON.stringify` was
+  the dearer half). The demo panel's wire toggle shows the drop live; a
+  v1-only client stays served forever.
 - **The client pipeline holds the 60 fps budget**: the sans-I/O replay
   harness pushes the same firehose through the production stream core and
   store — coalesced flushes cost **p95 0.003 ms** against the 16.7 ms frame.

@@ -26,6 +26,8 @@ function makeFeedHarness() {
     lastClose: () => null,
     terminal: () => false,
     resume: () => undefined,
+    wire: () => null,
+    setProtocols: () => undefined,
     close: () => undefined,
   };
   const store = createFeedStore(

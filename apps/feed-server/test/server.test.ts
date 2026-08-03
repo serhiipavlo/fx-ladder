@@ -1,5 +1,5 @@
 import { INSTRUMENTS } from '@fx/domain';
-import { decodeFrame, FX_SUBPROTOCOL, type Frame } from '@fx/protocol';
+import { decodeFrame, decodeFrameBinary, FX_SUBPROTOCOL, FX_SUBPROTOCOL_V2, type Frame } from '@fx/protocol';
 import { BOOK_LEVELS } from '@fx/sim-core';
 import { afterEach, describe, expect, it } from 'vitest';
 import { WebSocket } from 'ws';
@@ -74,6 +74,103 @@ function openFeed(port: number): Promise<{ ws: WebSocket; frames: Frame[] }> {
 }
 
 const settle = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
+
+/** Like openFeed, but offering the v2-first list and decoding whichever wire the server picked. */
+function openFeedNegotiated(
+  port: number,
+  protocols: string[],
+): Promise<{ ws: WebSocket; frames: Frame[]; binaryFrames: number; textFrames: number; wire: () => string }> {
+  const frames: Frame[] = [];
+  const counters = { binary: 0, text: 0 };
+  const ws = new WebSocket(`ws://127.0.0.1:${port}/feed`, protocols, {
+    headers: { Origin: ALLOWED_ORIGIN },
+  });
+  sockets.push(ws);
+  ws.on('message', (data, isBinary) => {
+    let frame: Frame | null;
+    if (isBinary) {
+      counters.binary += 1;
+      // Copy out of ws's pooled Buffer into a plain ArrayBuffer of exactly
+      // the frame's bytes.
+      frame = decodeFrameBinary(new Uint8Array(data as Buffer).buffer);
+    } else {
+      counters.text += 1;
+      frame = decodeFrame(String(data));
+    }
+    if (frame !== null) frames.push(frame);
+  });
+  return new Promise((resolve, reject) => {
+    ws.on('open', () =>
+      resolve({
+        ws,
+        frames,
+        get binaryFrames() {
+          return counters.binary;
+        },
+        get textFrames() {
+          return counters.text;
+        },
+        wire: () => ws.protocol,
+      }),
+    );
+    ws.on('error', reject);
+  });
+}
+
+describe('wire negotiation — fx.v2 preferred, fx.v1 kept (ADR-12)', () => {
+  it('offering both wires gets fx.v2: binary frames only, snapshot first, dense', { timeout: 10_000 }, async () => {
+    const { port } = await startServer();
+    const feed = await openFeedNegotiated(port, [FX_SUBPROTOCOL_V2, FX_SUBPROTOCOL]);
+    await settle(300);
+
+    expect(feed.wire()).toBe(FX_SUBPROTOCOL_V2);
+    expect(feed.binaryFrames).toBeGreaterThan(0);
+    expect(feed.textFrames).toBe(0);
+    expect(feed.frames[0]!.frameType).toBe('SNAPSHOT');
+    expect(feed.frames[0]!.count).toBe(SNAPSHOT_RECORDS);
+    const data = feed.frames.filter((f) => f.frameType !== 'HEARTBEAT');
+    for (let i = 1; i < data.length; i += 1) {
+      expect(data[i]!.firstSeq).toBe(data[i - 1]!.firstSeq + data[i - 1]!.count);
+    }
+  });
+
+  it('a v1-only client stays served with JSON — old clients never notice v2 exists', { timeout: 10_000 }, async () => {
+    const { port } = await startServer();
+    const feed = await openFeedNegotiated(port, [FX_SUBPROTOCOL]);
+    await settle(200);
+
+    expect(feed.wire()).toBe(FX_SUBPROTOCOL);
+    expect(feed.textFrames).toBeGreaterThan(0);
+    expect(feed.binaryFrames).toBe(0);
+    expect(feed.frames[0]!.frameType).toBe('SNAPSHOT');
+  });
+
+  it('a v2-only client is accepted too, and mixed clients ride one tick on two wires', { timeout: 10_000 }, async () => {
+    const { port } = await startServer();
+    const v2 = await openFeedNegotiated(port, [FX_SUBPROTOCOL_V2]);
+    const v1 = await openFeedNegotiated(port, [FX_SUBPROTOCOL]);
+    await settle(400);
+
+    expect(v2.wire()).toBe(FX_SUBPROTOCOL_V2);
+    expect(v1.wire()).toBe(FX_SUBPROTOCOL);
+    // Same market, same ticks: after both snapshots, the record streams carry
+    // identical content per tick — encoding is the only difference. A frame's
+    // serverTs is the tick's own stamp, identical across clients, so it
+    // aligns the two streams deterministically.
+    const strip = (f: Frame): string[] =>
+      f.records.map((r) => `${r.pairId}/${r.side}/${r.level}/${r.price}/${r.size}`);
+    const v1Deltas = v1.frames.filter((f) => f.frameType === 'DELTA');
+    const v2Deltas = v2.frames.filter(
+      (f) => f.frameType === 'DELTA' && f.serverTs >= v1Deltas[0]!.serverTs,
+    );
+    const window = Math.min(v1Deltas.length, v2Deltas.length, 20);
+    expect(window).toBeGreaterThan(5);
+    for (let i = 0; i < window; i += 1) {
+      expect(v2Deltas[i]!.serverTs).toBe(v1Deltas[i]!.serverTs);
+      expect(strip(v2Deltas[i]!)).toEqual(strip(v1Deltas[i]!));
+    }
+  });
+});
 
 afterEach(async () => {
   for (const ws of sockets.splice(0)) ws.terminate();

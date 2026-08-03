@@ -386,10 +386,18 @@ export function buildAsyncApi(): JsonSchema {
       title: 'FX Ladder — hot plane',
       version: VERSION,
       description:
-        `Batched market-data feed over WebSocket, subprotocol \`${FX_SUBPROTOCOL}\` — a client not ` +
-        'offering it is refused at the handshake with HTTP 400 (architecture §6.1). One frame per ' +
-        'server tick; every record is a **full upsert** of one book level (`size: 0` = level gone), ' +
-        'so duplicates are safe and coalescing is legal.\n\n' +
+        'Batched market-data feed over WebSocket. Two wires, one semantics (ADR-12): a client ' +
+        `offers \`[fx.v2, fx.v1]\` and the server picks the newest it speaks — \`fx.v2\` is binary, ` +
+        `\`${FX_SUBPROTOCOL}\` is the JSON wire documented by the schemas below; offering neither is ` +
+        'refused at the handshake with HTTP 400 (architecture §6.1). One frame per server tick; ' +
+        'every record is a **full upsert** of one book level (`size: 0` = level gone), so ' +
+        'duplicates are safe and coalescing is legal.\n\n' +
+        '**The fx.v2 binary layout** (little-endian): a 16-byte header — `u8` wire version (always 2), ' +
+        '`u8` frameType (0 SNAPSHOT · 1 DELTA · 2 HEARTBEAT), `u16` count, `u32` firstSeq, `f64` serverTs — ' +
+        'followed by `count` fixed 12-byte records: `u8` pairId, `u8` side (0 bid · 1 ask), `u8` level, ' +
+        '`u8` reserved, `i32` price (integer pipettes), `u32` size. Per-record seq is not on the wire: ' +
+        'a non-dense frame is inexpressible, decoders reconstruct `firstSeq + i` (§6.2 by construction). ' +
+        'Measured against JSON at 50k updates/s: 588 KiB/s vs 3.62 MiB/s — 6.3× fewer bytes.\n\n' +
         '**Seq contract (§6.2).** Records are numbered densely per connection: `firstSeq, ' +
         'firstSeq+1, …` with no holes across frames. Any hole is transport loss — provable ' +
         'arithmetically. Recovery: reconnect and take the fresh SNAPSHOT (ADR-08); a mid-stream ' +
@@ -412,13 +420,17 @@ export function buildAsyncApi(): JsonSchema {
     channels: {
       feed: {
         address: '/feed',
-        description: `Hot plane. Handshake must offer the \`${FX_SUBPROTOCOL}\` subprotocol; browsers on foreign origins are refused (403).`,
+        description:
+          `Hot plane. Handshake must offer \`fx.v2\` and/or \`${FX_SUBPROTOCOL}\` — the server picks ` +
+          'the newest wire both speak (ADR-12); browsers on foreign origins are refused (403).',
         bindings: {
           ws: {
             method: 'GET',
             headers: {
               type: 'object',
-              properties: { 'Sec-WebSocket-Protocol': { type: 'string', const: FX_SUBPROTOCOL } },
+              properties: {
+                'Sec-WebSocket-Protocol': { type: 'string', enum: ['fx.v2, fx.v1', FX_SUBPROTOCOL, 'fx.v2'] },
+              },
             },
             bindingVersion: '0.1.0',
           },

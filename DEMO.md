@@ -71,6 +71,15 @@ If 8080 is taken locally, map another port and point the web dev server at
 it: `docker run --rm -p 8090:8080 …` then `FX_BACKEND_PORT=8090 pnpm
 --filter @fx/web exec vite`.
 
+## v1.1.0
+
+The feed line now names its wire: **fx.v2**, with a live byte meter beside
+it. `rate 50k` — the meter reads ~590 KiB/s. Press `wire: fx.v2 → force v1`
+in the panel: the page reconnects onto the JSON wire and the meter jumps to
+~3.6 MiB/s **for the same stream**; flip back and it falls again. Six times
+fewer bytes, zero gaps either way — the §6.2 arithmetic does not care how
+records are spelled.
+
 ## v0.4.0
 
 The trade section under the ladder. **submit** — the ack lands instantly,
