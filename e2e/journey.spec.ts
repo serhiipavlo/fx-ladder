@@ -13,20 +13,26 @@ async function post(request: APIRequestContext, path: string, data: unknown): Pr
   expect(res.ok()).toBeTruthy();
 }
 
-/** Polls a text source fast enough to catch 120 ms lifecycle stages. */
-async function watchUntil(readText: () => Promise<string | null>, target: string): Promise<string[]> {
-  const distinct: string[] = [];
-  await expect
-    .poll(
-      async () => {
-        const seen = await readText().catch(() => null);
-        if (seen !== null && seen !== '' && distinct[distinct.length - 1] !== seen) distinct.push(seen);
-        return seen;
-      },
-      { intervals: [25], timeout: 15_000 },
-    )
-    .toBe(target);
-  return distinct;
+/**
+ * Records every distinct text the order's status cell RENDERS, from inside
+ * the page: a MutationObserver fires synchronously with the DOM change, so
+ * unlike a polling loop it cannot be outrun by a slow CI runner — the
+ * T-0.4.7 lesson (sampling misses; observers don't) applied to the DOM.
+ */
+async function observeStages(page: import('@playwright/test').Page, clOrdId: string): Promise<void> {
+  await page.evaluate((id) => {
+    const holder = window as unknown as { __stages: string[] };
+    holder.__stages = [];
+    const record = (): void => {
+      const cell = document.querySelector(`.ag-row[row-id="${id}"] [col-id="status"]`);
+      const text = cell?.textContent ?? '';
+      if (text !== '' && holder.__stages[holder.__stages.length - 1] !== text) holder.__stages.push(text);
+    };
+    const blotter = document.querySelector('[data-testid="blotter"]');
+    if (blotter === null) throw new Error('blotter not mounted');
+    new MutationObserver(record).observe(blotter, { subtree: true, childList: true, characterData: true });
+    record();
+  }, clOrdId);
 }
 
 test('seed → scenario → order: NEW → partial → FILLED in the blotter, position and P&L move', async ({
@@ -70,16 +76,24 @@ test('seed → scenario → order: NEW → partial → FILLED in the blotter, po
   // …and now the trade. The scenario armed last look at 0.3 for the human
   // demo; the test needs the deterministic fill path, so it commands clean.
   await post(request, '/sim/lastlook', { holdMs: 300, rejectRate: 0 });
+  const statsBefore = (await (await request.get(`${FEED}/sim/stats`)).json()) as {
+    executions: { partials: number };
+  };
 
   await page.getByTestId('ticket-submit').click();
   await expect(page.getByTestId('ticket-ack')).toBeVisible({ timeout: 10_000 });
   const clOrdId = (await page.getByTestId('ticket-ack').locator('code').textContent())!;
   expect(clOrdId).toBeTruthy();
+  // The ack precedes every event (§7.3), and NEW waits out the 300 ms hold:
+  // the observer is in place before anything can render.
+  await observeStages(page, clOrdId);
 
-  // The lifecycle on screen: statuses may only walk the §5.6 machine, and
-  // both the partial and the fill must actually have been VISIBLE.
+  // The lifecycle on screen: statuses may only walk the §5.6 machine, the
+  // partial stage was rendered (recorded by the in-page observer, which a
+  // slow runner cannot outrun), and FILLED is where it ends.
   const statusCell = page.locator(`.ag-row[row-id="${clOrdId}"] [col-id="status"]`);
-  const stages = await watchUntil(() => statusCell.textContent(), 'FILLED');
+  await expect(statusCell).toHaveText('FILLED', { timeout: 15_000 });
+  const stages = await page.evaluate(() => (window as unknown as { __stages: string[] }).__stages);
   for (const stage of stages) {
     expect(['NEW', 'PARTIALLY_FILLED', 'FILLED']).toContain(stage);
   }
@@ -88,6 +102,12 @@ test('seed → scenario → order: NEW → partial → FILLED in the blotter, po
   const row = page.locator(`.ag-row[row-id="${clOrdId}"]`);
   await expect(row.locator('[col-id="cumQty"]')).toHaveText('500');
   await expect(row.locator('[col-id="leavesQty"]')).toHaveText('0');
+  // The data plane agrees the partials were real: seed 3 scripts this order
+  // as three fills — two of them left the order alive (§5.5).
+  const statsAfter = (await (await request.get(`${FEED}/sim/stats`)).json()) as {
+    executions: { partials: number };
+  };
+  expect(statsAfter.executions.partials - statsBefore.executions.partials).toBeGreaterThanOrEqual(1);
 
   // Position updated: long 500K, and the §7.3 split on display — unrealised
   // ticks with the hot mid while the position is open.
