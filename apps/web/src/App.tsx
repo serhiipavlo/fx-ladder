@@ -5,6 +5,7 @@ import { useEffect, useState, useSyncExternalStore } from 'react';
 import { ApolloProvider } from '@apollo/client/react';
 
 import { feedWsUrl, healthzUrl } from './backend';
+import { Boundary } from './Boundary';
 import { instrumentsQueryOptions } from './catalogue';
 import { Ladder } from './Ladder';
 import { Panel } from './Panel';
@@ -140,12 +141,18 @@ export function App(): React.JSX.Element {
       {store === null ? null : (
         <>
           <StatusLine store={store} />
-          <Ladder store={store} instruments={instruments} />
+          <Boundary name="ladder">
+            <Ladder store={store} instruments={instruments} />
+          </Boundary>
           <WakePanel store={store} waking={waking} onWake={() => void wake().then(() => store.resume())} />
           <ApolloProvider client={warm.client}>
-            <TradingSection feedStore={store} instruments={instruments} onReconnect={warm.onReconnect} />
+            <Boundary name="trade">
+              <TradingSection feedStore={store} instruments={instruments} onReconnect={warm.onReconnect} />
+            </Boundary>
           </ApolloProvider>
-          <Panel store={store} instruments={instruments} />
+          <Boundary name="demo panel">
+            <Panel store={store} instruments={instruments} />
+          </Boundary>
         </>
       )}
       <p>
