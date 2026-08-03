@@ -46,6 +46,13 @@ allowlist that feeds both halves of the same defence — CORS on the fetch
 paths and the Origin allowlist on the WS upgrade (architecture §7.1, §9.2) —
 lives in `render.yaml` as `FX_ALLOWED_ORIGINS`.
 
+**Optional control-plane lock (T-1.0.2).** Set `FX_SIM_SECRET` on the feed
+service and every `/sim/*` call must carry a matching `x-sim-secret` header
+or answers `401`; `/feed`, `/graphql`, `/healthz` and `/api/instruments`
+stay open. **Unset is the documented default** — the public demo wants its
+world steerable from the page, and arming the lock silences the demo
+panel's controls by design.
+
 ## Release
 
 ```bash

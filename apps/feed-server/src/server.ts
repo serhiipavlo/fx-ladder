@@ -1,3 +1,4 @@
+import { timingSafeEqual } from 'node:crypto';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import type { Duplex } from 'node:stream';
@@ -492,9 +493,11 @@ export function createFeedServer(config: FeedServerConfig): FeedServer {
       // CORS preflight for cross-origin POSTs from the docs page (and the
       // v0.2 demo panel). The grant itself was set above for allowed origins
       // only; a foreign origin gets a bare 204 the browser will refuse.
+      // x-sim-secret is granted unconditionally: an operator's own tooling
+      // may carry it, and granting a header name reveals nothing.
       res.writeHead(204, {
         'Access-Control-Allow-Methods': 'GET, POST',
-        'Access-Control-Allow-Headers': 'Content-Type',
+        'Access-Control-Allow-Headers': 'Content-Type, x-sim-secret',
         'Access-Control-Max-Age': '86400',
       });
       res.end();
@@ -513,12 +516,29 @@ export function createFeedServer(config: FeedServerConfig): FeedServer {
     }
 
     if (pathname.startsWith('/sim/')) {
+      // The optional lock (T-1.0.2): with FX_SIM_SECRET set, the control
+      // plane answers only to the matching header; the data planes are not
+      // consulted and stay open. Off by default — the public demo WANTS the
+      // world steerable from the page.
+      if (config.simSecret !== null && !secretMatches(req.headers['x-sim-secret'], config.simSecret)) {
+        res.writeHead(401, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'control plane is locked: missing or wrong x-sim-secret header' }));
+        return;
+      }
       handleSimRequest(pathname, req, res, controlDeps);
       return;
     }
 
     res.writeHead(404, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ error: 'not found' }));
+  }
+
+  /** Constant-time comparison — a lock this cheap should still be a real one. */
+  function secretMatches(offered: string | string[] | undefined, secret: string): boolean {
+    if (typeof offered !== 'string') return false;
+    const a = Buffer.from(offered);
+    const b = Buffer.from(secret);
+    return a.length === b.length && timingSafeEqual(a, b);
   }
 
   function refuseUpgrade(socket: Duplex, status: number, reason: string, body = ''): void {

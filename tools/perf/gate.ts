@@ -48,6 +48,7 @@ async function serverHalf(): Promise<{ received: number; bytesPerSec: number; ti
     slowClientBufferBytes: 64_000_000, // the gate measures throughput, not the guard
     maxClients: 4,
     sessionCeilingMs: 60 * 60_000,
+    simSecret: null,
   });
   const port = await server.listen();
 
