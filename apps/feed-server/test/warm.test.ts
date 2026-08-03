@@ -345,7 +345,7 @@ describe('executionReports (done-when of T-0.4.3)', () => {
       body: JSON.stringify({ rows: 25 }),
     });
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ ok: true, submitted: 25 });
+    expect(await res.json()).toEqual({ ok: true, submitted: 25, spreadMs: 25 });
 
     const byOrder = (): Map<string, ExecutionReport[]> => {
       const grouped = new Map<string, ExecutionReport[]>();

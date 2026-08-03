@@ -63,6 +63,16 @@ export interface OrdersStore {
   ingest(report: EnrichedExecutionReport): void;
   /** Rows, most recently updated first; referentially stable per version. */
   rows(): readonly OrderRow[];
+  /** How many orders the book holds — cheap, no sorting. */
+  size(): number;
+  /**
+   * What changed since the last call, and nothing else. The grid applies
+   * these as transactions: a flush then costs what MOVED, not what the book
+   * holds — the difference between a burst that streams and one that
+   * freezes (measured: a full-book diff per frame blocked the main thread
+   * for seconds).
+   */
+  takeChanged(): { changed: OrderRow[]; removed: string[] };
   /** Fired with the flush that contained any TRADE — positions changed server-side (§7.3). */
   onTrade(listener: () => void): () => void;
   /** Queue incoming reports until reconcile() lands the snapshot. */
@@ -83,11 +93,21 @@ export interface OrdersStore {
 export interface OrdersStoreOptions {
   /** Notification scheduler; requestAnimationFrame in production, injectable for tests. */
   scheduleNotify?: (callback: () => void) => void;
+  /**
+   * How many orders the book keeps. A blotter that grows without bound makes
+   * every frame cost more than the last: the whole book is re-sorted and
+   * re-diffed on each flush, so unbounded history times 60 fps is a freeze
+   * waiting for enough bursts (measured: three 5000-order bursts took the
+   * main thread from 138 ms blocked to 2016 ms). The default is the AC-11
+   * number — the load the grid is required to stay responsive under.
+   */
+  capacity?: number;
 }
 
 export function createOrdersStore(options: OrdersStoreOptions = {}): OrdersStore {
   const scheduleNotify =
     options.scheduleNotify ?? ((callback: () => void) => window.requestAnimationFrame(() => callback()));
+  const capacity = options.capacity ?? 5000;
 
   const listeners = new Set<() => void>();
   const tradeListeners = new Set<() => void>();
@@ -95,6 +115,9 @@ export function createOrdersStore(options: OrdersStoreOptions = {}): OrdersStore
   const progress = new Map<string, OrderProgress>();
   const rows = new Map<string, OrderRow>();
   const pendingReports: EnrichedExecutionReport[] = [];
+  /** Ids touched since the last takeChanged(); the grid's delta feed. */
+  const dirty = new Set<string>();
+  const removed = new Set<string>();
   let syncing = false;
   let newDay = false;
   let version = 0;
@@ -102,6 +125,29 @@ export function createOrdersStore(options: OrdersStoreOptions = {}): OrdersStore
   let tradesPending = false;
   let cachedRows: readonly OrderRow[] = [];
   let cachedVersion = -1;
+
+  /**
+   * Ages the book down to `capacity` — oldest first, and only orders that
+   * are already terminal: a live order still owes events, and dropping it
+   * would leave the next one with no history to fold onto. Runs at flush
+   * time, once per frame, so a burst pays for it once and not per message.
+   */
+  function prune(): void {
+    if (rows.size <= capacity) return;
+    const retired = [...rows.values()]
+      .filter((row) => isTerminalStatus(row.status))
+      .sort((a, b) => a.updatedAt - b.updatedAt);
+    let excess = rows.size - capacity;
+    for (const row of retired) {
+      if (excess === 0) break;
+      rows.delete(row.clOrdId);
+      progress.delete(row.clOrdId);
+      dirty.delete(row.clOrdId);
+      removed.add(row.clOrdId);
+      excess -= 1;
+    }
+    version += 1;
+  }
 
   function markDirty(trade: boolean): void {
     version += 1;
@@ -112,6 +158,7 @@ export function createOrdersStore(options: OrdersStoreOptions = {}): OrdersStore
       notifyPending = false;
       const hadTrades = tradesPending;
       tradesPending = false;
+      prune();
       for (const listener of listeners) listener();
       if (hadTrades) {
         for (const listener of tradeListeners) listener();
@@ -137,6 +184,7 @@ export function createOrdersStore(options: OrdersStoreOptions = {}): OrdersStore
       eventSeq: report.eventSeq,
       updatedAt: report.transactTime,
     });
+    dirty.add(report.clOrdId);
     markDirty(report.execType === 'TRADE');
   }
 
@@ -186,6 +234,16 @@ export function createOrdersStore(options: OrdersStoreOptions = {}): OrdersStore
       // A non-empty book answered by an empty snapshot means the server
       // holds no memory of it: a restart — a new trading day (ADR-10).
       newDay = rows.size > 0 && snapshot.length === 0;
+      // Wholesale replacement is still a delta to whoever draws it: orders
+      // the snapshot does not mention are gone from the screen too.
+      const arriving = new Set(snapshot.map((state) => state.clOrdId));
+      for (const id of rows.keys()) {
+        if (!arriving.has(id)) removed.add(id);
+      }
+      for (const id of arriving) {
+        dirty.add(id);
+        removed.delete(id);
+      }
       rows.clear();
       progress.clear();
       for (const state of snapshot) {
@@ -228,6 +286,20 @@ export function createOrdersStore(options: OrdersStoreOptions = {}): OrdersStore
         cachedVersion = version;
       }
       return cachedRows;
+    },
+
+    size: () => rows.size,
+
+    takeChanged() {
+      const changed: OrderRow[] = [];
+      for (const id of dirty) {
+        const row = rows.get(id);
+        if (row !== undefined) changed.push(row);
+      }
+      const gone = [...removed];
+      dirty.clear();
+      removed.clear();
+      return { changed, removed: gone };
     },
   };
 }

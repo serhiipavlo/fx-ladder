@@ -22,7 +22,7 @@ function report(partial: Partial<EnrichedExecutionReport>): EnrichedExecutionRep
   };
 }
 
-function state(partial: Partial<OrderStateData>): OrderStateData {
+function state(partial: Partial<OrderStateData> & { clOrdId?: string }): OrderStateData {
   return {
     clOrdId: 'A',
     pair: 'EURUSD',
@@ -129,6 +129,134 @@ describe('orders store', () => {
     store.ingest(report({ clOrdId: 'B', transactTime: 2 }));
     expect(store.rows()).not.toBe(first);
     expect(store.rows()).toBe(store.rows());
+  });
+});
+
+describe('the grid feed — what changed, and only that', () => {
+  it('reports each touched order once per flush, then forgets it', () => {
+    const store = createOrdersStore(sync);
+    store.ingest(report({ clOrdId: 'A' }));
+    store.ingest(report({ clOrdId: 'B', transactTime: 2 }));
+    const first = store.takeChanged();
+    expect(first.changed.map((r) => r.clOrdId).sort()).toEqual(['A', 'B']);
+    expect(first.removed).toEqual([]);
+    expect(store.takeChanged().changed).toEqual([]); // nothing moved since
+
+    store.ingest(
+      report({ clOrdId: 'A', eventSeq: 2, execType: 'TRADE', ordStatus: 'FILLED', lastPx: 1, lastQty: 300, cumQty: 300, leavesQty: 0, transactTime: 9 }),
+    );
+    const second = store.takeChanged();
+    expect(second.changed.map((r) => r.clOrdId)).toEqual(['A']); // B did not move
+  });
+
+  it('a retired order is reported gone, so the grid drops it too', () => {
+    const store = createOrdersStore({ ...sync, capacity: 1 });
+    for (const id of ['A', 'B']) {
+      store.ingest(report({ clOrdId: id, transactTime: id === 'A' ? 1 : 2 }));
+      store.ingest(
+        report({ clOrdId: id, eventSeq: 2, execType: 'TRADE', ordStatus: 'FILLED', lastPx: 1, lastQty: 300, cumQty: 300, leavesQty: 0, transactTime: id === 'A' ? 3 : 4 }),
+      );
+    }
+    const { removed } = store.takeChanged();
+    expect(removed).toEqual(['A']); // the oldest finished order aged out
+    expect(store.size()).toBe(1);
+  });
+
+  it('a resync is a delta too: orders the snapshot omits are reported gone', () => {
+    const store = createOrdersStore(sync);
+    store.ingest(report({ clOrdId: 'STALE' }));
+    store.ingest(report({ clOrdId: 'KEPT', transactTime: 2 }));
+    store.takeChanged();
+
+    store.beginResync();
+    store.reconcile([state({ clOrdId: 'KEPT' }), state({ clOrdId: 'FRESH' })]);
+    const { changed, removed } = store.takeChanged();
+    expect(removed).toEqual(['STALE']);
+    expect(changed.map((r) => r.clOrdId).sort()).toEqual(['FRESH', 'KEPT']);
+  });
+
+  it('a new trading day clears the screen: every order reported gone', () => {
+    const store = createOrdersStore(sync);
+    store.ingest(report({ clOrdId: 'A' }));
+    store.ingest(report({ clOrdId: 'B', transactTime: 2 }));
+    store.takeChanged();
+
+    store.beginResync();
+    store.reconcile([]); // the server restarted
+    const { changed, removed } = store.takeChanged();
+    expect(changed).toEqual([]);
+    expect(removed.sort()).toEqual(['A', 'B']);
+    expect(store.size()).toBe(0);
+  });
+});
+
+describe('the book is bounded — a blotter is not a landfill', () => {
+  function fill(store: ReturnType<typeof createOrdersStore>, from: number, count: number, terminal: boolean): void {
+    for (let i = from; i < from + count; i += 1) {
+      const id = `O-${i}`;
+      store.ingest(report({ clOrdId: id, transactTime: i }));
+      if (terminal) {
+        store.ingest(
+          report({
+            clOrdId: id,
+            eventSeq: 2,
+            execType: 'TRADE',
+            ordStatus: 'FILLED',
+            lastPx: 1,
+            lastQty: 300,
+            cumQty: 300,
+            leavesQty: 0,
+            transactTime: i,
+          }),
+        );
+      }
+    }
+  }
+
+  it('keeps the newest `capacity` orders and retires the oldest finished ones', () => {
+    const store = createOrdersStore({ ...sync, capacity: 10 });
+    fill(store, 0, 25, true);
+    const rows = store.rows();
+    expect(rows).toHaveLength(10);
+    // Newest first, and the survivors are the newest ten.
+    expect(rows[0]!.clOrdId).toBe('O-24');
+    expect(rows[9]!.clOrdId).toBe('O-15');
+  });
+
+  it('never retires an order that still owes events', () => {
+    const store = createOrdersStore({ ...sync, capacity: 5 });
+    fill(store, 0, 8, false); // all NEW, none terminal
+    expect(store.rows()).toHaveLength(8); // over capacity, but nothing may go
+
+    // Finish the oldest three; now the book can come down to its capacity.
+    for (const i of [0, 1, 2]) {
+      store.ingest(
+        report({
+          clOrdId: `O-${i}`,
+          eventSeq: 2,
+          execType: 'TRADE',
+          ordStatus: 'FILLED',
+          lastPx: 1,
+          lastQty: 300,
+          cumQty: 300,
+          leavesQty: 0,
+          transactTime: 100 + i,
+        }),
+      );
+    }
+    const ids = store.rows().map((r) => r.clOrdId);
+    expect(ids).toHaveLength(5);
+    // The three finished ones aged out; every live order stayed, however old.
+    expect(ids).toEqual(['O-7', 'O-6', 'O-5', 'O-4', 'O-3']);
+  });
+
+  it('a retired order folds from scratch if the server ever speaks of it again', () => {
+    const store = createOrdersStore({ ...sync, capacity: 1 });
+    fill(store, 0, 3, true);
+    expect(store.rows()).toHaveLength(1);
+    // The dropped order's progress went with it: a fresh NEW is legal again,
+    // rather than throwing against a half-remembered history.
+    expect(() => store.ingest(report({ clOrdId: 'O-0', transactTime: 500 }))).not.toThrow();
   });
 });
 

@@ -418,9 +418,9 @@ describe('/sim/blotter (done-when of T-0.4.6, server half)', () => {
     const port = await startServer({ updatesPerSec: 500 });
     const res = await post(port, '/sim/blotter', { rows: 40 });
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ ok: true, submitted: 40 });
+    expect(await res.json()).toEqual({ ok: true, submitted: 40, spreadMs: 40 });
 
-    await settle(1500); // scripts play out: hold 40 ms + up to 3 fills at 120 ms
+    await settle(1600); // staggered arrivals + hold 40 ms + up to 3 fills at 120 ms
     const stats = (await getStats(port)).executions;
     expect(stats.submitted).toBe(40);
     expect(stats.filled + stats.canceled).toBe(40); // qty is always valid, nothing frozen
@@ -440,6 +440,25 @@ describe('/sim/blotter (done-when of T-0.4.6, server half)', () => {
     // Reseed resets all three PRNG streams (market, engine, blotter): the
     // same seed replays the same burst — fills, partials, cancels and all.
     expect(await capture()).toEqual(await capture());
+  });
+
+  it('a burst arrives staggered, not in lockstep — the events stream instead of walling', { timeout: 15_000 }, async () => {
+    const port = await startServer({ updatesPerSec: 500 });
+    const res = await post(port, '/sim/blotter', { rows: 2000 });
+    expect(await res.json()).toEqual({ ok: true, submitted: 2000, spreadMs: 2000 });
+
+    // Sample the engine's progress: with lockstep submission every lifecycle
+    // came due together and `filled` jumped from 0 to everything in one tick.
+    // Staggered, the count climbs across many samples.
+    const climbs: number[] = [];
+    for (let i = 0; i < 20; i += 1) {
+      await settle(150);
+      const done = (await getStats(port)).executions;
+      climbs.push(done.filled + done.canceled);
+    }
+    const distinct = new Set(climbs.filter((c) => c > 0 && c < 2000));
+    expect(distinct.size).toBeGreaterThan(3); // seen partway through, repeatedly
+    expect(climbs[climbs.length - 1]).toBe(2000); // and it still finishes
   });
 
   it('the live-order ceiling refuses a burst on top of a full book, naming the field', { timeout: 15_000 }, async () => {
