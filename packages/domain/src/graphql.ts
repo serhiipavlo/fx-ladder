@@ -64,6 +64,8 @@ export const GRAPHQL_SCHEMA_SDL = /* GraphQL */ `
     pair: String!
     side: Side!
     orderQtyK: Int!
+    "DAY or IOC. A cancel carries no reject reason — this is what explains one (§5.5)."
+    tif: TimeInForce!
     "Dense per-order event number, stamped at publish — the §6.2 idea on the warm plane: a hole is provable loss, a repeat is a provable duplicate."
     eventSeq: Int!
     execType: ExecType!
@@ -88,6 +90,7 @@ export const GRAPHQL_SCHEMA_SDL = /* GraphQL */ `
     pair: String!
     side: Side!
     orderQtyK: Int!
+    tif: TimeInForce!
     ordStatus: OrdStatus!
     cumQty: Int!
     leavesQty: Int!

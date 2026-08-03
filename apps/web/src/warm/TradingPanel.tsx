@@ -31,6 +31,7 @@ export const REPORTS_SUBSCRIPTION = gql`
       pair
       side
       orderQtyK
+      tif
       eventSeq
       execType
       ordStatus
@@ -51,6 +52,7 @@ export const ORDERS_QUERY = gql`
       pair
       side
       orderQtyK
+      tif
       ordStatus
       cumQty
       leavesQty

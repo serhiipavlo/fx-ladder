@@ -4,6 +4,7 @@ import {
   type EnrichedExecutionReport,
   type OrderProgress,
   type OrdStatus,
+  type TimeInForce,
 } from '@fx/domain';
 
 // The client-side order book: subscription events fold into rows through the
@@ -30,6 +31,8 @@ export interface OrderRow {
   pair: string;
   side: 'buy' | 'sell';
   orderQtyK: number;
+  /** DAY or IOC — the reason a CANCELED row is CANCELED (§5.5). */
+  tif: TimeInForce;
   status: OrdStatus;
   cumQty: number;
   leavesQty: number;
@@ -47,6 +50,7 @@ export interface OrderStateData {
   pair: string;
   side: 'buy' | 'sell';
   orderQtyK: number;
+  tif: TimeInForce;
   ordStatus: OrdStatus;
   cumQty: number;
   leavesQty: number;
@@ -176,6 +180,7 @@ export function createOrdersStore(options: OrdersStoreOptions = {}): OrdersStore
       pair: report.pair,
       side: report.side,
       orderQtyK: report.orderQtyK,
+      tif: report.tif,
       status: next.status,
       cumQty: next.cumQty,
       leavesQty: next.leavesQty,
@@ -253,6 +258,7 @@ export function createOrdersStore(options: OrdersStoreOptions = {}): OrdersStore
           pair: state.pair,
           side: state.side,
           orderQtyK: state.orderQtyK,
+          tif: state.tif,
           status: state.ordStatus,
           cumQty: state.cumQty,
           leavesQty: state.leavesQty,
