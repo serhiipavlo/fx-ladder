@@ -5,7 +5,7 @@ import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 
 import type { FeedStore } from '../stream/store';
 import { OrdersBlotter } from './Blotter';
-import { createOrdersStore, type OrderStateData } from './orders';
+import { createOrdersStore, type OrdersStore, type OrderStateData } from './orders';
 import { midOf, unrealisedPnl } from './pnl';
 
 // The trading section (T-0.4.5): a ticket that acks instantly, a blotter that
@@ -209,6 +209,22 @@ export function Ticket({
   );
 }
 
+/**
+ * The ADR-10 sentence, written where a viewer sees it (T-1.0.1): after a
+ * server restart the resync comes back empty-handed — state lives in memory
+ * and a restart is a new trading day. Without this line an emptied blotter
+ * reads as a bug; with it, as a documented property of the system.
+ */
+export function NewDayNote({ orders }: { orders: OrdersStore }): React.JSX.Element | null {
+  useSyncExternalStore(orders.subscribe, () => orders.version());
+  if (!orders.newDay()) return null;
+  return (
+    <p style={{ color: '#b58900', margin: '0.25rem 0' }} data-testid="new-day">
+      server restarted — a new trading day (ADR-10): state lives in memory, so orders and positions start clean
+    </p>
+  );
+}
+
 /** Bridges the subscription into the orders store and refetches positions on trades. */
 export function TradingSection({
   feedStore,
@@ -264,6 +280,7 @@ export function TradingSection({
     <section style={{ marginTop: '1rem' }}>
       <h2 style={{ fontSize: '1em', marginBottom: '0.5rem' }}>trade</h2>
       <Ticket instruments={instruments} />
+      <NewDayNote orders={orders} />
       <div style={{ display: 'flex', gap: '3rem', marginTop: '0.75rem', flexWrap: 'wrap', alignItems: 'flex-start' }}>
         <OrdersBlotter orders={orders} />
         <PositionsView feedStore={feedStore} positions={positionsData?.positions ?? []} />

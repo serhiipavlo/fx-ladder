@@ -72,6 +72,12 @@ export interface OrdersStore {
   /** Fired when a seq hole proves loss and a snapshot is needed. */
   onResyncNeeded(listener: () => void): () => void;
   syncing(): boolean;
+  /**
+   * True after a resync wiped a non-empty book: the server answered with an
+   * empty snapshot, i.e. it restarted — a new trading day (ADR-10). Cleared
+   * by the next folded event: the new day has begun being written.
+   */
+  newDay(): boolean;
 }
 
 export interface OrdersStoreOptions {
@@ -90,6 +96,7 @@ export function createOrdersStore(options: OrdersStoreOptions = {}): OrdersStore
   const rows = new Map<string, OrderRow>();
   const pendingReports: EnrichedExecutionReport[] = [];
   let syncing = false;
+  let newDay = false;
   let version = 0;
   let notifyPending = false;
   let tradesPending = false;
@@ -114,6 +121,7 @@ export function createOrdersStore(options: OrdersStoreOptions = {}): OrdersStore
 
   function fold(report: EnrichedExecutionReport): void {
     const next = applyReport(progress.get(report.clOrdId) ?? null, report, report.orderQtyK);
+    newDay = false; // an event landed: the new day is being written
     progress.set(report.clOrdId, next);
     const existing = rows.get(report.clOrdId);
     rows.set(report.clOrdId, {
@@ -160,6 +168,7 @@ export function createOrdersStore(options: OrdersStoreOptions = {}): OrdersStore
     },
     version: () => version,
     syncing: () => syncing,
+    newDay: () => newDay,
 
     ingest(report) {
       if (syncing) {
@@ -174,6 +183,9 @@ export function createOrdersStore(options: OrdersStoreOptions = {}): OrdersStore
     },
 
     reconcile(snapshot) {
+      // A non-empty book answered by an empty snapshot means the server
+      // holds no memory of it: a restart — a new trading day (ADR-10).
+      newDay = rows.size > 0 && snapshot.length === 0;
       rows.clear();
       progress.clear();
       for (const state of snapshot) {

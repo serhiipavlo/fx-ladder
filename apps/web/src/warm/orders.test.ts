@@ -206,4 +206,34 @@ describe('reconnect reconciliation (done-when of T-0.4.8, client algebra)', () =
     expect(store.rows().map((r) => r.clOrdId)).toEqual(['FRESH', 'A']);
     expect(store.rows()[0]!.status).toBe('NEW');
   });
+
+  it('an empty snapshot over a non-empty book means a restart: newDay flags the ADR-10 story', () => {
+    const store = createOrdersStore(sync);
+    store.ingest(report({}));
+    expect(store.newDay()).toBe(false);
+
+    // The server answered with no memory of a book we hold: it restarted.
+    store.beginResync();
+    store.reconcile([]);
+    expect(store.newDay()).toBe(true);
+    expect(store.rows()).toHaveLength(0);
+
+    // The next folded event starts writing the new day — the note retires.
+    store.ingest(report({ clOrdId: 'DAY2', transactTime: 30 }));
+    expect(store.newDay()).toBe(false);
+  });
+
+  it('newDay stays quiet on the boring paths: first connect and a live-server resync', () => {
+    const store = createOrdersStore(sync);
+    // Empty book, empty snapshot — the first connect of a fresh page.
+    store.beginResync();
+    store.reconcile([]);
+    expect(store.newDay()).toBe(false);
+
+    // Non-empty snapshot — the server remembers: same day, just a resync.
+    store.ingest(report({}));
+    store.beginResync();
+    store.reconcile([state({ ordStatus: 'NEW', cumQty: 0, leavesQty: 300, lastPx: null, eventSeq: 1, updatedAt: 1 })]);
+    expect(store.newDay()).toBe(false);
+  });
 });
