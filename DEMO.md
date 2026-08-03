@@ -71,6 +71,17 @@ If 8080 is taken locally, map another port and point the web dev server at
 it: `docker run --rm -p 8090:8080 …` then `FX_BACKEND_PORT=8090 pnpm
 --filter @fx/web exec vite`.
 
+## v1.2.0
+
+Open the demo panel and leave it open — the chart under the controls draws
+the last sixty seconds. Press `rate 50k`: the **load** line climbs to the top
+of its scale while **server tick p95** stays flat on the floor — that gap
+between the two lines is the entire claim of this project, live. Now flip
+**render** to `naive`: the **client renders/s** line takes off (the server's
+line still hasn't moved) — the bottleneck was never the wire. Flip back and
+it drops to one render per screen frame. `force v1` on the wire and the
+fourth line — bytes — jumps sixfold for the same stream.
+
 ## v1.1.0
 
 The feed line now names its wire: **fx.v2**, with a live byte meter beside
