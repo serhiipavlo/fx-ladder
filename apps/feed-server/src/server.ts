@@ -60,6 +60,16 @@ interface OrderStateRow {
 /** How often silence is checked for; the heartbeat interval itself is config. */
 const HEARTBEAT_SWEEP_MS = 250;
 
+/**
+ * Frame-per-update mode sends at most this many frames per wire per tick —
+ * ~2000 frames/s at the 8 ms tick, dozens of times past any screen's budget,
+ * so the §6.4 client-side collapse demos exactly as before. Uncapped, one
+ * wire at 50 k updates/s is 50 k stringify+send a second: the free
+ * instance's 0.1 CPU starves, /healthz times out, and the platform kills
+ * the instance — the v0.4.0 lesson, learned in production.
+ */
+const UNBATCHED_MAX_FRAMES_PER_TICK = 16;
+
 /** Ring size for tick-duration samples feeding the /sim/stats percentiles. */
 const TICK_SAMPLES = 1024;
 
@@ -208,17 +218,25 @@ export function createFeedServer(config: FeedServerConfig): FeedServer {
           ws.send(encodeFrame(frame));
           state.nextSeq = nextSeq;
           framesSent += 1;
+          sent += updates.length;
         } else {
-          // batch:false — a frame per update, the §6.4 pathology on demand.
-          for (const update of updates) {
+          // batch:false — a frame per update, the §6.4 pathology on demand,
+          // capped per wire (§8 guardrail): the pathology exists to choke a
+          // naive CLIENT, and ~2000 frames/s do that dozens of times over —
+          // while an uncapped 50k/s of stringify+send starves a 0.1-CPU
+          // instance until the platform health check kills it. The newest
+          // updates win the slice: freshest book, and skipped upserts are
+          // legal on this plane (full upserts — coalescing allowed, §6.1).
+          const firehose = updates.slice(-UNBATCHED_MAX_FRAMES_PER_TICK);
+          for (const update of firehose) {
             const { frame, nextSeq } = assembleFrame('DELTA', [update], state.nextSeq, ts);
             ws.send(encodeFrame(frame));
             state.nextSeq = nextSeq;
             framesSent += 1;
           }
+          sent += firehose.length;
         }
         state.lastSentTs = ts;
-        sent += updates.length;
       }
     }
     recordTickDuration(performance.now() - started);
