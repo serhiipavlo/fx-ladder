@@ -1,5 +1,18 @@
 # Changelog
 
+## v1.0.0 — 2026-08-03
+
+Demo-ready hardening (plan §3): not a feature release. The system became *presentable under stress* — chaos-tested, documented, and rehearsed.
+
+- chaos drills (`pnpm chaos:drill`): a real SIGKILL mid-stream — five clients drop with `1006`, return through the production backoff policy as a **2.4 s smear** (first-retry jitter 263–433 ms; a retry into the dead window burns the attempt and doubles), and every reconnected wire opens with a SNAPSHOT and stays seq-dense; a Render container replacement under a connected probe cost **382 ms and one attempt**. Tables in [CHAOS.md](CHAOS.md)
+- ADR-10, written where a viewer sees it: a resync answered with an empty snapshot over a non-empty book renders *"server restarted — a new trading day"* next to the ticket instead of looking broken; the first order of the new day retires the note (E2E-pinned, staged with the control plane's own verbs)
+- widgets fail alone (AC-12, NFR-09): error boundaries fence the ladder, the trade section and the demo panel — and the blotter and positions separately, so a broken grid cannot take the ticket down; keyboard reachability pinned in E2E (AC-13, NFR-13)
+- optional `/sim/*` lock (T-1.0.2): `FX_SIM_SECRET` armed → `401` without the matching `x-sim-secret` (constant-time compare) while every data plane stays open; **off is the documented default** — the demo wants its world steerable
+- README front door with the perf report, every number reproduced by `pnpm gate:perf` on the named reference machine: **50 082 updates/s** received, tick p95 **0.562 ms**, **3.62 MiB/s** JSON, flush p95 **0.003 ms** — and the §6.4 contrast finally measured on both wire shapes: **249 602 naive renders vs 313 coalesced on the same firehose (797×)**
+- risk register (§14) re-walked: the secret-header row now states the lock exists; the production-caught firehose lesson (v0.4.1) got its own row
+- the 5-minute runbook leads DEMO.md: one press of `scenario: demo-5min` plays spec §8, a table gives the human their beats (the render flips are yours; a `LAST_LOOK` bounce during the trade is §5.5 on stage); the local fallback verified end to end on a fresh clone
+- rehearsals (`pnpm rehearse`): a fresh container (the exact deployed image) plus a fresh browser profile follow the runbook at ×1 — **two consecutive clean passes, zero page errors, zero manual fixes**, with beat-for-beat identical timelines (spike 0:35 · naive flip 1:30 · crash crossed 2:15 · all 11 steps · trade filled); one full pass over a deliberately bad link (400 ms RTT, ~1.6 Mbps, the **production build** — that is what the CDN serves) survived on the reconnect story: the 50k spike cannot fit that pipe, the guard cuts, the client returns, and the demo never needed a hand
+
 ## v0.4.1 — 2026-08-03
 
 - fix: the unbatched firehose is capped at 16 frames per wire per tick (~2000/s). `batch:false` at 50k updates/s meant 50k `stringify`+`send` a second per client — the §6.4 pathology starved the free instance's 0.1 CPU until `/healthz` timed out and the platform killed the instance (caught live within hours of v0.4.0, exactly like the proxy-ETag catch of v0.3.1). The pathology still chokes a naive client dozens of times over — capped, it can no longer kill its own server; the model keeps its full rate and `sent`/`generated` tell the story in `/sim/stats`. Verified under the lethal combo: 50 009/s generated, ~1 000 frames/s on the wire, healthz answering in ≤2 ms.

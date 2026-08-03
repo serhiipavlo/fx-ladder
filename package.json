@@ -17,6 +17,7 @@
     "fixtures": "tsx tools/fixtures/generate.ts",
     "gate:perf": "tsx tools/perf/gate.ts",
     "chaos:drill": "tsx tools/chaos/drill.ts",
+    "rehearse": "tsx tools/rehearsal/rehearse.ts",
     "dev": "pnpm -r --parallel run dev",
     "build": "pnpm -r --if-present run build"
   },
