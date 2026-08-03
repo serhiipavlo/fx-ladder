@@ -81,6 +81,11 @@ Reading it:
   updates/s received, server tick p95 0.693 ms — the deployed instance and
   the reference machine tell one story. Historical measurements live in
   [tools/perf/thresholds.json](tools/perf/thresholds.json).
+- **The same story live**: the demo panel draws the last 60 s as four
+  small multiples — load (records/s) against its cost at each boundary
+  (server tick p95, client renders/s, wire bytes/s). The gap between the
+  load line and the cost lines is the claim above, watchable while you
+  push the buttons that cause it.
 
 ## Stack
 

@@ -1,5 +1,15 @@
 # Changelog
 
+## v1.2.0 — 2026-08-03
+
+The demo panel stops describing the load and starts drawing it: one load line and one cost line per boundary, sixty seconds wide, live.
+
+- **load chart** in the panel — records/s (what the server pushes), server tick p95 (what it costs the server), client renders/s (what it costs the render), wire bytes/s (what it costs the network). `rate 50k` lifts the first line and leaves the rest flat; the render switch lifts exactly one of them; the wire toggle exactly another — the whole project's claim in one picture
+- rates are **differentiated from the server's own cumulative counters against the server's own clock**, so a slow poll or a paused tab widens `dt` instead of inflating the rate; a restart reseeds rather than plotting a negative spike (ADR-10)
+- **renders/s, not a p95, is the client's cost line** — found by watching it live: the timing instruments split across two fields by render mode (naive charges the message, coalesced charges the flush), so a single timing series reads `0.00 ms` in exactly the mode where the client suffers most. A count of render passes is honest in both — and it is the 797× contrast itself
+- hand-drawn SVG, no charting dependency: a chart that measures frame budgets has no business spending them. Path geometry is pure math in `perf/series.ts` — property-tested for in-viewBox points, clamped values, a 1-2-5 axis that does not jitter, and no NaN on a zero ceiling
+- observed live at 50k with the pathology armed: the render line jumped from the floor to **1.6k renders/s** while the server tick stayed at 0.68 → 0.69 ms
+
 ## v1.1.0 — 2026-08-03
 
 The first backlog item to find its buyer (plan §5): the binary wire. Same frames, same §6.2 arithmetic, a sixth of the bytes (ADR-12).

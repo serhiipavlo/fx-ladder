@@ -2,6 +2,8 @@ import type { Instrument } from '@fx/domain';
 import { useEffect, useState, useSyncExternalStore } from 'react';
 
 import { backendUrl } from './backend';
+import { LoadChart } from './perf/LoadChart';
+import { createLoadSampler } from './perf/series';
 import type { FeedStore } from './stream/store';
 
 // The demo panel (T-0.2.7): every demo line of v0.2.0 runs from here — no
@@ -15,6 +17,7 @@ interface ServerStats {
   batch: boolean;
   updatesPerSec: number;
   clients: number;
+  uptimeMs: number;
   tick: { p95: number };
 }
 
@@ -52,6 +55,9 @@ export function Panel({ store, instruments, pollMs = 1000 }: PanelProps): React.
   const [server, setServer] = useState<ServerStats | null>(null);
   const [pair, setPair] = useState('GBPUSD');
   const [seed, setSeed] = useState(42);
+  // One sampler for the panel's lifetime; it folds each poll into the chart's
+  // series and the setServer below is what repaints them (v1.2.0).
+  const [sampler] = useState(() => createLoadSampler(60));
 
   const run = (promise: Promise<string>): void => void promise.then(setLast);
 
@@ -61,7 +67,20 @@ export function Panel({ store, instruments, pollMs = 1000 }: PanelProps): React.
     const poll = async (): Promise<void> => {
       try {
         const res = await fetch(backendUrl('/sim/stats'));
-        if (alive && res.ok) setServer((await res.json()) as ServerStats);
+        if (!alive || !res.ok) return;
+        const stats = (await res.json()) as ServerStats;
+        // Both halves of the same second: what the server reported and what
+        // this client's own meters saw while it was reporting it.
+        sampler.push({
+          uptimeMs: stats.uptimeMs,
+          sent: stats.sent,
+          framesSent: stats.framesSent,
+          tickP95: stats.tick.p95,
+          clients: stats.clients,
+          renders: store.renderStats().renders,
+          wireBytesPerSec: store.core.bytesPerSec(performance.now()),
+        });
+        setServer(stats);
       } catch {
         if (alive) setServer(null);
       }
@@ -72,7 +91,7 @@ export function Panel({ store, instruments, pollMs = 1000 }: PanelProps): React.
       alive = false;
       window.clearInterval(timer);
     };
-  }, [pollMs]);
+  }, [pollMs, sampler, store]);
 
   const render = store.renderStats();
 
@@ -179,6 +198,8 @@ export function Panel({ store, instruments, pollMs = 1000 }: PanelProps): React.
           reseed
         </button>
       </div>
+
+      <LoadChart samples={sampler.samples()} slots={sampler.capacity} />
 
       <p style={{ marginBottom: 0 }}>
         last: <code data-testid="last-action">{last}</code>

@@ -485,6 +485,10 @@ Tasks marked ∥ may run in parallel with the previous one; everything else is s
 
 **T-1.1.1 · `fx.v2`** — fixed-length records over DataView, negotiated at the handshake (v2 preferred, v1 served forever); the byte contrast measured by the gate and demonstrable live from the panel's wire toggle. *Done when:* the deployed page negotiates `fx.v2` with the meter showing the drop, a v1-only client stays served, and the gate records both wires side by side.
 
+### v1.2.0 — Load chart *(tagged 2026-08-03)*
+
+**T-1.2.1 · Live load chart** — one load line and one cost line per boundary (records/s · server tick p95 · client renders/s · wire bytes/s) over the last 60 s, drawn from the `/sim/stats` poll the panel already made. Rates differentiated against the server's own clock; hand-drawn SVG, no charting dependency. *Done when:* `rate 50k` visibly lifts the load line while the server cost line stays flat, asserted in E2E from the values the chart puts on screen.
+
 ---
 
 *Maintained alongside the architecture document. When a release ships, its row here gains the tag date; when scope moves between releases, it moves in this file first and in the code second.*
