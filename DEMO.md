@@ -1,7 +1,75 @@
 # DEMO
 
-One demo line per release (plan §2.3). The full 5-minute scripted runbook
-arrives with v1.0.0.
+The 5-minute runbook first; one demo line per release (plan §2.3) below it
+as history.
+
+## The 5-minute runbook (T-1.0.4)
+
+### Pre-flight — two minutes before you speak
+
+1. Open <https://fx-ladder-web.onrender.com>. If the free instance slept,
+   the page says so — press **Wake the server** and give it up to a minute.
+   You want the feed line reading **live** before you start.
+2. Open the demo panel (`demo panel — /sim/* controls…` under the ladder).
+3. Optional second tab: [/docs](https://fx-ladder-web.onrender.com/docs/) —
+   the OpenAPI/AsyncAPI page generated from the live schemas.
+4. **Decision point:** if the venue network is hostile, switch to the local
+   fallback below — same server, same script, zero cloud.
+
+### The script
+
+Press **`scenario: demo-5min`** in the panel. The whole of spec §8 now runs
+itself on a timeline; your job is the client half and the narration. The
+clock below is the scenario's own.
+
+| When | What happens | What you do and say |
+|---|---|---|
+| 0:00 | Calm market: 12 pairs, 300/s, batched | "Live prices over one WebSocket — dense sequence numbers, heartbeats through silence; the `gaps` counter is an arithmetic proof of completeness." |
+| 0:30 | Spike to 50 000/s | Point at the panel counters: received rate climbs, frames stay ~125/s. "One batched frame per 8 ms tick — the wire cost is honest JSON, ~3.6 MiB/s." |
+| 1:30 | The wire turns into a frame per update | **Flip `render` to `naive`.** The page starts to choke — this is the main 30 seconds. "Render per message: 797× more renders for the same information. The bottleneck lives between the socket and the render, not on the wire." |
+| 1:50 | The wire re-batches | **Flip `render` back to `coalesced`.** The page breathes instantly. "Same firehose, one flush per screen frame." |
+| 2:00 | Crash: every socket drops (close 4000) | Do nothing. "Jittered backoff, resnapshot, no thundering herd — the reconnect smear is measured in CHAOS.md." The feed line walks reconnecting → live. |
+| 2:20 | Market calms to 2 000/s | Breathing room — take a question, or show `/docs`. |
+| 3:15 | USDJPY freezes for 10 s | Point at the dimmed row: "**stale**, not disconnected — the channel is provably alive while one pair is provably quiet." |
+| 3:45 | News on GBPUSD: +80 pips, spread ×6 | "The jump and the widening arrive together and decay — the economics, not two separate knobs." |
+| 4:00 | Last look arms: 80 ms hold, 30 % reject | **Trade.** Submit the ticket: ack instantly, then `NEW` → partial → `FILLED` assemble in the blotter from typed events; position goes long, unrealised ticks with the mid. If the order bounces `REJECTED / LAST_LOOK` — that is §5.5 working; say so and resubmit. Sell the same size: flat book, realised P&L written by the server. |
+
+Bonus beats, any time after the script:
+
+- **`blotter: burst 5000 orders`** — the grid eats 5000 real lifecycles;
+  sort a column, scroll, burst again: sort and scroll survive, the ladder
+  never drops a frame (AC-10, AC-11).
+- **`disconnect hard` mid-order** — the warm socket crashes with the rest
+  and the blotter returns whole from the snapshot: a repeat is provably a
+  duplicate, a hole provably loss, so neither can render.
+- **reseed** — a new trading day (ADR-10): the page says exactly that
+  instead of looking broken.
+
+### Local fallback — a clean machine to a running demo
+
+Prerequisites: Node ≥ 22 and pnpm (`npm i -g pnpm`), git.
+
+```bash
+git clone https://github.com/serhiipavlo/fx-ladder.git
+cd fx-ladder
+pnpm install
+pnpm dev
+```
+
+Open <http://localhost:5173> — the same page against a local server; the
+whole script above works identically (the scenario, the panel, the trade).
+No network needed beyond the clone.
+
+Container variant (closest to production — the exact deployed image):
+
+```bash
+docker run --rm -p 8080:8080 ghcr.io/serhiipavlo/fx-ladder/feed-server:v1.0.0
+pnpm --filter @fx/web exec vite
+```
+
+If 8080 is taken locally, map another port and point the web dev server at
+it: `docker run --rm -p 8090:8080 …` then `FX_BACKEND_PORT=8090 pnpm
+--filter @fx/web exec vite`.
 
 ## v0.4.0
 
