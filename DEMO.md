@@ -36,9 +36,12 @@ clock below is the scenario's own.
 
 Bonus beats, any time after the script:
 
-- **`blotter: burst 5000 orders`** — the grid eats 5000 real lifecycles;
-  sort a column, scroll, burst again: sort and scroll survive, the ladder
-  never drops a frame (AC-10, AC-11).
+- **`blotter: burst 1000 orders`** — a thousand real lifecycles stream into
+  the grid; sort a column, scroll, burst again: sort and scroll survive, the
+  ladder never drops a frame (AC-10). The button asks for a thousand because
+  the free instance's 0.1 CPU needs ~30 s to play out five thousand; the
+  AC-11 load itself (`POST /sim/blotter {"rows":5000}`, and the E2E that
+  asserts it) is one call away and instant on a real machine.
 - **`disconnect hard` mid-order** — the warm socket crashes with the rest
   and the blotter returns whole from the snapshot: a repeat is provably a
   duplicate, a hole provably loss, so neither can render.
