@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.4.1 — 2026-08-03
+
+- fix: the unbatched firehose is capped at 16 frames per wire per tick (~2000/s). `batch:false` at 50k updates/s meant 50k `stringify`+`send` a second per client — the §6.4 pathology starved the free instance's 0.1 CPU until `/healthz` timed out and the platform killed the instance (caught live within hours of v0.4.0, exactly like the proxy-ETag catch of v0.3.1). The pathology still chokes a naive client dozens of times over — capped, it can no longer kill its own server; the model keeps its full rate and `sent`/`generated` tell the story in `/sim/stats`. Verified under the lethal combo: 50 009/s generated, ~1 000 frames/s on the wire, healthz answering in ≤2 ms.
+
 ## v0.4.0 — 2026-08-03
 
 Control: the warm plane (plan §3, phase 3). The full order loop in the user's hands — GraphQL over the same socket, execution reports as a subscription, an AG Grid blotter that eats 5000-row bursts, the demo as data, and reconnects that cannot lie about money.

@@ -137,7 +137,10 @@ export function buildOpenApi(): JsonSchema {
       '/sim/mode': controlPost(
         'Batching on/off',
         'The server half of the §6.4 contrast: `batch: true` (default) accumulates a tick into one ' +
-          'frame; `batch: false` sends one frame per update — the wire shape that kills naive clients.',
+          'frame; `batch: false` sends one frame per update — the wire shape that kills naive clients. ' +
+          'The unbatched firehose is capped at 16 frames per wire per tick (~2000/s): dozens of times ' +
+          'past any screen’s budget, while the server’s own send path stays a bounded cost — uncapped ' +
+          'at 50k/s it starved the free instance until the platform health check killed it.',
         'SimModeBody',
       ),
       '/sim/freeze': controlPost(

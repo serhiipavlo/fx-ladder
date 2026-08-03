@@ -260,6 +260,26 @@ describe('/sim/mode (done-when of T-0.2.4)', () => {
     const port = await startServer();
     expect((await post(port, '/sim/mode', {})).status).toBe(400);
   });
+
+  it('the unbatched firehose is capped per wire: the pathology chokes clients, never its own server', { timeout: 10_000 }, async () => {
+    // 20k updates/s unbatched would be 20k stringify+send a second — the
+    // combination that starved the 0.1-CPU production instance until the
+    // platform health check killed it (v0.4.0, learned live).
+    const port = await startServer({ updatesPerSec: 20_000 });
+    expect((await post(port, '/sim/mode', { batch: false })).status).toBe(200);
+    const { frames } = await openFeed(port);
+    await settle(1000);
+
+    const deltas = frames.filter((f) => f.frameType === 'DELTA');
+    expect(deltas.every((f) => f.count === 1)).toBe(true); // still a frame per update…
+    expect(deltas.length).toBeGreaterThan(500); // …and still a firehose by any screen's standard
+    // The cap: ≤16 frames per 10 ms test tick ≈ 1600/s, with jitter margin.
+    expect(deltas.length).toBeLessThan(2200);
+
+    const stats = await getStats(port);
+    expect(stats.generated).toBeGreaterThan(10_000); // the model never slowed
+    expect(stats.sent).toBeLessThan(stats.generated / 4); // the wire is the bounded part
+  });
 });
 
 describe('/sim/freeze (done-when of T-0.2.4)', () => {
