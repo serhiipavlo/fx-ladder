@@ -469,7 +469,7 @@ Tasks marked ∥ may run in parallel with the previous one; everything else is s
 *Deliverable:* Playwright spec: seed → scenario → submit order → `NEW` → partial → `FILLED` visible in the blotter with position and P&L updated.
 *Done when:* green 10 consecutive runs against the local server.
 
-### v1.0.0 — Hardening
+### v1.0.0 — Hardening *(tagged 2026-08-03)*
 
 **T-1.0.1 · Chaos drills** — kill the container mid-stream; clients reconnect with jittered backoff and resnapshot cleanly. *Done when:* documented with observed behaviour and timings, and no manual intervention was needed.
 
