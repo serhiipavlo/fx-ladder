@@ -91,7 +91,13 @@ async function serverHalf(): Promise<{ received: number; bytesPerSec: number; ti
 // Client half: the coalesced pipeline against the same firehose, no I/O.
 // ---------------------------------------------------------------------------
 
-function clientHalf(): { messageP95: number; flushP95: number; frames: number; sink: number } {
+function clientHalf(mode: 'naive' | 'coalesced', wire: 'batched' | 'unbatched'): {
+  messageP95: number;
+  flushP95: number;
+  frames: number;
+  renders: number;
+  sink: number;
+} {
   const market = createMarket(42, thresholds.feedUpdatesPerSec);
   market.advance(0);
   const core = createStreamCore();
@@ -113,6 +119,10 @@ function clientHalf(): { messageP95: number; flushP95: number; frames: number; s
     },
     { scheduleFrame: (cb) => frameQueue.push(cb) },
   );
+  // Both sides of the §6.4 contrast ride the same replay: naive renders on
+  // every message (the cost lands in msg p95), coalesced folds them into
+  // one flush per simulated frame.
+  store.setRenderMode(mode);
 
   // Approximate the render read: every flush walks the tops of all books, the
   // way the ladder's subscribed rows would.
@@ -130,26 +140,47 @@ function clientHalf(): { messageP95: number; flushP95: number; frames: number; s
   notify();
 
   // Five simulated seconds: 8 ms server ticks, one animation frame per 16 ms.
+  // The wire shape is the §6.4 variable: batched = one frame per tick (the
+  // server's default), unbatched = one frame per UPDATE (the /sim/mode
+  // pathology — at 50k/s this is a quarter-million messages in the replay).
   for (let t = 16; t <= 5000; t += 16) {
     for (const half of [t - 8, t]) {
       const updates = market.advance(half);
       if (updates.length === 0) continue;
-      const assembled = assembleFrame('DELTA', updates, nextSeq, half);
-      nextSeq = assembled.nextSeq;
-      core.onMessage(encodeFrame(assembled.frame), half);
-      notify();
+      if (wire === 'batched') {
+        const assembled = assembleFrame('DELTA', updates, nextSeq, half);
+        nextSeq = assembled.nextSeq;
+        core.onMessage(encodeFrame(assembled.frame), half);
+        notify();
+      } else {
+        for (const update of updates) {
+          const assembled = assembleFrame('DELTA', [update], nextSeq, half);
+          nextSeq = assembled.nextSeq;
+          core.onMessage(encodeFrame(assembled.frame), half);
+          notify();
+        }
+      }
     }
     for (const cb of frameQueue.splice(0)) cb();
   }
 
   const stats = store.renderStats();
-  return { messageP95: stats.messageP95, flushP95: stats.flushP95, frames: stats.messages, sink };
+  return {
+    messageP95: stats.messageP95,
+    flushP95: stats.flushP95,
+    frames: stats.messages,
+    renders: stats.renders,
+    sink,
+  };
 }
 
 // ---------------------------------------------------------------------------
 
 const server = await serverHalf();
-const client = clientHalf();
+const client = clientHalf('coalesced', 'batched');
+const naiveBatched = clientHalf('naive', 'batched');
+const naiveFirehose = clientHalf('naive', 'unbatched');
+const coalescedFirehose = clientHalf('coalesced', 'unbatched');
 
 const rows = [
   ['fed updates/s', thresholds.feedUpdatesPerSec.toFixed(0), ''],
@@ -159,6 +190,18 @@ const rows = [
   ['client msg p95 (ms)', client.messageP95.toFixed(3), `<= ${thresholds.maxClientMessageP95Ms}`],
   ['client flush p95 (ms)', client.flushP95.toFixed(3), `<= ${thresholds.maxClientFlushP95Ms} (60 fps budget)`],
   ['client frames replayed', String(client.frames), ''],
+  // The §6.4 contrast, measured on both wire shapes (recorded, not gated):
+  ['renders batched n/c', `${naiveBatched.renders} / ${client.renders}`, 'naive renders per message'],
+  [
+    'renders unbatched n/c',
+    `${naiveFirehose.renders} / ${coalescedFirehose.renders}`,
+    `${(naiveFirehose.renders / coalescedFirehose.renders).toFixed(0)}x — the §6.4 collapse as a number`,
+  ],
+  [
+    'firehose msg p95 n/c (ms)',
+    `${naiveFirehose.messageP95.toFixed(3)} / ${coalescedFirehose.messageP95.toFixed(3)}`,
+    `${naiveFirehose.frames} messages replayed each`,
+  ],
 ] as const;
 console.log(
   `perf gate — thresholds ${thresholds.release}, server window ${MEASURE_MS / 1000}s after ${WARMUP_MS / 1000}s warmup, client replay 5 simulated seconds`,

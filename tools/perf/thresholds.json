@@ -8,8 +8,9 @@
   "notes": {
     "ratchet": "thresholds only rise; lowering one needs an ADR (plan §4)",
     "bytesPerSec": "recorded, not gated — the honest JSON cost (~6 MB/s at 50k, architecture §6.1)",
-    "client": "CI measures the coalesced pipeline via the sans-I/O replay harness (no React); the naive-vs-coalesced DOM contrast is the deployed panel's demo, reproduced manually per release",
+    "client": "CI replays the sans-I/O pipeline (no React) in BOTH render modes on BOTH wire shapes; only the coalesced/batched numbers are gated — the naive/unbatched pair is the recorded §6.4 contrast. The DOM version of the same collapse stays the deployed panel's demo",
     "measured-v0.2.0-reference-machine": "received 50031/s · server tick p95 0.639 ms · wire 3.62 MiB/s · client msg p95 0.001 ms · flush p95 0.004 ms",
-    "measured-v0.2.0-deployed-render-free": "received 50070/s over the real network · server tick p95 0.693 ms · wire 3.63 MiB/s (2026-08-02, rate restored to 300 after)"
+    "measured-v0.2.0-deployed-render-free": "received 50070/s over the real network · server tick p95 0.693 ms · wire 3.63 MiB/s (2026-08-02, rate restored to 300 after)",
+    "measured-v1.0.0-reference-machine": "received 50082/s · server tick p95 0.562 ms · wire 3.62 MiB/s · flush p95 0.003 ms · renders naive/coalesced: batched 626/313, unbatched 249602/313 = 797x (2026-08-03, Ryzen 9 9900X3D, node 24)"
   }
 }
