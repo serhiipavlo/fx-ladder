@@ -6,7 +6,8 @@
   - **the blotter never forgot an order** — three bursts took the main thread from 138 ms blocked to **2016 ms**, because every flush re-sorted and re-diffed the whole accumulated book. The book is now bounded at 5000, retiring the oldest *finished* orders only: a live order still owes events, and dropping it would leave the next one nothing to fold onto;
   - **the server submitted all 5000 in one millisecond**, so every lifecycle came due on the same ticks and arrived as walls of simultaneous events — on the deployed 0.1-CPU instance that took **17 s** to play out and starved `/healthz` into a platform kill. Arrivals now stagger across up to 5 s (`spreadMs` in the response), the same 5000 orders as a stream;
   - **spreading them made the client worse** (1978 ms blocked): identical work over ten times as many frames, each still paying for the entire book. The grid now takes **transactions** instead of a fresh `rowData` array, so a flush costs what moved; newest-first is the grid's own sort model on a new `updated` column, and the component never sorts at all.
-- After: **0 long tasks, worst frame 57 ms, no degradation across repeated bursts.** A resync is reported as a delta too, so a reconnect or a new trading day clears the grid instead of leaving ghost rows.
+- After: **0 long tasks, worst frame 57 ms, no degradation across repeated bursts** — confirmed on the deployed page too (three bursts, 0 ms blocked, worst frames 25–30 ms). A resync is reported as a delta too, so a reconnect or a new trading day clears the grid instead of leaving ghost rows.
+- The panel's burst button now asks for **1000** orders: the grid's limit is not the constraint (AC-11's 5000 is proven by E2E against a real server and is one `/sim/blotter` call away), but the free instance's 0.1 CPU needs ~30 s to emit five thousand lifecycles — a burst you can narrate beats one you apologise for.
 
 ## v1.2.0 — 2026-08-03
 

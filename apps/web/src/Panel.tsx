@@ -158,12 +158,19 @@ export function Panel({ store, instruments, pollMs = 1000 }: PanelProps): React.
           freeze 10 s
         </button>
         <span style={{ marginLeft: '1rem' }}>blotter:</span>
+        {/*
+          A thousand is the demo gesture, not the grid's limit: 5000 rows is
+          what AC-11 requires and what the E2E proves against a real server,
+          but on the free instance's 0.1 CPU those 15 000 execution events
+          take some 30 s to play out (measured). A burst you can narrate
+          beats one you have to apologise for; /sim/blotter still takes 5000.
+        */}
         <button
           style={button}
           data-testid="blotter-burst"
-          onClick={() => run(post('/sim/blotter', { rows: 5000 }))}
+          onClick={() => run(post('/sim/blotter', { rows: 1000 }))}
         >
-          burst 5000 orders
+          burst 1000 orders
         </button>
         <span style={{ marginLeft: '1rem' }}>scenario:</span>
         <button
