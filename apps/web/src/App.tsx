@@ -1,4 +1,3 @@
-import { FX_SUBPROTOCOL } from '@fx/protocol';
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useState, useSyncExternalStore } from 'react';
 
@@ -37,6 +36,7 @@ function StatusLine({ store }: { store: FeedStore }): React.JSX.Element {
   const color = label === 'live' ? '#2aa198' : store.terminal() || label.includes('lost') ? '#dc322f' : '#b58900';
 
   const render = store.renderStats();
+  const wireKiB = store.core.bytesPerSec(performance.now()) / 1024;
   return (
     <>
       <p>
@@ -44,7 +44,9 @@ function StatusLine({ store }: { store: FeedStore }): React.JSX.Element {
         <strong style={{ color }} data-testid="feed-status">
           {label}
         </strong>{' '}
-        ({FX_SUBPROTOCOL}) — frames {stats.frames}, records{' '}
+        (<span data-testid="wire">{store.wire() ?? '…'}</span>,{' '}
+        <span data-testid="wire-rate">{wireKiB >= 1024 ? `${(wireKiB / 1024).toFixed(2)} MiB/s` : `${wireKiB.toFixed(1)} KiB/s`}</span>
+        ) — frames {stats.frames}, records{' '}
         {stats.records}, heartbeats {stats.heartbeats}, gaps <span data-testid="gaps">{stats.gaps}</span>, last seq{' '}
         {stats.lastSeq ?? '—'}
       </p>

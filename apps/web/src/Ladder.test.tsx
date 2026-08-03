@@ -23,6 +23,8 @@ function makeHarness(socket: SocketState = 'open') {
     lastClose: () => null,
     terminal: () => false,
     resume: () => undefined,
+    wire: () => null,
+    setProtocols: () => undefined,
     close: () => undefined,
   };
   // Synchronous frame scheduler: coalesced flushes run inline under act().

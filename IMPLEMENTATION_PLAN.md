@@ -257,7 +257,7 @@ Held deliberately out of scope until the demo goal is met. The first block is wh
 
 Cut in v-min, recoverable:
 
-- **Binary wire format** (fixed-length records, DataView decode) plus the contrast measurement against JSON: ~6 MB/s → ~800 KB/s at 50k updates/s. A wire-version bump (`fx.v2`) and a real numbers exhibit.
+- **Binary wire format** — **shipped v1.1.0** (ADR-12): fixed-length records, DataView decode, subprotocol negotiation with `fx.v1` kept. The forecast said ~6 MB/s → ~800 KB/s; the gate measured 3.62 MiB/s → 588 KiB/s (6.3×) at 50k updates/s.
 - **Conflation** — merging repeated updates of one key before the wire, with `conflatedTotal` telemetry; roughly halves frame size at 50k. Re-adopting it means re-adopting withdrawn ADR-07: the merge step goes *left* of sequence numbering, or the gap detector breaks.
 - **Graceful slow-consumer degradation** (the withdrawn half of ADR-09): snapshot-only mode as a step before closing `4001`, so a weak client gets a coarser stream instead of a disconnect. Matters once there is a real multi-client audience.
 - **Market microstructure**: Ornstein–Uhlenbeck mid with a jump component, session curves (Sydney → Tokyo → London → NY with the overlap), session-driven tick frequency and `/sim/timescale`, triangular cross coherence.
@@ -480,6 +480,10 @@ Tasks marked ∥ may run in parallel with the previous one; everything else is s
 **T-1.0.4 · `DEMO.md` runbook** — the 5-minute script step by step plus the local fallback path. *Done when:* someone following only this file, on a clean machine, reaches a running demo.
 
 **T-1.0.5 · Two clean rehearsals** — the scripted demo twice in a row from a fresh container and a fresh browser, zero manual fixes; ADR list and changelog finalised.
+
+### v1.1.0 — Binary wire *(tagged 2026-08-03)*
+
+**T-1.1.1 · `fx.v2`** — fixed-length records over DataView, negotiated at the handshake (v2 preferred, v1 served forever); the byte contrast measured by the gate and demonstrable live from the panel's wire toggle. *Done when:* the deployed page negotiates `fx.v2` with the meter showing the drop, a v1-only client stays served, and the gate records both wires side by side.
 
 ---
 

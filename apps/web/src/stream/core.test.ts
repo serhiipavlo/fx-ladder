@@ -3,7 +3,7 @@ import gapJson from '@fx/protocol/fixtures/gap-stream.json';
 import heartbeatJson from '@fx/protocol/fixtures/heartbeat-silence.json';
 import midstreamJson from '@fx/protocol/fixtures/midstream-snapshot.json';
 import normalJson from '@fx/protocol/fixtures/normal-stream.json';
-import { encodeFrame, heartbeatFrame, type Frame, type WireRecord } from '@fx/protocol';
+import { encodeFrame, encodeFrameBinary, heartbeatFrame, type Frame, type WireRecord } from '@fx/protocol';
 import { describe, expect, it } from 'vitest';
 
 import { applyRecord, createStreamCore, DEAD_AFTER_MS, type PairBook, type StreamEvent } from './core';
@@ -34,6 +34,51 @@ describe('normal stream', () => {
     expect(core.stats().lastSeq).toBe(
       normal[normal.length - 1]!.firstSeq + normal[normal.length - 1]!.count - 1,
     );
+  });
+});
+
+describe('the binary wire through the same core (ADR-12)', () => {
+  it('fx.v2 fixtures replay to the same books, density and gap arithmetic as fx.v1', () => {
+    const v1 = createStreamCore();
+    replay(v1, normal);
+    const v2 = createStreamCore();
+    for (const frame of normal) v2.onMessage(encodeFrameBinary(frame), frame.serverTs);
+
+    expect(v2.status()).toBe('live');
+    expect(v2.stats().gaps).toBe(0);
+    expect(v2.stats().records).toBe(v1.stats().records);
+    expect(v2.stats().lastSeq).toBe(v1.stats().lastSeq);
+    expect([...v2.books().entries()]).toEqual([...v1.books().entries()]); // one story, two wires
+    // The whole point, in one inequality: the same stream cost far fewer bytes.
+    expect(v2.stats().wireBytes).toBeLessThan(v1.stats().wireBytes / 4);
+  });
+
+  it('a hole across binary frames is still proven loss', () => {
+    const core = createStreamCore();
+    core.onMessage(encodeFrameBinary(normal[0]!), 1);
+    const torn = { ...normal[1]!, firstSeq: normal[1]!.firstSeq + 40 };
+    torn.records = torn.records.map((r, i) => ({ ...r, seq: torn.firstSeq + i }));
+    const events = core.onMessage(encodeFrameBinary(torn), 2);
+    expect(events).toEqual([{ type: 'resync', reason: 'gap' }]);
+  });
+
+  it('binary damage is loud: protocol-error resync, like malformed JSON', () => {
+    const core = createStreamCore();
+    core.onMessage(encodeFrameBinary(normal[0]!), 1);
+    const damaged = new Uint8Array(encodeFrameBinary(normal[1]!).slice(0, 20));
+    const events = core.onMessage(damaged.buffer, 2);
+    expect(events).toEqual([{ type: 'resync', reason: 'protocol-error' }]);
+  });
+
+  it('the byte meter counts the trailing second, on either wire', () => {
+    const core = createStreamCore();
+    const first = encodeFrameBinary(normal[0]!);
+    const second = encodeFrameBinary(normal[1]!);
+    core.onMessage(first, 100);
+    core.onMessage(second, 500);
+    expect(core.stats().wireBytes).toBe(first.byteLength + second.byteLength);
+    expect(core.bytesPerSec(600)).toBe(first.byteLength + second.byteLength);
+    expect(core.bytesPerSec(1400)).toBe(second.byteLength); // the first fell out of the window
   });
 });
 

@@ -1,4 +1,4 @@
-import { decodeFrame, type Frame, type WireRecord } from '@fx/protocol';
+import { decodeFrame, decodeFrameBinary, type Frame, type WireRecord } from '@fx/protocol';
 
 // The stream layer's core is sans-I/O, like sim-core: messages and clock
 // ticks come in as arguments, resync decisions come out as events. The thin
@@ -30,6 +30,8 @@ export interface StreamStats {
   heartbeats: number;
   gaps: number;
   protocolErrors: number;
+  /** Cumulative wire cost, bytes — counted before decoding: damage costs too. */
+  wireBytes: number;
   lastSeq: number | null;
   lastFrameAt: number | null;
 }
@@ -58,10 +60,16 @@ export function applyRecord(books: Map<number, PairBook>, record: WireRecord): v
 }
 
 export interface StreamCore {
-  /** Feed one raw wire message; `now` is the client clock in ms. */
-  onMessage(text: string, now: number): StreamEvent[];
+  /**
+   * Feed one raw wire message — JSON text (fx.v1) or a binary frame
+   * (fx.v2, ADR-12); `now` is the client clock in ms. One core, two wires,
+   * the same frames after decode.
+   */
+  onMessage(data: string | ArrayBuffer, now: number): StreamEvent[];
   /** Drive the heartbeat watchdog; call periodically with the client clock. */
   onTick(now: number): StreamEvent[];
+  /** Wire bytes received over the trailing second — the live cost of the feed. */
+  bytesPerSec(now: number): number;
   status(): StreamStatus;
   books(): ReadonlyMap<number, PairBook>;
   stats(): Readonly<StreamStats>;
@@ -87,9 +95,19 @@ export function createStreamCore(): StreamCore {
     heartbeats: 0,
     gaps: 0,
     protocolErrors: 0,
+    wireBytes: 0,
     lastSeq: null,
     lastFrameAt: null,
   };
+
+  /** Trailing-second window for the live wire rate; pruned as it fills. */
+  const byteSamples: Array<{ at: number; bytes: number }> = [];
+
+  function recordBytes(at: number, bytes: number): void {
+    stats.wireBytes += bytes;
+    byteSamples.push({ at, bytes });
+    while (byteSamples.length > 0 && at - byteSamples[0]!.at > 1000) byteSamples.shift();
+  }
 
   let version = 0;
   const pairVersions = new Map<number, number>();
@@ -110,10 +128,13 @@ export function createStreamCore(): StreamCore {
   }
 
   return {
-    onMessage(text: string, now: number): StreamEvent[] {
+    onMessage(data: string | ArrayBuffer, now: number): StreamEvent[] {
+      // JSON text is ASCII here, so string length IS the byte count; binary
+      // frames say theirs outright. Counted before decode: damage costs too.
+      recordBytes(now, typeof data === 'string' ? data.length : data.byteLength);
       let frame: Frame | null;
       try {
-        frame = decodeFrame(text);
+        frame = typeof data === 'string' ? decodeFrame(data) : decodeFrameBinary(data);
       } catch {
         stats.lastFrameAt = now;
         // Structural damage is 4002 territory; while already resyncing the
@@ -171,6 +192,15 @@ export function createStreamCore(): StreamCore {
         return resync('silence');
       }
       return [];
+    },
+
+    bytesPerSec(now: number): number {
+      let sum = 0;
+      for (let i = byteSamples.length - 1; i >= 0; i -= 1) {
+        if (now - byteSamples[i]!.at > 1000) break;
+        sum += byteSamples[i]!.bytes;
+      }
+      return sum;
     },
 
     status: () => status,

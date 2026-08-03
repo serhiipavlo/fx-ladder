@@ -1,5 +1,15 @@
 # Changelog
 
+## v1.1.0 — 2026-08-03
+
+The first backlog item to find its buyer (plan §5): the binary wire. Same frames, same §6.2 arithmetic, a sixth of the bytes (ADR-12).
+
+- `fx.v2`: a 16-byte header plus fixed 12-byte records (little-endian, DataView). Per-record seq is **not on the wire** — a non-dense frame is inexpressible by construction, decode reconstructs `firstSeq + i`, four bytes per record saved
+- version negotiation is the subprotocol mechanism doing its actual job: the client offers `[fx.v2, fx.v1]`, the server picks the newest wire both speak, and a v1-only client stays served with JSON forever — proven by a mixed-clients test riding one tick on two wires with identical content, aligned by the tick's own `serverTs`
+- one client core, two decoders: structural damage on either wire is the same loud protocol-error resync; golden-bytes tests pin the layout against silent drift; the encoder refuses what the wire cannot carry (u32 seq, u16 count, u8 ids) — no silent truncation
+- the HUD shows the negotiated wire and a live byte meter; the panel's `wire` toggle forces `fx.v1` and back — a deliberate reconnect each way, zero gaps (E2E-pinned)
+- measured (`pnpm gate:perf`, both wires now recorded side by side): **588 KiB/s on fx.v2 vs 3.62 MiB/s on fx.v1 — 6.3× fewer bytes** at the same 50 050 updates/s received; server tick p95 improved to **0.356 ms** (`JSON.stringify` was the dearer half); binary decode p95 gated under the same 2 ms bound as JSON
+
 ## v1.0.0 — 2026-08-03
 
 Demo-ready hardening (plan §3): not a feature release. The system became *presentable under stress* — chaos-tested, documented, and rehearsed.

@@ -1,4 +1,5 @@
 import { percentile } from '@fx/domain';
+import { FX_SUBPROTOCOL, PREFERRED_SUBPROTOCOLS } from '@fx/protocol';
 
 import type { CloseInfo, FeedStreamHandle, SocketState } from './connect';
 import type { StreamCore, StreamEvent } from './core';
@@ -44,6 +45,10 @@ export interface FeedStore {
   renderMode(): RenderMode;
   setRenderMode(mode: RenderMode): void;
   renderStats(): RenderStats;
+  /** The negotiated /feed subprotocol; null before the first open. */
+  wire(): string | null;
+  /** The demo's live wire contrast (ADR-12): force fx.v1 or return to fx.v2. */
+  setWire(next: 'fx.v2' | 'fx.v1'): void;
   close(): void;
 }
 
@@ -145,6 +150,12 @@ export function createFeedStore(
       messageP95: percentile(messageSamples, 95),
       flushP95: percentile(flushSamples, 95),
     }),
+    wire: () => handle.wire(),
+    setWire(next) {
+      handle.setProtocols(next === 'fx.v1' ? [FX_SUBPROTOCOL] : PREFERRED_SUBPROTOCOLS);
+      localVersion += 1;
+      notifyNow(); // the switch is visible immediately, like the render toggle
+    },
     close: () => handle.close(),
   };
 }

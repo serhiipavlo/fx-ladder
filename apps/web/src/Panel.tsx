@@ -115,6 +115,14 @@ export function Panel({ store, instruments, pollMs = 1000 }: PanelProps): React.
           renders {render.renders}, msg p95 <span data-testid="msg-p95">{render.messageP95.toFixed(2)}</span> ms,
           flush p95 <span data-testid="flush-p95">{render.flushP95.toFixed(2)}</span> ms
         </span>
+        <span style={{ marginLeft: '1rem' }}>wire:</span>
+        <button
+          style={button}
+          data-testid="wire-toggle"
+          onClick={() => store.setWire(store.wire() === 'fx.v1' ? 'fx.v2' : 'fx.v1')}
+        >
+          {store.wire() ?? '…'} → {store.wire() === 'fx.v1' ? 'back to v2' : 'force v1'}
+        </button>
       </div>
 
       <div style={{ ...row, marginTop: '0.5rem' }}>

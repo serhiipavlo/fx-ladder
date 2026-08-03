@@ -1,4 +1,4 @@
-import { FX_SUBPROTOCOL } from '@fx/protocol';
+import { PREFERRED_SUBPROTOCOLS } from '@fx/protocol';
 
 import { createStreamCore, type StreamCore, type StreamEvent } from './core';
 import { reconnectDecision, type ReconnectDecision } from './reconnect';
@@ -27,6 +27,14 @@ export interface FeedStreamHandle {
   terminal(): boolean;
   /** Manual restart after a terminal close (the "continue" affordance). */
   resume(): void;
+  /** The subprotocol the server picked at the handshake; null before open. */
+  wire(): string | null;
+  /**
+   * Change the offered subprotocols and reconnect deliberately — the demo's
+   * live v2↔v1 contrast (ADR-12). The self-close rides the resync path: our
+   * own drop, judged by nobody's close-code table.
+   */
+  setProtocols(protocols: readonly string[]): void;
   close(): void;
 }
 
@@ -45,6 +53,8 @@ export function connectFeedStream(url: string, onChange: () => void): FeedStream
   let attempt = 0;
   let closed = false;
   let reconnectTimer: number | null = null;
+  let protocols: readonly string[] = PREFERRED_SUBPROTOCOLS;
+  let wire: string | null = null;
 
   const now = (): number => performance.now();
 
@@ -64,15 +74,17 @@ export function connectFeedStream(url: string, onChange: () => void): FeedStream
   function open(): void {
     if (closed) return;
     socketState = 'connecting';
-    const socket = new WebSocket(url, FX_SUBPROTOCOL);
+    const socket = new WebSocket(url, [...protocols]);
+    socket.binaryType = 'arraybuffer'; // fx.v2 frames arrive as ArrayBuffer
     ws = socket;
     socket.onopen = () => {
       socketState = 'open';
+      wire = socket.protocol; // what the server actually picked
       attempt = 0;
       lastClose = null;
       onChange();
     };
-    socket.onmessage = (event: MessageEvent<string>) => {
+    socket.onmessage = (event: MessageEvent<string | ArrayBuffer>) => {
       handleEvents(core.onMessage(event.data, now()));
       onChange();
     };
@@ -117,6 +129,19 @@ export function connectFeedStream(url: string, onChange: () => void): FeedStream
       attempt = 0;
       if (reconnectTimer !== null) window.clearTimeout(reconnectTimer);
       open();
+    },
+    wire: () => wire,
+    setProtocols(next) {
+      protocols = next;
+      if (closed || terminal) return;
+      if (ws !== null) {
+        // Our own deliberate drop: skip the close-code table, come back fast,
+        // take the fresh snapshot — the ordinary recovery (ADR-08).
+        resyncing = true;
+        ws.close();
+        return;
+      }
+      // Between attempts: the pending reopen will already use the new offer.
     },
     close() {
       closed = true;
