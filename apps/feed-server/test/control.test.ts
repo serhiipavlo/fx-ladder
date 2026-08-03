@@ -19,6 +19,7 @@ function testConfig(overrides: Partial<FeedServerConfig> = {}): FeedServerConfig
     slowClientBufferBytes: 1_000_000,
     maxClients: 20,
     sessionCeilingMs: 30 * 60_000,
+    simSecret: null,
     ...overrides,
   };
 }
@@ -566,6 +567,54 @@ describe('/sim/scenario (done-when of T-0.4.7)', () => {
     expect((await post(port, '/sim/scenario', { name: 'demo-5min', speed: 0 })).status).toBe(400);
     expect((await post(port, '/sim/scenario', { name: 'demo-5min', speed: 601 })).status).toBe(400);
     expect((await post(port, '/sim/scenario', { name: 'demo-5min', extra: 1 })).status).toBe(400);
+  });
+});
+
+describe('/sim/* secret lock (done-when of T-1.0.2)', () => {
+  const SECRET = 'drill-team-six';
+
+  it('enabled: unauthenticated control calls bounce with 401 and never reach the simulator', async () => {
+    const port = await startServer({ simSecret: SECRET });
+    const before = await fetch(`http://127.0.0.1:${port}/sim/stats`, { headers: { 'x-sim-secret': SECRET } });
+    const rate = ((await before.json()) as SimStats).updatesPerSec;
+
+    const bare = await post(port, '/sim/rate', { updatesPerSec: 50_000 });
+    expect(bare.status).toBe(401);
+    expect(((await bare.json()) as { error: string }).error).toContain('x-sim-secret');
+
+    const wrong = await fetch(`http://127.0.0.1:${port}/sim/rate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-sim-secret': 'guess' },
+      body: JSON.stringify({ updatesPerSec: 50_000 }),
+    });
+    expect(wrong.status).toBe(401);
+    expect((await fetch(`http://127.0.0.1:${port}/sim/stats`)).status).toBe(401); // reads are control too
+
+    // The world never heard any of it.
+    const after = await fetch(`http://127.0.0.1:${port}/sim/stats`, { headers: { 'x-sim-secret': SECRET } });
+    expect(((await after.json()) as SimStats).updatesPerSec).toBe(rate);
+  });
+
+  it('enabled: the matching header unlocks, the data planes never needed one', async () => {
+    const port = await startServer({ simSecret: SECRET });
+    const ok = await fetch(`http://127.0.0.1:${port}/sim/rate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-sim-secret': SECRET },
+      body: JSON.stringify({ updatesPerSec: 4000 }),
+    });
+    expect(ok.status).toBe(200);
+
+    // Data planes stay open with the lock armed: health, catalogue, hot wire.
+    expect((await fetch(`http://127.0.0.1:${port}/healthz`)).status).toBe(200);
+    expect((await fetch(`http://127.0.0.1:${port}/api/instruments`)).status).toBe(200);
+    const { frames } = await openFeed(port);
+    await settle(300);
+    expect(frames.length).toBeGreaterThan(0);
+  });
+
+  it('disabled is the default: no header, no ceremony', async () => {
+    const port = await startServer(); // simSecret: null
+    expect((await post(port, '/sim/rate', { updatesPerSec: 2000 })).status).toBe(200);
   });
 });
 

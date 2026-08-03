@@ -22,6 +22,13 @@ export interface FeedServerConfig {
    * abandoned tab must not hold the public link open forever (architecture §8).
    */
   sessionCeilingMs: number;
+  /**
+   * The one-hour hardening of §8/§14 (T-1.0.2): when set, every `/sim/*`
+   * call must carry a matching `x-sim-secret` header or is refused with 401.
+   * The data planes stay open either way. `null` — the documented default —
+   * leaves the control plane public, which is what the demo wants.
+   */
+  simSecret: string | null;
 }
 
 const DEV_ORIGINS = 'http://localhost:5173,http://127.0.0.1:5173';
@@ -40,5 +47,6 @@ export function configFromEnv(env: Record<string, string | undefined>): FeedServ
     slowClientBufferBytes: 1_000_000,
     maxClients: 20,
     sessionCeilingMs: 30 * 60_000,
+    simSecret: env['FX_SIM_SECRET']?.trim() || null,
   };
 }

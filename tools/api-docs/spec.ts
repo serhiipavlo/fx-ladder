@@ -70,7 +70,10 @@ export function buildOpenApi(): JsonSchema {
         'tests and demos command the market instead of waiting for luck. Every body is parsed by ' +
         'the same Zod schemas the server enforces — this document is generated from them ' +
         '(`pnpm docs:api`). The market data itself rides a WebSocket, documented in ' +
-        '[the AsyncAPI half](./index.html#feed) of this page.',
+        '[the AsyncAPI half](./index.html#feed) of this page. Deployments may arm an optional ' +
+        'lock (`FX_SIM_SECRET`): with it set, every `/sim/*` call needs a matching `x-sim-secret` ' +
+        'header or answers 401, while the data planes stay open. The public demo runs with the ' +
+        'lock off — a steerable world is the point.',
     },
     servers: [
       { url: '/', description: 'same origin (local dev via the Vite proxy)' },
