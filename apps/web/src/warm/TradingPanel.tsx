@@ -3,6 +3,7 @@ import { useApolloClient, useMutation, useQuery, useSubscription } from '@apollo
 import { pairIdOf, type EnrichedExecutionReport, type Instrument } from '@fx/domain';
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 
+import { Boundary } from '../Boundary';
 import type { FeedStore } from '../stream/store';
 import { OrdersBlotter } from './Blotter';
 import { createOrdersStore, type OrdersStore, type OrderStateData } from './orders';
@@ -282,8 +283,13 @@ export function TradingSection({
       <Ticket instruments={instruments} />
       <NewDayNote orders={orders} />
       <div style={{ display: 'flex', gap: '3rem', marginTop: '0.75rem', flexWrap: 'wrap', alignItems: 'flex-start' }}>
-        <OrdersBlotter orders={orders} />
-        <PositionsView feedStore={feedStore} positions={positionsData?.positions ?? []} />
+        {/* The money widgets fail alone (AC-12): a broken grid must not take the ticket with it. */}
+        <Boundary name="blotter">
+          <OrdersBlotter orders={orders} />
+        </Boundary>
+        <Boundary name="positions">
+          <PositionsView feedStore={feedStore} positions={positionsData?.positions ?? []} />
+        </Boundary>
       </div>
     </section>
   );
