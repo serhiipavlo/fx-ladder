@@ -9,6 +9,7 @@ import {
   type RejectReason,
   type SequencedExecutionReport,
   type SimOrderBody,
+  type TimeInForce,
 } from '@fx/domain';
 import type { OrderMeta, PositionRow, TradeRow } from '@fx/sim-core';
 import { buildSchema, GraphQLError } from 'graphql';
@@ -26,6 +27,7 @@ export interface OrderStateOut {
   pair: string;
   side: OrderSide;
   orderQtyK: number;
+  tif: TimeInForce;
   ordStatus: OrdStatus;
   cumQty: number;
   leavesQty: number;
@@ -185,6 +187,7 @@ export function createWarmPlane(deps: WarmDeps): WarmPlane {
                 pair: INSTRUMENTS[meta.pairId]!.symbol,
                 side: meta.side,
                 orderQtyK: meta.qtyK,
+                tif: meta.tif,
               },
             };
           }

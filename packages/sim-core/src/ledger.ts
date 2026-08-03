@@ -1,4 +1,4 @@
-import type { ExecutionReport, OrderSide } from '@fx/domain';
+import type { ExecutionReport, OrderSide, TimeInForce } from '@fx/domain';
 
 // The warm plane's bookkeeping (architecture §7.3): trades and positions are
 // values that change ONLY on trade events — the server owns them; unrealised
@@ -31,11 +31,20 @@ export interface OrderMeta {
   pairId: number;
   side: OrderSide;
   qtyK: number;
+  /**
+   * DAY or IOC — the field that explains a CANCELED row. A cancel carries no
+   * FIX reject reason (rejections and cancels are different events, §5.6), so
+   * without the time in force a blotter shows "CANCELED" and no why.
+   */
+  tif: TimeInForce;
 }
 
 export interface Ledger {
-  /** Registers an order's metadata; reports carry only the clOrdId. */
-  open(clOrdId: string, pairId: number, side: OrderSide, qtyK: number): void;
+  /**
+   * Registers an order's metadata; reports carry only the clOrdId. `tif`
+   * defaults to DAY, matching the control-plane schema's own default.
+   */
+  open(clOrdId: string, pairId: number, side: OrderSide, qtyK: number, tif?: TimeInForce): void;
   /** Folds one execution report; only TRADEs move money. */
   record(report: ExecutionReport): void;
   /** Registration data for wire enrichment (§7.3): pair, side, order size. */
@@ -85,10 +94,10 @@ export function createLedger(): Ledger {
   }
 
   return {
-    open(clOrdId, pairId, side, qtyK): void {
+    open(clOrdId, pairId, side, qtyK, tif = 'DAY'): void {
       if (meta.has(clOrdId)) throw new Error(`duplicate clOrdId in ledger: ${clOrdId}`);
       if (!Number.isInteger(qtyK) || qtyK < 0) throw new Error(`qtyK must be a non-negative integer, got ${qtyK}`);
-      meta.set(clOrdId, { pairId, side, qtyK });
+      meta.set(clOrdId, { pairId, side, qtyK, tif });
     },
 
     orderMeta(clOrdId): OrderMeta | undefined {

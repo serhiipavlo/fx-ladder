@@ -37,6 +37,15 @@ const COLUMNS: ColDef<OrderRow>[] = [
     cellStyle: ({ value }) => ({ color: value === 'buy' ? '#2aa198' : '#dc322f' }),
   },
   { field: 'orderQtyK', headerName: 'qty', width: 80, type: 'rightAligned', valueFormatter: ({ value }) => `${value}K` },
+  {
+    // Shown because it is the only thing that explains a CANCELED row: FIX
+    // gives cancels no reject reason, so without the time in force the
+    // blotter says "CANCELED" and leaves the reader guessing.
+    field: 'tif',
+    headerName: 'tif',
+    width: 60,
+    cellStyle: ({ value }) => ({ color: value === 'IOC' ? '#b58900' : '#93a1a1' }),
+  },
   { field: 'status', headerName: 'status', width: 140 },
   { field: 'cumQty', headerName: 'cum', width: 80, type: 'rightAligned' },
   { field: 'leavesQty', headerName: 'leaves', width: 80, type: 'rightAligned' },
@@ -48,7 +57,21 @@ const COLUMNS: ColDef<OrderRow>[] = [
     valueFormatter: ({ value, data }) =>
       value == null ? '—' : formatPrice(value, (data === undefined ? undefined : instrumentBySymbol(data.pair))?.precision ?? 5),
   },
-  { field: 'rejectReason', headerName: 'reason', width: 110, valueFormatter: ({ value }) => value ?? '' },
+  {
+    field: 'rejectReason',
+    headerName: 'reason',
+    width: 150,
+    // A rejection names itself (LAST_LOOK, STALE_PRICE…). A cancel cannot —
+    // in this model it is always an IOC leftover: the market had less than
+    // asked, the filled part stands and the remainder is withdrawn (§5.5).
+    // The wire stays FIX-honest (rejectReason is null on cancels); the
+    // sentence is assembled here, where a human reads it.
+    valueFormatter: ({ value, data }) =>
+      value ??
+      (data?.status === 'CANCELED'
+        ? `IOC: ${data.cumQty}K of ${data.orderQtyK}K, rest withdrawn`
+        : ''),
+  },
   {
     // The blotter's clock — and the default sort, so newest-first is the
     // grid's own ordering rather than a sort we redo on every frame.

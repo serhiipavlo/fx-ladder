@@ -39,6 +39,8 @@ export interface EnrichedExecutionReport extends SequencedExecutionReport {
   pair: string;
   side: OrderSide;
   orderQtyK: number;
+  /** DAY or IOC — what makes a CANCELED row explain itself (§5.5). */
+  tif: TimeInForce;
 }
 
 export interface ExecutionReport {

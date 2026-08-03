@@ -82,7 +82,7 @@ function collectReports(
     {
       query: `subscription Reports($clOrdId: ID) {
         executionReports(clOrdId: $clOrdId) {
-          clOrdId pair side orderQtyK eventSeq execType ordStatus lastPx lastQty cumQty leavesQty rejectReason transactTime
+          clOrdId pair side orderQtyK tif eventSeq execType ordStatus lastPx lastQty cumQty leavesQty rejectReason transactTime
         }
       }`,
       variables: { clOrdId: clOrdId ?? null },
@@ -511,6 +511,56 @@ describe('executionReports (done-when of T-0.4.3)', () => {
     // Still connected and still delivering.
     await runOperation(client, SUBMIT, { input: { clOrdId: 'ALIVE', pair: 'EURUSD', side: 'buy', qtyK: 50, tif: 'DAY' } });
     await until(() => sink.some((r) => r.clOrdId === 'ALIVE'));
+  });
+
+  it('a CANCELED row can explain itself: the wire carries the tif that caused it', { timeout: 15_000 }, async () => {
+    const port = await startServer();
+    const client = gql(port);
+    const sink: ExecutionReport[] = [];
+    collectReports(client, sink);
+    await settle(100);
+
+    // IOC is the only path to CANCELED in this engine (§5.5): the market had
+    // less than asked, the filled part stands, the remainder is withdrawn.
+    // Submit a handful so at least one takes the leftover branch.
+    for (let i = 0; i < 12; i += 1) {
+      await runOperation(client, SUBMIT, {
+        input: { clOrdId: `IOC-${i}`, pair: 'EURUSD', side: 'buy', qtyK: 900, tif: 'IOC' },
+      });
+    }
+    await until(() => {
+      const byOrder = new Map<string, ExecutionReport[]>();
+      for (const r of sink) byOrder.set(r.clOrdId, [...(byOrder.get(r.clOrdId) ?? []), r]);
+      return (
+        byOrder.size === 12 &&
+        [...byOrder.values()].every((reports) => isTerminalStatus(reports[reports.length - 1]!.ordStatus))
+      );
+    }, 12_000);
+
+    const enriched = sink as Array<ExecutionReport & { tif: string; orderQtyK: number }>;
+    // Every report knows its time in force, cancels included.
+    expect(enriched.every((r) => r.tif === 'IOC')).toBe(true);
+
+    const cancels = enriched.filter((r) => r.execType === 'CANCELED');
+    expect(cancels.length).toBeGreaterThan(0);
+    for (const cancel of cancels) {
+      // The cancel stays FIX-honest — no reject reason on a cancel — while
+      // carrying everything a reader needs: IOC, how much filled, how much
+      // was withdrawn.
+      expect(cancel.rejectReason).toBeNull();
+      expect(cancel.tif).toBe('IOC');
+      expect(cancel.cumQty).toBeGreaterThan(0);
+      expect(cancel.cumQty).toBeLessThan(cancel.orderQtyK);
+      expect(cancel.leavesQty).toBe(0);
+    }
+
+    // The reconnect snapshot says it too, so a refreshed page is not poorer.
+    const { orders } = await runOperation<{ orders: Array<{ clOrdId: string; tif: string; ordStatus: string }> }>(
+      client,
+      `query { orders { clOrdId tif ordStatus } }`,
+    );
+    expect(orders.every((o) => o.tif === 'IOC')).toBe(true);
+    expect(orders.some((o) => o.ordStatus === 'CANCELED')).toBe(true);
   });
 
   it('a filtered subscription sees exactly its own order', async () => {

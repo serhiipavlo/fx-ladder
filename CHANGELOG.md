@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.2.3 — 2026-08-03
+
+- fix: the blotter showed **`CANCELED` with an empty reason column** and nothing on screen said why. In FIX that emptiness is correct — a cancel carries no reject reason, because rejections and cancels are different events (§5.6) — but the fact that *does* explain it, the order's **time in force**, never reached the client at all.
+  - `tif` now rides the wire: the ledger records it at registration, the subscription enriches every report with it, and the reconnect snapshot carries it too, so a refreshed page is no poorer than a live one;
+  - the blotter gains a **`tif` column** (IOC highlighted, DAY muted) and the reason cell now reads **`IOC: 1383K of 1604K, rest withdrawn`** for cancels — the sentence is assembled where a human reads it, while the wire stays FIX-honest with `rejectReason: null`;
+  - pinned by an E2E that asserts the sentence's numbers are the row's own, and by a server test proving every report — cancels included — carries its `tif`, with `cumQty` strictly between zero and the order quantity.
+
 ## v1.2.1 — 2026-08-03
 
 - fix: pressing **burst** froze the page. Measured, it was three separate costs and none of them was the row count (5000 is the AC-11 number and the virtualised grid holds it fine):

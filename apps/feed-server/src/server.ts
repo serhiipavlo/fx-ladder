@@ -305,7 +305,7 @@ export function createFeedServer(config: FeedServerConfig): FeedServer {
     immediate: ExecutionReport[];
   } {
     const clOrdId = input.clOrdId ?? `srv-${(orderCounter += 1)}`;
-    ledger.open(clOrdId, input.pairId, input.side, input.qtyK);
+    ledger.open(clOrdId, input.pairId, input.side, input.qtyK, input.tif);
     const immediate = engine.submit(
       { clOrdId, pairId: input.pairId, side: input.side, qtyK: input.qtyK, tif: input.tif },
       at,
@@ -334,6 +334,7 @@ export function createFeedServer(config: FeedServerConfig): FeedServer {
           pair: INSTRUMENTS[meta.pairId]!.symbol,
           side: meta.side,
           orderQtyK: meta.qtyK,
+          tif: meta.tif,
           ordStatus: state.progress.status,
           cumQty: state.progress.cumQty,
           leavesQty: state.progress.leavesQty,
