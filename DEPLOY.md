@@ -100,3 +100,10 @@ the rolled-back container serving traffic (uptime reset observed on
 it), smoke green immediately after. Only one version existed at drill time,
 so this was a same-tag redeploy — it proves the mechanics and the timing; a
 distinct-version rollback happens naturally at the next release.
+
+## Chaos
+
+What a container death does to connected clients — kill drills with
+measured timings, the reconnect story observed rather than assumed, and
+the ADR-10 "new trading day" note on the page: see [CHAOS.md](CHAOS.md)
+(`pnpm chaos:drill`).

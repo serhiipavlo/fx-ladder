@@ -45,6 +45,41 @@ test('crash during the last-look hold: the lifecycle completes on the resumed su
   expect(errors).toEqual([]);
 });
 
+test('restart = a new trading day: the book empties and the page says why (ADR-10)', async ({ page, request }) => {
+  const errors: Error[] = [];
+  page.on('pageerror', (err) => errors.push(err));
+
+  await page.goto('/');
+  await expect(page.getByTestId('feed-status')).toHaveText('live');
+
+  // A filled order on the books…
+  expect((await request.post(`${FEED}/sim/lastlook`, { data: { holdMs: 100, rejectRate: 0 } })).ok()).toBeTruthy();
+  const clOrdId = await submitAndReadId(page);
+  await expect(page.locator(`.ag-row[row-id="${clOrdId}"] [col-id="status"]`)).toHaveText('FILLED', {
+    timeout: 15_000,
+  });
+
+  // …then the closest thing to a container kill the control plane can stage:
+  // the server forgets everything (reseed = new day) and every socket
+  // crashes. The reconnected resync finds no memory of the book we hold.
+  expect((await request.post(`${FEED}/sim/seed`, { data: { seed: 5 } })).ok()).toBeTruthy();
+  expect((await request.post(`${FEED}/sim/disconnect`, { data: { graceful: false } })).ok()).toBeTruthy();
+
+  await expect(page.getByTestId('feed-status')).toHaveText('live', { timeout: 10_000 });
+  await expect(page.getByTestId('blotter-count')).toHaveText('0', { timeout: 15_000 });
+  await expect(page.getByTestId('new-day')).toBeVisible();
+  await expect(page.getByTestId('new-day')).toContainText('a new trading day');
+  await expect(page.getByTestId(`position-EURUSD`)).toHaveCount(0); // positions reset with the day
+
+  // The first order of the new day retires the note and fills the book again.
+  await page.getByTestId('ticket-submit').click();
+  await expect(page.getByTestId('ticket-ack').locator('code')).not.toHaveText(clOrdId);
+  const nextId = (await page.getByTestId('ticket-ack').locator('code').textContent())!;
+  await expect(page.locator(`.ag-row[row-id="${nextId}"]`)).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByTestId('new-day')).toHaveCount(0);
+  expect(errors).toEqual([]);
+});
+
 test('crash with the lifecycle firing into the outage: state returns wholesale from the snapshot', async ({
   page,
   request,
