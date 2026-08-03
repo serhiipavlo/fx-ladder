@@ -187,9 +187,12 @@ export function buildOpenApi(): JsonSchema {
         '`rows` synthetic orders (≤ 5000 — the AC-11 number) enter through the same submit path as ' +
           'any ticket: the ledger registers them, the engine scripts their lifecycles, every report ' +
           'rides the GraphQL subscription — load data for the blotter exists for real (architecture ' +
-          '§5.4). Composition is drawn from a seeded stream: reseed and the same burst replays. A ' +
-          'crude ceiling of 10 000 live orders refuses bursts on top of a full book with a ' +
-          'field-level 400.',
+          '§5.4). Composition is drawn from a seeded stream: reseed and the same burst replays. ' +
+          'Arrivals are **staggered across up to 5 s** (`spreadMs` in the response): submitted in ' +
+          'lockstep, 5000 orders come due on the same ticks and land as walls of simultaneous ' +
+          'events — measured at 17 s to play out on a 0.1-CPU instance, with the health check ' +
+          'starved. A crude ceiling of 10 000 live orders refuses bursts on top of a full book ' +
+          'with a field-level 400.',
         'SimBlotterBody',
       ),
       '/sim/scenario': controlPost(

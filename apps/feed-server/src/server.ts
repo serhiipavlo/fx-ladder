@@ -108,6 +108,17 @@ const blotterSeed = (seed: number): number => (seed ^ BLOTTER_SEED_SALT) >>> 0;
  */
 const MAX_LIVE_ORDERS = 10_000;
 
+/**
+ * A blotter burst is submitted across this window instead of in one
+ * millisecond. Lockstep submission makes every lifecycle come due on the
+ * same tick, so 5000 orders land as four walls of ~5000 events each: on a
+ * 0.1-CPU instance that starves the health check (measured: 17 s to play
+ * out, and the platform killed the instance), and on any client it is a
+ * frozen second. Spread, the same 5000 orders arrive as a stream — which is
+ * also what order flow actually looks like.
+ */
+const BLOTTER_SPREAD_MS = 5000;
+
 export function createFeedServer(config: FeedServerConfig): FeedServer {
   const allowedOrigins = new Set(config.allowedOrigins);
   const t0 = performance.now();
@@ -285,7 +296,11 @@ export function createFeedServer(config: FeedServerConfig): FeedServer {
    * next macrotask so every outcome reaches subscribers as an event, after
    * any ack. /sim/order additionally returns them in its response.
    */
-  function submitOrderShared(input: SimOrderBody & { pairId: number }): {
+  function submitOrderShared(
+    input: SimOrderBody & { pairId: number },
+    /** When the order reaches the engine; a burst staggers this (§5.5). */
+    at: number = serverTs(),
+  ): {
     clOrdId: string;
     immediate: ExecutionReport[];
   } {
@@ -293,7 +308,7 @@ export function createFeedServer(config: FeedServerConfig): FeedServer {
     ledger.open(clOrdId, input.pairId, input.side, input.qtyK);
     const immediate = engine.submit(
       { clOrdId, pairId: input.pairId, side: input.side, qtyK: input.qtyK, tif: input.tif },
-      serverTs(),
+      at,
       { stale: market.isFrozen(input.pairId) },
     );
     if (immediate.length > 0) {
@@ -381,7 +396,7 @@ export function createFeedServer(config: FeedServerConfig): FeedServer {
       engine.setLastLook(holdMs, rejectRate);
     },
     submitOrder: submitOrderShared,
-    blotter(rows: number): { submitted: number } {
+    blotter(rows: number): { submitted: number; spreadMs: number } {
       const s = engine.stats();
       const live = s.submitted - s.filled - s.canceled - s.rejected;
       if (live + rows > MAX_LIVE_ORDERS) {
@@ -390,17 +405,24 @@ export function createFeedServer(config: FeedServerConfig): FeedServer {
       // Through the ordinary door, one order at a time: the ledger registers,
       // the engine scripts, every report rides the subscription — the 5000
       // rows the grid renders exist in the same books as any ticket's order.
+      // Arrival times are staggered across the window so the lifecycles
+      // stream instead of landing as walls of simultaneous events.
+      const startedAt = serverTs();
+      const spreadMs = Math.min(BLOTTER_SPREAD_MS, rows);
       for (let i = 0; i < rows; i += 1) {
         const pairId = blotterPrng.nextUint32() % INSTRUMENTS.length;
-        submitOrderShared({
-          pair: INSTRUMENTS[pairId]!.symbol,
-          pairId,
-          side: blotterPrng.nextUint32() % 2 === 0 ? 'buy' : 'sell',
-          qtyK: 1 + (blotterPrng.nextUint32() % 2000),
-          tif: blotterPrng.nextFloat() < 0.25 ? 'IOC' : 'DAY',
-        });
+        submitOrderShared(
+          {
+            pair: INSTRUMENTS[pairId]!.symbol,
+            pairId,
+            side: blotterPrng.nextUint32() % 2 === 0 ? 'buy' : 'sell',
+            qtyK: 1 + (blotterPrng.nextUint32() % 2000),
+            tif: blotterPrng.nextFloat() < 0.25 ? 'IOC' : 'DAY',
+          },
+          startedAt + Math.round((i * spreadMs) / rows),
+        );
       }
-      return { submitted: rows };
+      return { submitted: rows, spreadMs };
     },
     scenario(name: ScenarioName, speed: number): { steps: number; durationMs: number } {
       // One director at a time: a new scenario cancels whatever the previous

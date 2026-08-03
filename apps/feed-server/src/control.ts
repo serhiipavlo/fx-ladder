@@ -66,7 +66,7 @@ export interface ControlDeps {
   freeze(pairId: number, ms: number): void;
   setLastLook(holdMs: number, rejectRate: number): void;
   submitOrder(input: SimOrderBody & { pairId: number }): { clOrdId: string; immediate: ExecutionReport[] };
-  blotter(rows: number): { submitted: number };
+  blotter(rows: number): { submitted: number; spreadMs: number };
   scenario(name: ScenarioName, speed: number): { steps: number; durationMs: number };
   stats(): SimStats;
 }
