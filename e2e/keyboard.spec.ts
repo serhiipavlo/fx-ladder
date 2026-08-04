@@ -12,10 +12,12 @@ test('an order can be submitted with the keyboard alone', async ({ page, request
 
   // Walk the tab order from the top of the page to the submit button — no
   // mouse anywhere. The bound is generous but finite: an unreachable button
-  // fails loudly, not by spinning.
+  // fails loudly, not by spinning. It went up with T-1.3.1: twelve ladder
+  // rows and eight depth levels became real buttons, which is twenty honest
+  // stops that did not exist before.
   await page.locator('body').press('Tab');
   let reached = false;
-  for (let i = 0; i < 40; i += 1) {
+  for (let i = 0; i < 80; i += 1) {
     const focused = await page.evaluate(() => document.activeElement?.getAttribute('data-testid') ?? null);
     if (focused === 'ticket-submit') {
       reached = true;

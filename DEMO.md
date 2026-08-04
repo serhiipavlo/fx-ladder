@@ -32,7 +32,7 @@ clock below is the scenario's own.
 | 2:20 | Market calms to 2 000/s | Breathing room — take a question, or show `/docs`. |
 | 3:15 | USDJPY freezes for 10 s | Point at the dimmed row: "**stale**, not disconnected — the channel is provably alive while one pair is provably quiet." |
 | 3:45 | News on GBPUSD: +80 pips, spread ×6 | "The jump and the widening arrive together and decay — the economics, not two separate knobs." |
-| 4:00 | Last look arms: 80 ms hold, 30 % reject | **Trade.** Submit the ticket: ack instantly, then `NEW` → partial → `FILLED` assemble in the blotter from typed events; position goes long, unrealised ticks with the mid. If the order bounces `REJECTED / LAST_LOOK` — that is §5.5 working; say so and resubmit. Sell the same size: flat book, realised P&L written by the server. |
+| 4:00 | Last look arms: 80 ms hold, 30 % reject | **Trade — from the book.** Click a ladder row to put that pair in the depth panel, then click an offer level: the ticket loads with the side and the volume the walk to that level takes, and the panel names the walk's average as **indicative** (fills are scripted, §5.5 — say it before you are asked). Submit: ack instantly, then `NEW` → partial → `FILLED` assemble in the blotter from typed events; position goes long, unrealised ticks with the mid. If the order bounces `REJECTED / LAST_LOOK` — that is §5.5 working; say so and resubmit. Sell the same size off a bid level: flat book, realised P&L written by the server. |
 
 Bonus beats, any time after the script:
 
@@ -73,6 +73,20 @@ pnpm --filter @fx/web exec vite
 If 8080 is taken locally, map another port and point the web dev server at
 it: `docker run --rm -p 8090:8080 …` then `FX_BACKEND_PORT=8090 pnpm
 --filter @fx/web exec vite`.
+
+## v1.3.0
+
+Click any ladder row: that pair fills the **depth** panel — four levels a
+side, offers descending to the spread. The `cum` column is what the market
+holds down to each level and `avg` is what walking there would average, so
+the cost of size is on screen instead of in an explanation. Click an offer
+level: the ticket loads buying, for the volume the walk takes, and names the
+price it came from. Say the honest part first — that average is
+**indicative**: fills are scripted (§5.5), so an execution price does not
+derive from this depth; the real matching engine in the backlog is what
+would make it binding. Worth adding out loud: this depth had been on the
+wire since v0.1 and nothing drew it — about two thirds of the feed
+described prices no one could see.
 
 ## v1.2.0
 

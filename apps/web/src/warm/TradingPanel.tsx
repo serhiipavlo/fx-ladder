@@ -1,9 +1,17 @@
 import { gql } from '@apollo/client';
 import { useApolloClient, useMutation, useQuery, useSubscription } from '@apollo/client/react';
-import { pairIdOf, type EnrichedExecutionReport, type Instrument } from '@fx/domain';
+import {
+  formatPrice,
+  instrumentBySymbol,
+  MAX_ORDER_QTY_K,
+  pairIdOf,
+  type EnrichedExecutionReport,
+  type Instrument,
+} from '@fx/domain';
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 
 import { Boundary } from '../components/Boundary';
+import type { DepthPick } from '../lib/depth';
 import type { FeedStore } from '../stream/store';
 import { OrdersBlotter } from './Blotter';
 import { createOrdersStore, type OrdersStore, type OrderStateData } from './orders';
@@ -112,6 +120,8 @@ export interface PositionsViewProps {
 
 export interface TicketProps {
   instruments: readonly Instrument[];
+  /** The depth ladder's last click (FR-07); a fresh object each time. */
+  prefill?: DepthPick | null;
   onSubmitted?: (clOrdId: string) => void;
 }
 
@@ -122,6 +132,8 @@ export interface NewDayNoteProps {
 export interface TradingSectionProps {
   feedStore: FeedStore;
   instruments: readonly Instrument[];
+  /** The depth ladder's last click, on its way to the ticket (FR-07). */
+  prefill?: DepthPick | null;
   /** The warm socket's post-drop hook; resubscription itself is graphql-ws's. */
   onReconnect?: (listener: () => void) => () => void;
 }
@@ -195,10 +207,21 @@ interface OrderInputState {
   ioc: boolean;
 }
 
-export const Ticket: TicketComponent = ({ instruments, onSubmitted }) => {
+export const Ticket: TicketComponent = ({ instruments, prefill, onSubmitted }) => {
   const [form, setForm] = useState<OrderInputState>({ pair: 'EURUSD', side: 'buy', qtyK: 500, ioc: false });
   const [submit, { loading, error }] = useMutation<SubmitOrderData>(SUBMIT_ORDER);
   const [lastAck, setLastAck] = useState<string | null>(null);
+
+  // FR-07: a click on a depth level fills pair, side and the volume the walk
+  // to that level takes. The prices ride along for display only — this ticket
+  // sends no limit, because in this model an execution's price comes from the
+  // script, not from the depth (§5.5). Every click is a new object, so
+  // clicking the same level twice loads it twice; the IOC flag is the user's
+  // and survives.
+  useEffect(() => {
+    if (prefill == null) return;
+    setForm((current) => ({ ...current, pair: prefill.pair, side: prefill.side, qtyK: prefill.qtyK }));
+  }, [prefill]);
 
   const send = async (): Promise<void> => {
     const { data } = await submit({
@@ -250,6 +273,23 @@ export const Ticket: TicketComponent = ({ instruments, onSubmitted }) => {
       >
         submit
       </button>
+      {prefill != null && (
+        <small
+          style={{ color: '#586e75' }}
+          title="the level you clicked and the average of walking to it — not a limit price"
+          data-testid="ticket-from-depth"
+        >
+          from depth <code>{formatPrice(prefill.priceP, instrumentBySymbol(prefill.pair)?.precision ?? 5)}</code>{' '}
+          · avg <code>{formatPrice(prefill.avgPxP, instrumentBySymbol(prefill.pair)?.precision ?? 5)}</code>{' '}
+          (indicative)
+          {prefill.capped && (
+            <span style={{ color: '#b58900' }} data-testid="ticket-capped">
+              {' '}
+              · capped at {MAX_ORDER_QTY_K}K
+            </span>
+          )}
+        </small>
+      )}
       {lastAck !== null && (
         <small data-testid="ticket-ack">
           ack <code>{lastAck}</code>
@@ -277,7 +317,7 @@ export const NewDayNote: NewDayNoteComponent = ({ orders }) => {
 };
 
 /** Bridges the subscription into the orders store and refetches positions on trades. */
-export const TradingSection: TradingSectionComponent = ({ feedStore, instruments, onReconnect }) => {
+export const TradingSection: TradingSectionComponent = ({ feedStore, instruments, prefill, onReconnect }) => {
   const [orders] = useState(() => createOrdersStore());
   useSubscription<ReportsData>(REPORTS_SUBSCRIPTION, {
     onData: ({ data }) => {
@@ -321,7 +361,7 @@ export const TradingSection: TradingSectionComponent = ({ feedStore, instruments
   return (
     <section style={{ marginTop: '1rem' }}>
       <h2 style={{ fontSize: '1em', marginBottom: '0.5rem' }}>trade</h2>
-      <Ticket instruments={instruments} />
+      <Ticket instruments={instruments} prefill={prefill} />
       <NewDayNote orders={orders} />
       <div style={{ display: 'flex', gap: '3rem', marginTop: '0.75rem', flexWrap: 'wrap', alignItems: 'flex-start' }}>
         {/* The money widgets fail alone (AC-12): a broken grid must not take the ticket with it. */}

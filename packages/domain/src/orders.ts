@@ -16,6 +16,16 @@ export type OrderSide = 'buy' | 'sell';
 /** IOC closes any unfilled leftover with CANCELED; DAY fills fully in this scripted world. */
 export type TimeInForce = 'DAY' | 'IOC';
 
+/**
+ * Largest order the engine accepts, thousands of base. Lives here — not in
+ * the engine and not in the Zod body — because three places need to agree on
+ * it: the control-plane schema that rejects an oversized body, the engine
+ * that answers `INVALID_QTY`, and the client, which sizes a depth-walk
+ * request against it before asking (FR-07). One number, one copy — the same
+ * discipline `INSTRUMENTS_MAX_AGE_S` keeps for the cold plane's freshness.
+ */
+export const MAX_ORDER_QTY_K = 10_000;
+
 export interface OrderInput {
   clOrdId: string;
   pairId: number;
