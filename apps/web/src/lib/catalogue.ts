@@ -10,9 +10,25 @@ import { backendUrl } from './backend';
 // observable in DevTools and assertable in tests, not hidden in a browser
 // cache jsdom does not have.
 
-let revalidation: { etag: string; body: Instrument[] } | null = null;
+/** The last successful response, kept so the next fetch can revalidate it. */
+interface Revalidation {
+  etag: string;
+  body: Instrument[];
+}
 
-export async function fetchInstruments(): Promise<Instrument[]> {
+/** Fetches the catalogue, revalidating the held copy when there is one. */
+interface InstrumentsFetcher {
+  (): Promise<Instrument[]>;
+}
+
+/** Drops the held ETag. */
+interface CacheReset {
+  (): void;
+}
+
+let revalidation: Revalidation | null = null;
+
+export const fetchInstruments: InstrumentsFetcher = async () => {
   const headers: Record<string, string> = {};
   if (revalidation !== null) headers['If-None-Match'] = revalidation.etag;
 
@@ -24,12 +40,12 @@ export async function fetchInstruments(): Promise<Instrument[]> {
   const etag = res.headers.get('etag');
   if (etag !== null) revalidation = { etag, body };
   return body;
-}
+};
 
 /** Test hook: forget the held ETag so runs stay independent. */
-export function resetCatalogueCache(): void {
+export const resetCatalogueCache: CacheReset = () => {
   revalidation = null;
-}
+};
 
 export const instrumentsQueryOptions = {
   queryKey: ['instruments'] as const,

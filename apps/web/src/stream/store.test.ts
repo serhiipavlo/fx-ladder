@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 
 import type { FeedStreamHandle } from './connect';
 import { createStreamCore } from './core';
-import { createFeedStore } from './store';
+import { createFeedStore, SAMPLE_RING } from './store';
 
 const normal = normalJson as unknown as Frame[];
 const SNAPSHOT = normal[0]!;
@@ -12,7 +12,8 @@ const SNAPSHOT = normal[0]!;
 // Sans-I/O again: the frame scheduler and the clock are injected, so the
 // coalescing contract is provable without a browser or timers.
 
-function makeHarness() {
+/** `costOf` sets what each clock reading advances by — one message's cost, in ms. */
+const makeHarness = (costOf: () => number = () => 0.1) => {
   const core = createStreamCore();
   let notify: () => void = () => undefined;
   const pendingFrames: Array<() => void> = [];
@@ -35,7 +36,7 @@ function makeHarness() {
     },
     {
       scheduleFrame: (cb) => pendingFrames.push(cb),
-      nowFn: () => (clock += 0.1),
+      nowFn: () => (clock += costOf()),
     },
   );
   const feed = (frame: Frame): void => {
@@ -45,12 +46,11 @@ function makeHarness() {
   const flushFrame = (): void => {
     for (const cb of pendingFrames.splice(0)) cb();
   };
-  return { core, store, feed, flushFrame };
-}
+  return { core, store, feed, flushFrame, notify: (): void => notify() };
+};
 
-function delta(seq: number, price: number): Frame {
-  return assembleFrame('DELTA', [{ pairId: 0, side: 'bid', level: 0, price, size: 500 }], seq, 100).frame;
-}
+const delta = (seq: number, price: number): Frame =>
+  assembleFrame('DELTA', [{ pairId: 0, side: 'bid', level: 0, price, size: 500 }], seq, 100).frame;
 
 describe('render switch (done-when of T-0.2.5)', () => {
   it('coalesced: many messages between animation frames produce exactly one render', () => {
@@ -141,5 +141,20 @@ describe('render switch (done-when of T-0.2.5)', () => {
     flushFrame();
     flushFrame(); // an empty second frame must not double-render
     expect(scheduled.length).toBe(1);
+  });
+
+  it('the timing ring is bounded: p95 reports the recent past, not the whole session', () => {
+    let cost = 0.1;
+    const { store, notify } = makeHarness(() => cost);
+
+    for (let i = 0; i < SAMPLE_RING; i += 1) notify();
+    expect(store.renderStats().messageP95).toBeCloseTo(0.1);
+
+    // A full ring's worth of expensive messages must push the cheap era out
+    // entirely — otherwise a p95 taken under load stays diluted by history.
+    cost = 5;
+    for (let i = 0; i < SAMPLE_RING; i += 1) notify();
+    expect(store.renderStats().messages).toBe(SAMPLE_RING * 2);
+    expect(store.renderStats().messageP95).toBeCloseTo(5);
   });
 });

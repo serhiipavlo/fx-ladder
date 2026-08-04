@@ -8,7 +8,7 @@ import { createLoadSampler, type LoadSnapshot } from './series';
 // The chart is the panel's answer to "what is this costing you" — so the test
 // asserts the numbers it draws, not that it rendered something.
 
-function feed(specs: Array<Partial<LoadSnapshot>>): ReturnType<typeof createLoadSampler> {
+const feed = (specs: Array<Partial<LoadSnapshot>>): ReturnType<typeof createLoadSampler> => {
   const sampler = createLoadSampler(60);
   specs.forEach((spec, i) => {
     sampler.push({
@@ -23,7 +23,7 @@ function feed(specs: Array<Partial<LoadSnapshot>>): ReturnType<typeof createLoad
     });
   });
   return sampler;
-}
+};
 
 afterEach(cleanup);
 

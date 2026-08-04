@@ -54,8 +54,11 @@ const COLUMNS: ColDef<OrderRow>[] = [
     headerName: 'last px',
     width: 100,
     type: 'rightAligned',
-    valueFormatter: ({ value, data }) =>
-      value == null ? '—' : formatPrice(value, (data === undefined ? undefined : instrumentBySymbol(data.pair))?.precision ?? 5),
+    valueFormatter: ({ value, data }) => {
+      if (value == null) return '—';
+      if (data === undefined) return formatPrice(value, 5);
+      return formatPrice(value, instrumentBySymbol(data.pair)?.precision ?? 5);
+    },
   },
   {
     field: 'rejectReason',
@@ -66,11 +69,11 @@ const COLUMNS: ColDef<OrderRow>[] = [
     // asked, the filled part stands and the remainder is withdrawn (§5.5).
     // The wire stays FIX-honest (rejectReason is null on cancels); the
     // sentence is assembled here, where a human reads it.
-    valueFormatter: ({ value, data }) =>
-      value ??
-      (data?.status === 'CANCELED'
-        ? `IOC: ${data.cumQty}K of ${data.orderQtyK}K, rest withdrawn`
-        : ''),
+    valueFormatter: ({ value, data }) => {
+      if (value !== null && value !== undefined) return value;
+      if (data?.status === 'CANCELED') return `IOC: ${data.cumQty}K of ${data.orderQtyK}K, rest withdrawn`;
+      return '';
+    },
   },
   {
     // The blotter's clock — and the default sort, so newest-first is the
@@ -84,7 +87,15 @@ const COLUMNS: ColDef<OrderRow>[] = [
   },
 ];
 
-export function OrdersBlotter({ orders }: { orders: OrdersStore }): React.JSX.Element {
+export interface OrdersBlotterProps {
+  orders: OrdersStore;
+}
+
+interface OrdersBlotterComponent {
+  (props: OrdersBlotterProps): React.JSX.Element;
+}
+
+export const OrdersBlotter: OrdersBlotterComponent = ({ orders }) => {
   // Only the count re-renders with the store; the rows go to the grid
   // directly, so a flush never re-renders five thousand cells.
   useSyncExternalStore(orders.subscribe, () => orders.version());
@@ -106,7 +117,11 @@ export function OrdersBlotter({ orders }: { orders: OrdersStore }): React.JSX.El
       const add: OrderRow[] = [];
       const update: OrderRow[] = [];
       for (const row of changed) {
-        (api.getRowNode(row.clOrdId) === undefined ? add : update).push(row);
+        if (api.getRowNode(row.clOrdId) === undefined) {
+          add.push(row);
+        } else {
+          update.push(row);
+        }
       }
       api.applyTransactionAsync({
         add,
@@ -140,4 +155,4 @@ export function OrdersBlotter({ orders }: { orders: OrdersStore }): React.JSX.El
       </small>
     </div>
   );
-}
+};

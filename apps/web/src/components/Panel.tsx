@@ -1,14 +1,19 @@
 import type { Instrument } from '@fx/domain';
 import { useEffect, useState, useSyncExternalStore } from 'react';
 
-import { backendUrl } from './backend';
-import { LoadChart } from './perf/LoadChart';
-import { createLoadSampler } from './perf/series';
-import type { FeedStore } from './stream/store';
+import { backendUrl } from '../lib/backend';
+import { LoadChart } from '../perf/LoadChart';
+import { createLoadSampler } from '../perf/series';
+import type { FeedStore } from '../stream/store';
 
 // The demo panel (T-0.2.7): every demo line of v0.2.0 runs from here — no
 // curl, no DevTools. Left side commands the world (/sim/*), right side is the
 // render switch; the footer shows what the server says about itself.
+
+/** Tick-loop timing the server reports about itself. */
+interface TickStats {
+  p95: number;
+}
 
 interface ServerStats {
   generated: number;
@@ -18,10 +23,15 @@ interface ServerStats {
   updatesPerSec: number;
   clients: number;
   uptimeMs: number;
-  tick: { p95: number };
+  tick: TickStats;
 }
 
-async function post(path: string, body: unknown): Promise<string> {
+/** Fires one control-plane command and reports how it went, in one line. */
+interface ControlPoster {
+  (path: string, body: unknown): Promise<string>;
+}
+
+const post: ControlPoster = async (path, body) => {
   try {
     const res = await fetch(backendUrl(path), {
       method: 'POST',
@@ -34,7 +44,7 @@ async function post(path: string, body: unknown): Promise<string> {
   } catch (err) {
     return `${path} failed: ${err instanceof Error ? err.message : String(err)}`;
   }
-}
+};
 
 const RATE_PRESETS = [300, 5000, 20_000, 50_000];
 
@@ -49,7 +59,11 @@ export interface PanelProps {
   pollMs?: number;
 }
 
-export function Panel({ store, instruments, pollMs = 1000 }: PanelProps): React.JSX.Element {
+interface PanelComponent {
+  (props: PanelProps): React.JSX.Element;
+}
+
+export const Panel: PanelComponent = ({ store, instruments, pollMs = 1000 }) => {
   useSyncExternalStore(store.subscribe, () => store.version());
   const [last, setLast] = useState('—');
   const [server, setServer] = useState<ServerStats | null>(null);
@@ -94,6 +108,20 @@ export function Panel({ store, instruments, pollMs = 1000 }: PanelProps): React.
   }, [pollMs, sampler, store]);
 
   const render = store.renderStats();
+
+  // The server's own account of itself, or an honest blank when the poll
+  // cannot reach it.
+  let serverLine = 'stats unavailable';
+  if (server !== null) {
+    let batch = 'off';
+    if (server.batch) {
+      batch = 'on';
+    }
+    serverLine =
+      `rate ${server.updatesPerSec}/s · batch ${batch} · generated ${server.generated} · ` +
+      `sent ${server.sent} · frames ${server.framesSent} · clients ${server.clients} · ` +
+      `tick p95 ${server.tick.p95.toFixed(2)} ms`;
+  }
 
   return (
     <details style={{ marginTop: '1rem', border: '1px solid #ddd', padding: '0.75rem 1rem' }} data-testid="panel">
@@ -212,12 +240,8 @@ export function Panel({ store, instruments, pollMs = 1000 }: PanelProps): React.
         last: <code data-testid="last-action">{last}</code>
         <br />
         server:{' '}
-        <code data-testid="server-stats">
-          {server === null
-            ? 'stats unavailable'
-            : `rate ${server.updatesPerSec}/s · batch ${server.batch ? 'on' : 'off'} · generated ${server.generated} · sent ${server.sent} · frames ${server.framesSent} · clients ${server.clients} · tick p95 ${server.tick.p95.toFixed(2)} ms`}
-        </code>
+        <code data-testid="server-stats">{serverLine}</code>
       </p>
     </details>
   );
-}
+};

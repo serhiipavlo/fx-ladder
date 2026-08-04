@@ -17,7 +17,12 @@ export interface CloseInfo {
   decision: ReconnectDecision;
 }
 
-export interface FeedStreamHandle {
+/**
+ * What the transport says about the connection. The store forwards every
+ * member of this verbatim, so it is declared once here and extended twice —
+ * by the handle below and by `FeedStore`.
+ */
+export interface FeedTransportView {
   core: StreamCore;
   socketState(): SocketState;
   lastResync(): StreamEvent | null;
@@ -29,20 +34,28 @@ export interface FeedStreamHandle {
   resume(): void;
   /** The subprotocol the server picked at the handshake; null before open. */
   wire(): string | null;
+  close(): void;
+}
+
+export interface FeedStreamHandle extends FeedTransportView {
   /**
    * Change the offered subprotocols and reconnect deliberately — the demo's
    * live v2↔v1 contrast (ADR-12). The self-close rides the resync path: our
    * own drop, judged by nobody's close-code table.
    */
   setProtocols(protocols: readonly string[]): void;
-  close(): void;
 }
 
 /** Self-initiated resync closes skip the table and come back quickly. */
 const RESYNC_RETRY_MS = 250;
 const WATCHDOG_TICK_MS = 500;
 
-export function connectFeedStream(url: string, onChange: () => void): FeedStreamHandle {
+/** Opens the feed socket and returns the handle that owns it. */
+interface FeedStreamConnector {
+  (url: string, onChange: () => void): FeedStreamHandle;
+}
+
+export const connectFeedStream: FeedStreamConnector = (url, onChange) => {
   const core = createStreamCore();
   let ws: WebSocket | null = null;
   let socketState: SocketState = 'connecting';
@@ -58,20 +71,22 @@ export function connectFeedStream(url: string, onChange: () => void): FeedStream
 
   const now = (): number => performance.now();
 
-  function scheduleOpen(delayMs: number): void {
+  // `open` is referenced above its own definition, but only from inside these
+  // bodies — by the time either runs, the const below is initialised.
+  const scheduleOpen = (delayMs: number): void => {
     reconnectTimer = window.setTimeout(open, delayMs);
-  }
+  };
 
-  function handleEvents(events: StreamEvent[]): void {
+  const handleEvents = (events: StreamEvent[]): void => {
     const event = events[0];
     if (event === undefined) return;
     lastResync = event;
     resyncing = true; // our own deliberate drop — not the server's ending
     ws?.close();
     onChange();
-  }
+  };
 
-  function open(): void {
+  const open = (): void => {
     if (closed) return;
     socketState = 'connecting';
     const socket = new WebSocket(url, [...protocols]);
@@ -112,7 +127,7 @@ export function connectFeedStream(url: string, onChange: () => void): FeedStream
       onChange();
     };
     onChange();
-  }
+  };
 
   const watchdog = window.setInterval(() => handleEvents(core.onTick(now())), WATCHDOG_TICK_MS);
   open();
@@ -150,4 +165,4 @@ export function connectFeedStream(url: string, onChange: () => void): FeedStream
       ws?.close();
     },
   };
-}
+};

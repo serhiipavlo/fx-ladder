@@ -1,8 +1,7 @@
 import { percentile } from '@fx/domain';
 import { FX_SUBPROTOCOL, PREFERRED_SUBPROTOCOLS } from '@fx/protocol';
 
-import type { CloseInfo, FeedStreamHandle, SocketState } from './connect';
-import type { StreamCore, StreamEvent } from './core';
+import type { FeedStreamHandle, FeedTransportView } from './connect';
 
 // React-facing wrapper over the stream — and the home of the release's
 // centrepiece (architecture §6.4): HOW state changes reach React is a mode.
@@ -32,24 +31,15 @@ export interface RenderStats {
   flushP95: number;
 }
 
-export interface FeedStore {
+export interface FeedStore extends FeedTransportView {
   subscribe(listener: () => void): () => void;
-  core: StreamCore;
-  socketState(): SocketState;
-  lastResync(): StreamEvent | null;
-  lastClose(): CloseInfo | null;
-  terminal(): boolean;
-  resume(): void;
   version(): number;
   pairVersion(pairId: number): number;
   renderMode(): RenderMode;
   setRenderMode(mode: RenderMode): void;
   renderStats(): RenderStats;
-  /** The negotiated /feed subprotocol; null before the first open. */
-  wire(): string | null;
   /** The demo's live wire contrast (ADR-12): force fx.v1 or return to fx.v2. */
   setWire(next: 'fx.v2' | 'fx.v1'): void;
-  close(): void;
 }
 
 export interface FeedStoreOptions {
@@ -59,75 +49,144 @@ export interface FeedStoreOptions {
   nowFn?: () => number;
 }
 
-const SAMPLE_RING = 512;
+/** How many timings each ring keeps — the window p95 is computed over. */
+export const SAMPLE_RING = 512;
 
-function pushSample(ring: number[], cursor: { at: number }, value: number): void {
-  if (ring.length < SAMPLE_RING) {
-    ring.push(value);
-  } else {
-    ring[cursor.at] = value;
-    cursor.at = (cursor.at + 1) % SAMPLE_RING;
-  }
+/** A bounded window of timings that answers the only question we ask of it. */
+interface SampleRing {
+  push(value: number): void;
+  p95(): number;
 }
+
+/** Builds an empty sample ring. */
+interface SampleRingFactory {
+  (): SampleRing;
+}
+
+/**
+ * Counts and times the two costs §6.4 is about, and nothing else — the store
+ * next door is then free to be only about how changes reach React.
+ */
+interface RenderMeter {
+  /** One wire message handled, in `ms` — whatever the mode did with it. */
+  message(ms: number): void;
+  /** One coalesced flush, in `ms`. */
+  flush(ms: number): void;
+  /** One listener pass happened. */
+  render(): void;
+  /** The mode is the store's to know, so it comes in rather than living here. */
+  stats(mode: RenderMode): RenderStats;
+}
+
+/** Builds a meter with both rings empty. */
+interface RenderMeterFactory {
+  (): RenderMeter;
+}
+
+/** Wraps a transport in the React-facing store. */
+interface FeedStoreFactory {
+  (connect: (onChange: () => void) => FeedStreamHandle, options?: FeedStoreOptions): FeedStore;
+}
+
+/** The ring owns its own write head — a full one overwrites the oldest sample. */
+const createSampleRing: SampleRingFactory = () => {
+  const values: number[] = [];
+  let head = 0;
+  return {
+    push(value) {
+      if (values.length < SAMPLE_RING) {
+        values.push(value);
+        return;
+      }
+      values[head] = value;
+      head = (head + 1) % SAMPLE_RING;
+    },
+    p95: () => percentile(values, 95),
+  };
+};
+
+const createRenderMeter: RenderMeterFactory = () => {
+  let messages = 0;
+  let renders = 0;
+  const messageSamples = createSampleRing();
+  const flushSamples = createSampleRing();
+
+  return {
+    message(ms) {
+      messages += 1;
+      messageSamples.push(ms);
+    },
+    flush: (ms) => flushSamples.push(ms),
+    render: () => {
+      renders += 1;
+    },
+    stats: (mode) => ({
+      mode,
+      messages,
+      renders,
+      messageP95: messageSamples.p95(),
+      flushP95: flushSamples.p95(),
+    }),
+  };
+};
 
 /**
  * `connect` receives the store's notifier and returns the transport handle —
  * production passes `connectFeedStream`, tests pass a handle around a bare
  * core and keep the notifier to drive renders by hand.
  */
-export function createFeedStore(
-  connect: (onChange: () => void) => FeedStreamHandle,
-  options: FeedStoreOptions = {},
-): FeedStore {
+export const createFeedStore: FeedStoreFactory = (connect, options = {}) => {
   const scheduleFrame =
     options.scheduleFrame ?? ((callback: () => void) => window.requestAnimationFrame(() => callback()));
   const now = options.nowFn ?? ((): number => performance.now());
 
   const listeners = new Set<() => void>();
+  const meter = createRenderMeter();
   let mode: RenderMode = 'coalesced';
   let framePending = false;
   /** Store-local changes (mode flips) must move the snapshot too. */
   let localVersion = 0;
 
-  let messages = 0;
-  let renders = 0;
-  const messageSamples: number[] = [];
-  const messageCursor = { at: 0 };
-  const flushSamples: number[] = [];
-  const flushCursor = { at: 0 };
-
-  function notifyNow(): void {
-    renders += 1;
+  const notifyNow = (): void => {
+    meter.render();
     for (const listener of listeners) listener();
-  }
+  };
 
-  function onChange(): void {
-    const started = now();
-    messages += 1;
-    if (mode === 'naive') {
-      // The whole cost lands here, synchronously — this is the number that
-      // explodes when the wire is unbatched (§6.4).
-      notifyNow();
-      pushSample(messageSamples, messageCursor, now() - started);
-      return;
-    }
-    pushSample(messageSamples, messageCursor, now() - started);
+  /** At most one frame is ever in flight; everything since the last one rides it. */
+  const scheduleFlush = (): void => {
     if (framePending) return;
     framePending = true;
     scheduleFrame(() => {
       framePending = false;
-      const flushStarted = now();
+      const started = now();
       notifyNow();
-      pushSample(flushSamples, flushCursor, now() - flushStarted);
+      meter.flush(now() - started);
     });
-  }
+  };
+
+  const onChange = (): void => {
+    const started = now();
+    if (mode === 'naive') {
+      // The whole cost lands here, synchronously — this is the number that
+      // explodes when the wire is unbatched (§6.4).
+      notifyNow();
+      meter.message(now() - started);
+      return;
+    }
+    // Coalesced charges the message only for its own bookkeeping; the render
+    // it will eventually cause is flushP95, billed to the frame that ran it.
+    meter.message(now() - started);
+    scheduleFlush();
+  };
 
   const handle = connect(onChange);
 
   return {
     subscribe(listener) {
       listeners.add(listener);
-      return () => listeners.delete(listener);
+      return () => {
+        listeners.delete(listener);
+      };
     },
     core: handle.core,
     socketState: () => handle.socketState(),
@@ -143,13 +202,7 @@ export function createFeedStore(
       localVersion += 1;
       notifyNow(); // the toggle itself must be visible immediately
     },
-    renderStats: () => ({
-      mode,
-      messages,
-      renders,
-      messageP95: percentile(messageSamples, 95),
-      flushP95: percentile(flushSamples, 95),
-    }),
+    renderStats: () => meter.stats(mode),
     wire: () => handle.wire(),
     setWire(next) {
       handle.setProtocols(next === 'fx.v1' ? [FX_SUBPROTOCOL] : PREFERRED_SUBPROTOCOLS);
@@ -158,4 +211,4 @@ export function createFeedStore(
     },
     close: () => handle.close(),
   };
-}
+};

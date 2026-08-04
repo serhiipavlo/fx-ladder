@@ -60,6 +60,12 @@ export interface OrderStateData {
   updatedAt: number;
 }
 
+/** What moved since the last takeChanged() — the grid's transaction payload. */
+export interface OrdersDelta {
+  changed: OrderRow[];
+  removed: string[];
+}
+
 export interface OrdersStore {
   subscribe(listener: () => void): () => void;
   version(): number;
@@ -76,7 +82,7 @@ export interface OrdersStore {
    * freezes (measured: a full-book diff per frame blocked the main thread
    * for seconds).
    */
-  takeChanged(): { changed: OrderRow[]; removed: string[] };
+  takeChanged(): OrdersDelta;
   /** Fired with the flush that contained any TRADE — positions changed server-side (§7.3). */
   onTrade(listener: () => void): () => void;
   /** Queue incoming reports until reconcile() lands the snapshot. */
@@ -108,7 +114,17 @@ export interface OrdersStoreOptions {
   capacity?: number;
 }
 
-export function createOrdersStore(options: OrdersStoreOptions = {}): OrdersStore {
+/** Builds the client-side order book. */
+interface OrdersStoreFactory {
+  (options?: OrdersStoreOptions): OrdersStore;
+}
+
+/** True when a row can receive no further events. */
+interface TerminalCheck {
+  (row: OrderRow): boolean;
+}
+
+export const createOrdersStore: OrdersStoreFactory = (options = {}) => {
   const scheduleNotify =
     options.scheduleNotify ?? ((callback: () => void) => window.requestAnimationFrame(() => callback()));
   const capacity = options.capacity ?? 5000;
@@ -136,7 +152,7 @@ export function createOrdersStore(options: OrdersStoreOptions = {}): OrdersStore
    * would leave the next one with no history to fold onto. Runs at flush
    * time, once per frame, so a burst pays for it once and not per message.
    */
-  function prune(): void {
+  const prune = (): void => {
     if (rows.size <= capacity) return;
     const retired = [...rows.values()]
       .filter((row) => isTerminalStatus(row.status))
@@ -151,9 +167,9 @@ export function createOrdersStore(options: OrdersStoreOptions = {}): OrdersStore
       excess -= 1;
     }
     version += 1;
-  }
+  };
 
-  function markDirty(trade: boolean): void {
+  const markDirty = (trade: boolean): void => {
     version += 1;
     if (trade) tradesPending = true;
     if (notifyPending) return;
@@ -168,9 +184,9 @@ export function createOrdersStore(options: OrdersStoreOptions = {}): OrdersStore
         for (const listener of tradeListeners) listener();
       }
     });
-  }
+  };
 
-  function fold(report: EnrichedExecutionReport): void {
+  const fold = (report: EnrichedExecutionReport): void => {
     const next = applyReport(progress.get(report.clOrdId) ?? null, report, report.orderQtyK);
     newDay = false; // an event landed: the new day is being written
     progress.set(report.clOrdId, next);
@@ -191,9 +207,9 @@ export function createOrdersStore(options: OrdersStoreOptions = {}): OrdersStore
     });
     dirty.add(report.clOrdId);
     markDirty(report.execType === 'TRADE');
-  }
+  };
 
-  function ingestNow(report: EnrichedExecutionReport): void {
+  const ingestNow = (report: EnrichedExecutionReport): void => {
     const known = rows.get(report.clOrdId)?.eventSeq ?? 0;
     if (report.eventSeq <= known) return; // provably a duplicate of state we hold
     if (report.eventSeq !== known + 1) {
@@ -204,7 +220,7 @@ export function createOrdersStore(options: OrdersStoreOptions = {}): OrdersStore
       return;
     }
     fold(report);
-  }
+  };
 
   return {
     subscribe(listener) {
@@ -308,8 +324,6 @@ export function createOrdersStore(options: OrdersStoreOptions = {}): OrdersStore
       return { changed, removed: gone };
     },
   };
-}
+};
 
-export function isDone(row: OrderRow): boolean {
-  return isTerminalStatus(row.status);
-}
+export const isDone: TerminalCheck = (row) => isTerminalStatus(row.status);

@@ -6,9 +6,9 @@ import { Boundary } from './Boundary';
 
 // AC-12 as a test: one widget's render error stays that widget's problem.
 
-function Bomb(): never {
+const Bomb = (): never => {
   throw new Error('formatter exploded');
-}
+};
 
 afterEach(cleanup);
 

@@ -30,11 +30,12 @@ beforeEach(() => {
 afterEach(() => server.resetHandlers());
 afterAll(() => server.close());
 
-function makeWrapper(client: QueryClient) {
-  return function Wrapper({ children }: { children: React.ReactNode }): React.JSX.Element {
-    return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
-  };
-}
+const makeWrapper = (client: QueryClient) => {
+  const Wrapper = ({ children }: { children: React.ReactNode }): React.JSX.Element => (
+    <QueryClientProvider client={client}>{children}</QueryClientProvider>
+  );
+  return Wrapper;
+};
 
 describe('catalogue via React Query (done-when of T-0.3.7)', () => {
   it('a remount inside the freshness window issues no network request', async () => {

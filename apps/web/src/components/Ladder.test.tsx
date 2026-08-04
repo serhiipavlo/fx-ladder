@@ -6,14 +6,14 @@ import { act, cleanup, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { Ladder } from './Ladder';
-import type { FeedStreamHandle, SocketState } from './stream/connect';
-import { createStreamCore } from './stream/core';
-import { createFeedStore } from './stream/store';
+import type { FeedStreamHandle, SocketState } from '../stream/connect';
+import { createStreamCore } from '../stream/core';
+import { createFeedStore } from '../stream/store';
 
 const normal = normalJson as unknown as Frame[];
 const SNAPSHOT = normal[0]!;
 
-function makeHarness(socket: SocketState = 'open') {
+const makeHarness = (socket: SocketState = 'open') => {
   const core = createStreamCore();
   let notify: () => void = () => undefined;
   const handle: FeedStreamHandle = {
@@ -40,7 +40,7 @@ function makeHarness(socket: SocketState = 'open') {
     notify();
   };
   return { core, store, feed };
-}
+};
 
 afterEach(cleanup);
 

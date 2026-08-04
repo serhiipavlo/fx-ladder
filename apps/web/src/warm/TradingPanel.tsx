@@ -3,7 +3,7 @@ import { useApolloClient, useMutation, useQuery, useSubscription } from '@apollo
 import { pairIdOf, type EnrichedExecutionReport, type Instrument } from '@fx/domain';
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 
-import { Boundary } from '../Boundary';
+import { Boundary } from '../components/Boundary';
 import type { FeedStore } from '../stream/store';
 import { OrdersBlotter } from './Blotter';
 import { createOrdersStore, type OrdersStore, type OrderStateData } from './orders';
@@ -82,6 +82,66 @@ export interface PositionData {
   realisedPnl: number;
 }
 
+// Shapes the four operations above return, named so the hook call sites read
+// as the operation rather than as its payload.
+
+export interface SubmitOrderAck {
+  clOrdId: string;
+}
+
+export interface SubmitOrderData {
+  submitOrder: SubmitOrderAck;
+}
+
+export interface ReportsData {
+  executionReports: EnrichedExecutionReport;
+}
+
+export interface PositionsData {
+  positions: PositionData[];
+}
+
+export interface OrdersData {
+  orders: OrderStateData[];
+}
+
+export interface PositionsViewProps {
+  feedStore: FeedStore;
+  positions: readonly PositionData[];
+}
+
+export interface TicketProps {
+  instruments: readonly Instrument[];
+  onSubmitted?: (clOrdId: string) => void;
+}
+
+export interface NewDayNoteProps {
+  orders: OrdersStore;
+}
+
+export interface TradingSectionProps {
+  feedStore: FeedStore;
+  instruments: readonly Instrument[];
+  /** The warm socket's post-drop hook; resubscription itself is graphql-ws's. */
+  onReconnect?: (listener: () => void) => () => void;
+}
+
+interface PositionsViewComponent {
+  (props: PositionsViewProps): React.JSX.Element;
+}
+
+interface TicketComponent {
+  (props: TicketProps): React.JSX.Element;
+}
+
+interface NewDayNoteComponent {
+  (props: NewDayNoteProps): React.JSX.Element | null;
+}
+
+interface TradingSectionComponent {
+  (props: TradingSectionProps): React.JSX.Element;
+}
+
 const cell: React.CSSProperties = { padding: '0.1rem 0.75rem 0.1rem 0', textAlign: 'right' };
 const cellLeft: React.CSSProperties = { ...cell, textAlign: 'left' };
 
@@ -90,13 +150,7 @@ const cellLeft: React.CSSProperties = { ...cell, textAlign: 'left' };
  * when the query data changes (trade events → refetch), `unrealised` is
  * computed inline from the hot mid on every feed-driven render.
  */
-export function PositionsView({
-  feedStore,
-  positions,
-}: {
-  feedStore: FeedStore;
-  positions: readonly PositionData[];
-}): React.JSX.Element {
+export const PositionsView: PositionsViewComponent = ({ feedStore, positions }) => {
   useSyncExternalStore(feedStore.subscribe, () => feedStore.version());
   const books = feedStore.core.books();
   return (
@@ -132,7 +186,7 @@ export function PositionsView({
       </tbody>
     </table>
   );
-}
+};
 
 interface OrderInputState {
   pair: string;
@@ -141,15 +195,9 @@ interface OrderInputState {
   ioc: boolean;
 }
 
-export function Ticket({
-  instruments,
-  onSubmitted,
-}: {
-  instruments: readonly Instrument[];
-  onSubmitted?: (clOrdId: string) => void;
-}): React.JSX.Element {
+export const Ticket: TicketComponent = ({ instruments, onSubmitted }) => {
   const [form, setForm] = useState<OrderInputState>({ pair: 'EURUSD', side: 'buy', qtyK: 500, ioc: false });
-  const [submit, { loading, error }] = useMutation<{ submitOrder: { clOrdId: string } }>(SUBMIT_ORDER);
+  const [submit, { loading, error }] = useMutation<SubmitOrderData>(SUBMIT_ORDER);
   const [lastAck, setLastAck] = useState<string | null>(null);
 
   const send = async (): Promise<void> => {
@@ -202,15 +250,15 @@ export function Ticket({
       >
         submit
       </button>
-      {lastAck === null ? null : (
+      {lastAck !== null && (
         <small data-testid="ticket-ack">
           ack <code>{lastAck}</code>
         </small>
       )}
-      {error === undefined ? null : <small style={{ color: '#dc322f' }}>{error.message}</small>}
+      {error !== undefined && <small style={{ color: '#dc322f' }}>{error.message}</small>}
     </div>
   );
-}
+};
 
 /**
  * The ADR-10 sentence, written where a viewer sees it (T-1.0.1): after a
@@ -218,7 +266,7 @@ export function Ticket({
  * and a restart is a new trading day. Without this line an emptied blotter
  * reads as a bug; with it, as a documented property of the system.
  */
-export function NewDayNote({ orders }: { orders: OrdersStore }): React.JSX.Element | null {
+export const NewDayNote: NewDayNoteComponent = ({ orders }) => {
   useSyncExternalStore(orders.subscribe, () => orders.version());
   if (!orders.newDay()) return null;
   return (
@@ -226,21 +274,12 @@ export function NewDayNote({ orders }: { orders: OrdersStore }): React.JSX.Eleme
       server restarted — a new trading day (ADR-10): state lives in memory, so orders and positions start clean
     </p>
   );
-}
+};
 
 /** Bridges the subscription into the orders store and refetches positions on trades. */
-export function TradingSection({
-  feedStore,
-  instruments,
-  onReconnect,
-}: {
-  feedStore: FeedStore;
-  instruments: readonly Instrument[];
-  /** The warm socket's post-drop hook; resubscription itself is graphql-ws's. */
-  onReconnect?: (listener: () => void) => () => void;
-}): React.JSX.Element {
+export const TradingSection: TradingSectionComponent = ({ feedStore, instruments, onReconnect }) => {
   const [orders] = useState(() => createOrdersStore());
-  useSubscription<{ executionReports: EnrichedExecutionReport }>(REPORTS_SUBSCRIPTION, {
+  useSubscription<ReportsData>(REPORTS_SUBSCRIPTION, {
     onData: ({ data }) => {
       if (data.data) orders.ingest(data.data.executionReports);
     },
@@ -250,7 +289,7 @@ export function TradingSection({
     // messages a second.
     ignoreResults: true,
   });
-  const { data: positionsData, refetch } = useQuery<{ positions: PositionData[] }>(POSITIONS_QUERY, {
+  const { data: positionsData, refetch } = useQuery<PositionsData>(POSITIONS_QUERY, {
     fetchPolicy: 'cache-and-network',
   });
   // Realised P&L changes only on trade events (§7.3): refetch exactly then.
@@ -266,7 +305,7 @@ export function TradingSection({
   resyncRef.current = () => {
     orders.beginResync();
     apollo
-      .query<{ orders: OrderStateData[] }>({ query: ORDERS_QUERY, fetchPolicy: 'network-only' })
+      .query<OrdersData>({ query: ORDERS_QUERY, fetchPolicy: 'network-only' })
       .then(({ data }) => {
         if (data === undefined) throw new Error('empty snapshot response');
         orders.reconcile(data.orders);
@@ -295,4 +334,4 @@ export function TradingSection({
       </div>
     </section>
   );
-}
+};
