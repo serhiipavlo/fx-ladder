@@ -16,7 +16,7 @@ import { PositionsView, type PositionData } from './TradingPanel';
 const normal = normalJson as unknown as Frame[];
 const SNAPSHOT = normal[0]!;
 
-function makeFeedHarness() {
+const makeFeedHarness = () => {
   const core = createStreamCore();
   let notify: () => void = () => undefined;
   const handle: FeedStreamHandle = {
@@ -42,7 +42,7 @@ function makeFeedHarness() {
     notify();
   };
   return { store, feed };
-}
+};
 
 afterEach(cleanup);
 

@@ -52,7 +52,12 @@ export interface LoadSampler {
   capacity: number;
 }
 
-export function createLoadSampler(capacity = 120): LoadSampler {
+/** Builds a sampler that folds polls into a bounded series. */
+interface LoadSamplerFactory {
+  (capacity?: number): LoadSampler;
+}
+
+export const createLoadSampler: LoadSamplerFactory = (capacity = 120) => {
   const samples: LoadSample[] = [];
   let previous: LoadSnapshot | null = null;
 
@@ -90,14 +95,19 @@ export function createLoadSampler(capacity = 120): LoadSampler {
       if (samples.length > capacity) samples.splice(0, samples.length - capacity);
     },
   };
-}
+};
 
 /**
  * Axis ceiling from the 1-2-5 ladder: the scale must be readable and, more
  * importantly, STILL — a max that re-fits every second turns a chart into a
  * lava lamp and hides the very trend it is drawn to show.
  */
-export function niceMax(values: readonly number[], floor = 1): number {
+/** Picks a still, readable axis ceiling for a series. */
+interface AxisCeiling {
+  (values: readonly number[], floor?: number): number;
+}
+
+export const niceMax: AxisCeiling = (values, floor = 1) => {
   const peak = values.reduce((max, value) => (value > max ? value : max), 0);
   if (!(peak > 0)) return floor;
   const magnitude = 10 ** Math.floor(Math.log10(peak));
@@ -106,7 +116,7 @@ export function niceMax(values: readonly number[], floor = 1): number {
     if (peak <= candidate) return Math.max(candidate, floor);
   }
   return Math.max(10 * magnitude, floor);
-}
+};
 
 export interface SparkGeometry {
   width: number;
@@ -122,7 +132,12 @@ export interface SparkGeometry {
  * can assert the geometry without a browser, and the chart cannot drift from
  * what the numbers say.
  */
-export function sparkPath(values: readonly number[], geometry: SparkGeometry): string {
+/** Turns a series into one SVG path string. */
+interface SparkPathBuilder {
+  (values: readonly number[], geometry: SparkGeometry): string;
+}
+
+export const sparkPath: SparkPathBuilder = (values, geometry) => {
   const { width, height, max, slots } = geometry;
   if (values.length === 0) return '';
   const span = Math.max(1, slots - 1);
@@ -137,9 +152,12 @@ export function sparkPath(values: readonly number[], geometry: SparkGeometry): s
       return `${i === 0 ? 'M' : 'L'}${x},${y}`;
     })
     .join(' ');
+};
+
+/** Reads the current value off the end of a series. */
+interface SeriesLatest {
+  (values: readonly number[]): number;
 }
 
 /** Current value of a series, or 0 before the first sample. */
-export function latest(values: readonly number[]): number {
-  return values.length === 0 ? 0 : values[values.length - 1]!;
-}
+export const latest: SeriesLatest = (values) => (values.length === 0 ? 0 : values[values.length - 1]!);

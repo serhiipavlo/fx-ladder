@@ -7,13 +7,13 @@ import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { Panel } from './Panel';
-import type { FeedStreamHandle } from './stream/connect';
-import { createStreamCore } from './stream/core';
-import { createFeedStore } from './stream/store';
+import type { FeedStreamHandle } from '../stream/connect';
+import { createStreamCore } from '../stream/core';
+import { createFeedStore } from '../stream/store';
 
 const normal = normalJson as unknown as Frame[];
 
-function makeHarness() {
+const makeHarness = () => {
   const core = createStreamCore();
   let notify: () => void = () => undefined;
   const handle: FeedStreamHandle = {
@@ -35,7 +35,7 @@ function makeHarness() {
     { scheduleFrame: (cb) => cb(), nowFn: () => 0 },
   );
   return { core, store, notify };
-}
+};
 
 afterEach(() => {
   cleanup();

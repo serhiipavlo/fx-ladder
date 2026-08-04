@@ -3,43 +3,39 @@ import { describe, expect, it } from 'vitest';
 
 import { createOrdersStore, type OrderStateData } from './orders';
 
-function report(partial: Partial<EnrichedExecutionReport>): EnrichedExecutionReport {
-  return {
-    clOrdId: 'A',
-    pair: 'EURUSD',
-    side: 'buy',
-    orderQtyK: 300,
-    tif: 'DAY',
-    eventSeq: 1,
-    execType: 'NEW',
-    ordStatus: 'NEW',
-    lastPx: null,
-    lastQty: null,
-    cumQty: 0,
-    leavesQty: 300,
-    rejectReason: null,
-    transactTime: 1,
-    ...partial,
-  };
-}
+const report = (partial: Partial<EnrichedExecutionReport>): EnrichedExecutionReport => ({
+  clOrdId: 'A',
+  pair: 'EURUSD',
+  side: 'buy',
+  orderQtyK: 300,
+  tif: 'DAY',
+  eventSeq: 1,
+  execType: 'NEW',
+  ordStatus: 'NEW',
+  lastPx: null,
+  lastQty: null,
+  cumQty: 0,
+  leavesQty: 300,
+  rejectReason: null,
+  transactTime: 1,
+  ...partial,
+});
 
-function state(partial: Partial<OrderStateData> & { clOrdId?: string }): OrderStateData {
-  return {
-    clOrdId: 'A',
-    pair: 'EURUSD',
-    side: 'buy',
-    orderQtyK: 300,
-    tif: 'DAY',
-    ordStatus: 'FILLED',
-    cumQty: 300,
-    leavesQty: 0,
-    lastPx: 108_510,
-    rejectReason: null,
-    eventSeq: 3,
-    updatedAt: 9,
-    ...partial,
-  };
-}
+const state = (partial: Partial<OrderStateData> & { clOrdId?: string }): OrderStateData => ({
+  clOrdId: 'A',
+  pair: 'EURUSD',
+  side: 'buy',
+  orderQtyK: 300,
+  tif: 'DAY',
+  ordStatus: 'FILLED',
+  cumQty: 300,
+  leavesQty: 0,
+  lastPx: 108_510,
+  rejectReason: null,
+  eventSeq: 3,
+  updatedAt: 9,
+  ...partial,
+});
 
 /** Synchronous scheduler: every ingest flushes immediately, as pre-T-0.4.6. */
 const sync = { scheduleNotify: (cb: () => void) => cb() };
@@ -193,7 +189,7 @@ describe('the grid feed — what changed, and only that', () => {
 });
 
 describe('the book is bounded — a blotter is not a landfill', () => {
-  function fill(store: ReturnType<typeof createOrdersStore>, from: number, count: number, terminal: boolean): void {
+  const fill = (store: ReturnType<typeof createOrdersStore>, from: number, count: number, terminal: boolean): void => {
     for (let i = from; i < from + count; i += 1) {
       const id = `O-${i}`;
       store.ingest(report({ clOrdId: id, transactTime: i }));
@@ -213,7 +209,7 @@ describe('the book is bounded — a blotter is not a landfill', () => {
         );
       }
     }
-  }
+  };
 
   it('keeps the newest `capacity` orders and retires the oldest finished ones', () => {
     const store = createOrdersStore({ ...sync, capacity: 10 });

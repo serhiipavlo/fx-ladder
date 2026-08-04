@@ -2,7 +2,7 @@ import { ApolloClient, InMemoryCache } from '@apollo/client';
 import { GraphQLWsLink } from '@apollo/client/link/subscriptions';
 import { createClient } from 'graphql-ws';
 
-import { graphqlWsUrl } from '../backend';
+import { graphqlWsUrl } from '../lib/backend';
 
 // The warm plane's client half (architecture §7.3). ALL operations — query,
 // mutation, subscription — ride this single WebSocket on purpose (ADR-05):
@@ -22,7 +22,12 @@ export interface WarmConnection {
   onReconnect(listener: () => void): () => void;
 }
 
-export function createWarmClient(): WarmConnection {
+/** Builds the page-lifetime warm-plane client. */
+interface WarmClientFactory {
+  (): WarmConnection;
+}
+
+export const createWarmClient: WarmClientFactory = () => {
   const reconnectListeners = new Set<() => void>();
   const link = new GraphQLWsLink(
     createClient({
@@ -45,4 +50,4 @@ export function createWarmClient(): WarmConnection {
       return () => reconnectListeners.delete(listener);
     },
   };
-}
+};

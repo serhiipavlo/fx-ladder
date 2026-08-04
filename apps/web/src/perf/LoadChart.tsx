@@ -66,7 +66,11 @@ const SERIES: readonly SeriesSpec[] = [
   },
 ];
 
-export function LoadChart({ samples, slots }: LoadChartProps): React.JSX.Element {
+interface LoadChartComponent {
+  (props: LoadChartProps): React.JSX.Element;
+}
+
+export const LoadChart: LoadChartComponent = ({ samples, slots }) => {
   return (
     <div
       data-testid="load-chart"
@@ -109,4 +113,4 @@ export function LoadChart({ samples, slots }: LoadChartProps): React.JSX.Element
       })}
     </div>
   );
-}
+};

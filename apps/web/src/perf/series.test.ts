@@ -3,18 +3,16 @@ import { describe, expect, it } from 'vitest';
 
 import { createLoadSampler, latest, niceMax, sparkPath, type LoadSnapshot } from './series';
 
-function snapshot(partial: Partial<LoadSnapshot>): LoadSnapshot {
-  return {
-    uptimeMs: 1000,
-    sent: 0,
-    framesSent: 0,
-    tickP95: 0.5,
-    clients: 1,
-    renders: 0,
-    wireBytesPerSec: 1024,
-    ...partial,
-  };
-}
+const snapshot = (partial: Partial<LoadSnapshot>): LoadSnapshot => ({
+  uptimeMs: 1000,
+  sent: 0,
+  framesSent: 0,
+  tickP95: 0.5,
+  clients: 1,
+  renders: 0,
+  wireBytesPerSec: 1024,
+  ...partial,
+});
 
 describe('load sampler', () => {
   it('needs two points to know a rate, then differentiates against the server clock', () => {

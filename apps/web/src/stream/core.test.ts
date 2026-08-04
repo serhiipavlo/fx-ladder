@@ -14,9 +14,8 @@ const midstream = midstreamJson as unknown as Frame[];
 const heartbeatSilence = heartbeatJson as unknown as Frame[];
 
 /** Replays fixture frames through the full decode path, clock = serverTs. */
-function replay(core: ReturnType<typeof createStreamCore>, frames: Frame[]): StreamEvent[] {
-  return frames.flatMap((frame) => core.onMessage(encodeFrame(frame), frame.serverTs));
-}
+const replay = (core: ReturnType<typeof createStreamCore>, frames: Frame[]): StreamEvent[] =>
+  frames.flatMap((frame) => core.onMessage(encodeFrame(frame), frame.serverTs));
 
 describe('normal stream', () => {
   it('goes live, builds all five books, keeps bid < ask', () => {
@@ -79,6 +78,19 @@ describe('the binary wire through the same core (ADR-12)', () => {
     expect(core.stats().wireBytes).toBe(first.byteLength + second.byteLength);
     expect(core.bytesPerSec(600)).toBe(first.byteLength + second.byteLength);
     expect(core.bytesPerSec(1400)).toBe(second.byteLength); // the first fell out of the window
+  });
+
+  it('the meter survives its own compaction: a long busy stream still reports one second', () => {
+    const core = createStreamCore();
+    const frame = encodeFrameBinary(normal[0]!);
+    // 400 messages 10ms apart — four seconds of traffic, so the window expires
+    // far more samples than it keeps and the meter compacts underneath.
+    for (let i = 0; i < 400; i += 1) core.onMessage(frame, i * 10);
+
+    expect(core.stats().wireBytes).toBe(frame.byteLength * 400); // cumulative: everything
+    // Trailing second at t=3990: the samples at 2_990…3_990 inclusive, 101 of them.
+    expect(core.bytesPerSec(3990)).toBe(frame.byteLength * 101);
+    expect(core.bytesPerSec(10_000)).toBe(0); // silence expires the window entirely
   });
 });
 

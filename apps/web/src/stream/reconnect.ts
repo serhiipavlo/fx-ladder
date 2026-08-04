@@ -11,6 +11,16 @@ export interface ReconnectDecision {
   label: string;
 }
 
+/** Turns an attempt count and a jitter draw into a delay. */
+interface BackoffCalculator {
+  (attempt: number, random: number): number;
+}
+
+/** Judges a close code into a reaction (§7.1). */
+interface ReconnectPolicy {
+  (code: number, attempt: number, random: number): ReconnectDecision;
+}
+
 const BASE_DELAY_MS = 500;
 const MAX_DELAY_MS = 10_000;
 
@@ -19,12 +29,12 @@ const MAX_DELAY_MS = 10_000;
  * attempt and is scaled by [0.5, 1) so a herd of clients dropped together
  * returns as a smear, not a wave (§7.1).
  */
-function backoff(attempt: number, random: number): number {
+const backoff: BackoffCalculator = (attempt, random) => {
   const raw = Math.min(MAX_DELAY_MS, BASE_DELAY_MS * 2 ** attempt);
   return Math.round(raw * (0.5 + 0.5 * random));
-}
+};
 
-export function reconnectDecision(code: number, attempt: number, random: number): ReconnectDecision {
+export const reconnectDecision: ReconnectPolicy = (code, attempt, random) => {
   switch (code) {
     case 1000:
       // The server said goodbye on purpose — coming back would defy it.
@@ -44,4 +54,4 @@ export function reconnectDecision(code: number, attempt: number, random: number)
       // 1006 and friends: network weather.
       return { action: 'retry', delayMs: backoff(attempt, random), label: 'connection lost — reconnecting' };
   }
-}
+};
