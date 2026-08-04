@@ -278,10 +278,13 @@ Never in scope, still interesting:
 |---|---|---|---|
 | v0.0.1 | §4 (skeleton), §9 | ADR-01, ADR-11 | NFR on live link / real network |
 | v0.1.0 | §3, §5.1–5.2, §6.1–6.3, §7.1 (partial), §8 (partial) | ADR-02, ADR-03 (revised), ADR-06, ADR-08 | NFR-08 (gap detect), AC-05, NFR-10 starts |
-| v0.2.0 | §5.2–5.4, §6 (full, incl. §6.4), §7.1 (full), §8 | ADR-09 (the surviving threshold half); ADR-07 withdrawn — see §5 | NFR-01/02, NFR-06/07, FR-05/06, AC-01, AC-04, AC-06 |
+| v0.2.0 | §5.2–5.4, §6 (full, incl. §6.4), §7.1 (full), §8 | ADR-09 (the surviving threshold half); ADR-07 withdrawn — see §5 | NFR-01/02, NFR-06/07, FR-05/06 *(wire half only — the render arrived in v1.3.0; "touched" hid that for four releases)*, AC-01, AC-04, AC-06 |
 | v0.3.0 | §5.5–5.6, §7.2, §7.3 (stale re-check) | ADR-06 (fill prices in pipettes); ADR-04 withdrawn | FR-11, FR-23 |
 | v0.4.0 | §7.3, §8 (scenario, blotter) | ADR-05, ADR-10 | FR-20 context, AC-11 |
 | v1.0.0 | §9, §11, §14 | all revisited | full demo script (spec §8) |
+| v1.1.0 | §6.1 (second codec) | ADR-12 | NFR-01 at a sixth of the bytes |
+| v1.2.0 | §6.4, §8 (`/sim/stats`) | — | AC-01 drawn rather than described |
+| v1.3.0 | §5.4 (the client half it was justified by) | ADR-04 withdrawn (why the walk cost is indicative) | **FR-05, FR-06, FR-07** — closed, not touched |
 
 ---
 
@@ -488,6 +491,14 @@ Tasks marked ∥ may run in parallel with the previous one; everything else is s
 ### v1.2.0 — Load chart *(tagged 2026-08-03)*
 
 **T-1.2.1 · Live load chart** — one load line and one cost line per boundary (records/s · server tick p95 · client renders/s · wire bytes/s) over the last 60 s, drawn from the `/sim/stats` poll the panel already made. Rates differentiated against the server's own clock; hand-drawn SVG, no charting dependency. *Done when:* `rate 50k` visibly lifts the load line while the server cost line stays flat, asserted in E2E from the values the chart puts on screen.
+
+### v1.3.0 — Depth ladder
+
+Not a backlog item: **FR-05, FR-06 and FR-07 were never implemented on screen**, and unlike every other absence in this project that one had no withdrawn ADR explaining it. The wire has carried four levels a side since v0.1 and the stream core has stored every one of them; the render read index 0 and dropped the rest, so roughly two thirds of the feed described prices nothing drew. §5.4 justifies depth *by* the client that renders it — a justification with no redeemer until now.
+
+**T-1.3.1 · Depth for the selected pair** — the cumulative arithmetic as a pure module (`apps/web/src/lib/depth.ts`), the panel as its render (`components/Depth.tsx`), and a ladder row promoted to the pair selector. Cumulative volume and the VWAP of walking to each level answer FR-06; a level is a `<button>`, so a click loads the ticket (FR-07) and the whole panel is keyboard-reachable by construction (AC-13). *Done when:* four levels a side are on screen with cum growing and the walk average never improving with depth, level 0 equals the price the ladder row already showed, and a clicked level submits — asserted in E2E against the frozen pair the control plane makes deterministic.
+
+*Named honestly, twice.* FR-06's number stays **indicative**, for the reason v0.3.0 already recorded: fills are scripted (§5.5, withdrawn ADR-04), so an execution's price does not derive from the depth on screen. The panel says so where a viewer reads it rather than only here. And the walk's cumulative volume can exceed what one order may be — four levels of up to 5000K reach twice the engine's ceiling — so the request is capped at `MAX_ORDER_QTY_K` and the ticket says when it had to cut. That constant moved to `domain` in the same change: it had been a literal in the Zod body and a constant in the engine, and the client is now a third party that must agree with both.
 
 ---
 

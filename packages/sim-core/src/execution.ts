@@ -1,5 +1,6 @@
 import {
   applyReport,
+  MAX_ORDER_QTY_K,
   type ExecutionReport,
   type OrderInput,
   type OrderProgress,
@@ -65,8 +66,6 @@ const DEFAULT_CONFIG: ExecutionConfig = {
   maxPartials: 3,
   eventGapMs: 120,
 };
-
-export const MAX_ORDER_QTY_K = 10_000;
 
 interface PendingEvent {
   dueAt: number;

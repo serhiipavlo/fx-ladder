@@ -1,8 +1,15 @@
-import { applyReport, isTerminalStatus, type ExecutionReport, type OrderInput, type OrderProgress } from '@fx/domain';
+import {
+  applyReport,
+  isTerminalStatus,
+  MAX_ORDER_QTY_K,
+  type ExecutionReport,
+  type OrderInput,
+  type OrderProgress,
+} from '@fx/domain';
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
 
-import { createExecutionEngine, MAX_ORDER_QTY_K, type TopOfBook } from './execution';
+import { createExecutionEngine, type TopOfBook } from './execution';
 import { createMarket } from './market';
 import { xoshiro128 } from './prng';
 

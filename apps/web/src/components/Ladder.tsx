@@ -4,9 +4,16 @@ import { memo, useSyncExternalStore } from 'react';
 import type { Level } from '../stream/core';
 import type { FeedStore } from '../stream/store';
 
-// Top-of-book ladder. Rendering is driven only by the stream layer's state:
-// each row subscribes to its pair's version counter, so one pair's update
-// re-renders exactly one row (NFR-03's first checkpoint, asserted by test).
+// Top-of-book watchlist across every pair. Rendering is driven only by the
+// stream layer's state: each row subscribes to its pair's version counter, so
+// one pair's update re-renders exactly one row (NFR-03's first checkpoint,
+// asserted by test).
+//
+// A row is also the pair selector for the depth ladder below (T-1.3.1): it is
+// a real `<button>`, so choosing what to look at costs no extra widget and
+// works from the keyboard by construction (AC-13). Selection changes on a
+// click and never on a tick, so it cannot disturb the per-pair isolation the
+// row exists to prove.
 
 /**
  * No update for one pair for this long while the channel is alive = the pair
@@ -20,6 +27,23 @@ const grid: React.CSSProperties = {
   gridTemplateColumns: '6rem 5rem 7rem 7rem 5rem',
   gap: '0 1rem',
   alignItems: 'baseline',
+  // The selected row is marked by colouring a border every row already has,
+  // so selection never moves anything on screen.
+  borderLeft: '2px solid transparent',
+  paddingLeft: '0.4rem',
+};
+
+/** A row is a button; none of the browser's button chrome is wanted. */
+const rowButton: React.CSSProperties = {
+  ...grid,
+  width: '100%',
+  font: 'inherit',
+  color: 'inherit',
+  background: 'none',
+  border: 'none',
+  borderLeft: '2px solid transparent',
+  textAlign: 'left',
+  cursor: 'pointer',
 };
 
 /** Renders one level's price, or the placeholder when the side is empty. */
@@ -53,6 +77,9 @@ interface RowProps {
   live: boolean;
   /** The pair went quiet while the channel stayed alive (AC-06). */
   stale: boolean;
+  /** This row's pair is the one the depth ladder is showing. */
+  selected: boolean;
+  onSelect?: (pairId: number) => void;
   /** Test hook for the render counter; unused in production. */
   onRender?: (symbol: string) => void;
 }
@@ -61,7 +88,7 @@ interface PairRowRender {
   (props: RowProps): React.JSX.Element;
 }
 
-const renderPairRow: PairRowRender = ({ store, instrument, pairId, live, stale, onRender }) => {
+const renderPairRow: PairRowRender = ({ store, instrument, pairId, live, stale, selected, onSelect, onRender }) => {
   useSyncExternalStore(store.subscribe, () => store.pairVersion(pairId));
   onRender?.(instrument.symbol);
 
@@ -80,7 +107,14 @@ const renderPairRow: PairRowRender = ({ store, instrument, pairId, live, stale, 
   }
 
   return (
-    <div style={{ ...grid, opacity }} data-testid={`row-${instrument.symbol}`}>
+    <button
+      type="button"
+      style={{ ...rowButton, opacity, borderLeftColor: selected ? '#2aa198' : 'transparent' }}
+      onClick={() => onSelect?.(pairId)}
+      aria-pressed={selected}
+      title={`show ${instrument.symbol} depth`}
+      data-testid={`row-${instrument.symbol}`}
+    >
       <strong>
         {instrument.symbol}
         {stale && (
@@ -94,7 +128,7 @@ const renderPairRow: PairRowRender = ({ store, instrument, pairId, live, stale, 
       <span style={{ textAlign: 'right', color: '#2aa198' }}>{price(bid, instrument.precision)}</span>
       <span style={{ textAlign: 'right', color: '#dc322f' }}>{price(ask, instrument.precision)}</span>
       <span style={{ textAlign: 'right', color: '#586e75' }}>{size(ask)}</span>
-    </div>
+    </button>
   );
 };
 
@@ -107,6 +141,9 @@ export interface LadderProps {
   store: FeedStore;
   /** The catalogue as served by the cold plane; pairId = index (§6.1). */
   instruments: readonly Instrument[];
+  /** The pair the depth ladder is showing; its row is marked. */
+  selectedPairId?: number;
+  onSelect?: (pairId: number) => void;
   onRowRender?: (symbol: string) => void;
   /** Clock used for staleness; injectable for tests. Same domain as the core's now. */
   nowFn?: () => number;
@@ -116,7 +153,7 @@ interface LadderComponent {
   (props: LadderProps): React.JSX.Element;
 }
 
-export const Ladder: LadderComponent = ({ store, instruments, onRowRender, nowFn }) => {
+export const Ladder: LadderComponent = ({ store, instruments, selectedPairId, onSelect, onRowRender, nowFn }) => {
   // The header subscribes to the global counter — it re-renders with the
   // stream, which is also what keeps the staleness computation fresh; the
   // rows stay gated by their own per-pair counters (plus the stale flag,
@@ -145,6 +182,8 @@ export const Ladder: LadderComponent = ({ store, instruments, onRowRender, nowFn
             pairId={pairId}
             live={live}
             stale={stale}
+            selected={pairId === selectedPairId}
+            onSelect={onSelect}
             onRender={onRowRender}
           />
         );

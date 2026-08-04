@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { MAX_ORDER_QTY_K } from './orders';
+
 // Control-plane bodies of v0.1.0 (architecture §8): one schema per endpoint,
 // strict — unknown keys are a rejection, not a shrug ("parse, don't
 // validate"). The server derives its 400 field-level reasons from these; the
@@ -106,7 +108,7 @@ export const simOrderBodySchema = z.strictObject({
   clOrdId: z.string().min(1).max(64).optional(),
   pair: z.string().regex(/^[A-Z]{6}$/, 'pair is a six-letter symbol like EURUSD'),
   side: z.enum(['buy', 'sell']),
-  qtyK: z.number().int().min(1).max(10_000),
+  qtyK: z.number().int().min(1).max(MAX_ORDER_QTY_K),
   tif: z.enum(['DAY', 'IOC']).optional().default('DAY'),
 });
 export type SimOrderBody = z.infer<typeof simOrderBodySchema>;

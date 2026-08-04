@@ -2,11 +2,12 @@
 
 A synthetic FX trading demo built as a frontend showcase with a deliberately
 minimal backend: a real-time WebSocket price feed with an honest liveness
-contract (dense sequence numbers, heartbeats, provable gaps), an order
-lifecycle speaking the FIX event grammar, a GraphQL warm plane for orders
-and positions, and a control plane that lets tests and demos **command** the
-world instead of waiting for luck. Everything deterministic by seed,
-everything measured, every failure demonstrable on purpose.
+contract (dense sequence numbers, heartbeats, provable gaps), a depth ladder
+that prices the cost of size, an order lifecycle speaking the FIX event
+grammar, a GraphQL warm plane for orders and positions, and a control plane
+that lets tests and demos **command** the world instead of waiting for luck.
+Everything deterministic by seed, everything measured, every failure
+demonstrable on purpose.
 
 **Live:** <https://fx-ladder-web.onrender.com> (free instance — the page
 offers **Wake the server** after idle sleep; waking takes up to a minute).
@@ -15,6 +16,7 @@ API docs (OpenAPI + AsyncAPI, generated from the live Zod schemas):
 
 | Document | What it holds |
 |---|---|
+| [SYSTEM_MAP.md](SYSTEM_MAP.md) | where every file lives, what it owns, and which §/ADR holds its reason |
 | [FX_LADDER_BUSINESS_SPEC_EN.md](FX_LADDER_BUSINESS_SPEC_EN.md) | product spec — FR/NFR/AC ids ([UA](FX_LADDER_BUSINESS_SPEC.md)) |
 | [FX_BACKEND_ARCHITECTURE.md](FX_BACKEND_ARCHITECTURE.md) | backend architecture, ADRs, risk register |
 | [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md) | the release ladder and its execution backlog |

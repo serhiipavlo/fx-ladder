@@ -6,6 +6,8 @@ import { ApolloProvider } from '@apollo/client/react';
 import { feedWsUrl, healthzUrl } from '../lib/backend';
 import { Boundary } from './Boundary';
 import { instrumentsQueryOptions } from '../lib/catalogue';
+import type { DepthPick } from '../lib/depth';
+import { Depth } from './Depth';
 import { Ladder } from './Ladder';
 import { Panel } from './Panel';
 import { StatusLine } from './StatusLine';
@@ -29,6 +31,12 @@ export const App: AppComponent = () => {
   const [store, setStore] = useState<FeedStore | null>(null);
   const [health, setHealth] = useState('fetching…');
   const [waking, setWaking] = useState(false);
+  // The pair the depth ladder shows, and the level the ticket was last loaded
+  // from (T-1.3.1). Both live here for the same reason: the ladder picks the
+  // pair, the depth panel picks the level, and the ticket — two sections away
+  // — is what receives it. Composition is this page's whole job.
+  const [selectedPairId, setSelectedPairId] = useState(0);
+  const [prefill, setPrefill] = useState<DepthPick | null>(null);
   // Page-lifetime Apollo client; the ws link is lazy and reconnects itself,
   // and onReconnect drives the T-0.4.8 state reconciliation in the section.
   const [warm] = useState(() => createWarmClient());
@@ -69,12 +77,30 @@ export const App: AppComponent = () => {
         <>
           <StatusLine store={store} />
           <Boundary name="ladder">
-            <Ladder store={store} instruments={instruments} />
+            <Ladder
+              store={store}
+              instruments={instruments}
+              selectedPairId={selectedPairId}
+              onSelect={setSelectedPairId}
+            />
+          </Boundary>
+          <Boundary name="depth">
+            <Depth
+              store={store}
+              instrument={instruments[selectedPairId]}
+              pairId={selectedPairId}
+              onPick={setPrefill}
+            />
           </Boundary>
           <WakePanel store={store} waking={waking} onWake={() => void wake()} />
           <ApolloProvider client={warm.client}>
             <Boundary name="trade">
-              <TradingSection feedStore={store} instruments={instruments} onReconnect={warm.onReconnect} />
+              <TradingSection
+                feedStore={store}
+                instruments={instruments}
+                prefill={prefill}
+                onReconnect={warm.onReconnect}
+              />
             </Boundary>
           </ApolloProvider>
           <Boundary name="demo panel">

@@ -1,5 +1,15 @@
 # Changelog
 
+## v1.3.0 — 2026-08-05
+
+- feat: **the depth ladder — FR-05, FR-06 and FR-07, none of which had ever been on screen.** The wire has carried four levels a side since v0.1 and the stream core stored every one of them; the render read index 0 and dropped the rest. By the model's own action mix that is **≈68 % of the feed describing prices nothing drew** — and §5.4 justifies depth precisely *by* the client that renders it. Unlike every other absence here, this one had no withdrawn ADR: it was a hole, not a decision.
+  - **depth for the selected pair** — four levels a side, offers descending to the spread and bids below it, with `price · size · cum · avg`. A ladder row is now the pair selector: a real `<button>`, so choosing what to watch costs no extra widget and the whole panel is keyboard-reachable (AC-13);
+  - **cum and avg answer FR-06** — cumulative volume down to each level, and the volume-weighted average of walking there. The arithmetic is a pure module (`lib/depth.ts`) with no React and no clock, so the invariants are tested against the real seeded book: cum grows by exactly the level's size, and the average never improves with depth;
+  - **a click loads the ticket (FR-07)** — pair, side (you buy from the offers, sell into the bids) and the volume the walk takes; the level's price and the walk average ride along **for display only**, because in this model an execution's price comes from the script, not the depth (§5.5). The panel says "indicative" where a viewer reads it;
+  - **fixed on the way:** a deep walk can ask for more than one order may be — four levels of up to 5000K reach twice the engine's ceiling — so the request is capped and the ticket says when it had to cut. `MAX_ORDER_QTY_K` moved into `domain` in the same change: it had been a literal in the Zod body and a separate constant in the engine, and the client is now a third party that must agree with both;
+  - pinned by E2E against a frozen pair — deterministic by control plane, not by luck — asserting that level 0 is the very price the ladder row already showed, that cum and avg walk the right way, and that a clicked level submits and reaches the blotter.
+- docs: [SYSTEM_MAP.md](SYSTEM_MAP.md) — where every file lives, what it owns, and which §/ADR holds its reason; plus the chain from a line of code up to the requirement it closes. The plan's traceability row for v0.2.0 now admits it delivered the **wire half** of FR-05/06 — the word "touched" had hidden the missing render for four releases — and architecture §10 gains the row those requirements never had.
+
 ## v1.2.3 — 2026-08-03
 
 - fix: the blotter showed **`CANCELED` with an empty reason column** and nothing on screen said why. In FIX that emptiness is correct — a cancel carries no reject reason, because rejections and cancels are different events (§5.6) — but the fact that *does* explain it, the order's **time in force**, never reached the client at all.

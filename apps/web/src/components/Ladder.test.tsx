@@ -2,8 +2,8 @@
 import { INSTRUMENTS } from '@fx/domain';
 import normalJson from '@fx/protocol/fixtures/normal-stream.json';
 import { assembleFrame, encodeFrame, type Frame } from '@fx/protocol';
-import { act, cleanup, render, screen } from '@testing-library/react';
-import { afterEach, describe, expect, it } from 'vitest';
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { Ladder } from './Ladder';
 import type { FeedStreamHandle, SocketState } from '../stream/connect';
@@ -125,5 +125,40 @@ describe('ladder (done-when of T-0.1.8)', () => {
     expect(screen.queryByTestId('stale-EURUSD')).toBeNull();
     // Stale ≠ disconnected: the connection itself still reads as live.
     expect(screen.getByTestId('row-USDJPY').style.opacity).not.toBe('0.4');
+  });
+
+  it('picks the pair for the depth ladder without disturbing the row isolation (T-1.3.1)', () => {
+    const { store, feed } = makeHarness();
+    const onSelect = vi.fn();
+    const counts = new Map<string, number>();
+    const collect = (symbol: string): void => {
+      counts.set(symbol, (counts.get(symbol) ?? 0) + 1);
+    };
+
+    render(
+      <Ladder
+        store={store}
+        instruments={INSTRUMENTS}
+        selectedPairId={0}
+        onSelect={onSelect}
+        onRowRender={collect}
+      />,
+    );
+    act(() => feed(SNAPSHOT));
+
+    // The marked row is the selected one, and it says so to a screen reader.
+    expect(screen.getByTestId('row-EURUSD').getAttribute('aria-pressed')).toBe('true');
+    expect(screen.getByTestId('row-USDJPY').getAttribute('aria-pressed')).toBe('false');
+
+    // Clicking a row asks for that pair by id, not by symbol — the depth
+    // panel keys off the same pairId the wire uses (§6.1).
+    const baseline = new Map(counts);
+    fireEvent.click(screen.getByTestId('row-USDJPY'));
+    expect(onSelect).toHaveBeenCalledWith(2);
+
+    // Selection is a click, never a tick: no row re-rendered because of it.
+    for (const [symbol, count] of baseline) {
+      expect(counts.get(symbol), `${symbol} must not re-render on a click`).toBe(count);
+    }
   });
 });
