@@ -11,7 +11,7 @@
       "description": "same origin (local dev via the Vite proxy)"
     },
     {
-      "url": "https://fx-ladder-feed.onrender.com",
+      "url": "https://fx-ladder-feed-91dq.onrender.com",
       "description": "live demo backend (free instance — may cold-start ~1 min)"
     }
   ],

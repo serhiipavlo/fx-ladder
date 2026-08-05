@@ -7,11 +7,11 @@ as history.
 
 ### Pre-flight — two minutes before you speak
 
-1. Open <https://fx-ladder-web.onrender.com>. If the free instance slept,
+1. Open <https://fx-ladder-web-ryry.onrender.com>. If the free instance slept,
    the page says so — press **Wake the server** and give it up to a minute.
    You want the feed line reading **live** before you start.
 2. Open the demo panel (`demo panel — /sim/* controls…` under the ladder).
-3. Optional second tab: [/docs](https://fx-ladder-web.onrender.com/docs/) —
+3. Optional second tab: [/docs](https://fx-ladder-web-ryry.onrender.com/docs/) —
    the OpenAPI/AsyncAPI page generated from the live schemas.
 4. **Decision point:** if the venue network is hostile, switch to the local
    fallback below — same server, same script, zero cloud.
@@ -66,7 +66,7 @@ No network needed beyond the clone.
 Container variant (closest to production — the exact deployed image):
 
 ```bash
-docker run --rm -p 8080:8080 ghcr.io/serhiipavlo/fx-ladder/feed-server:v1.0.0
+docker run --rm -p 8080:8080 ghcr.io/serhiipavlo/fx-ladder/feed-server:v1.3.0
 pnpm --filter @fx/web exec vite
 ```
 
@@ -130,7 +130,7 @@ refresh answers `304` with an empty body — the client's `staleTime` and the
 server's `max-age` are the same number by construction. The machine:
 
 ```bash
-node scripts/orders-burst.mjs https://fx-ladder-feed.onrender.com 30
+node scripts/orders-burst.mjs https://fx-ladder-feed-91dq.onrender.com 30
 ```
 
 — thirty synthetic orders expand into scripted lifecycles and the executions
@@ -154,7 +154,7 @@ around it ticks: the channel is provably alive, the pair is provably quiet.
 
 ## v0.1.0
 
-Open <https://fx-ladder-web.onrender.com>: five pairs tick live in the ladder,
+Open <https://fx-ladder-web-ryry.onrender.com>: five pairs tick live in the ladder,
 one batched frame per tick (visible in DevTools → Network → /feed). Kill the
 network and restore — the heartbeat watchdog declares the feed dead within
 3 s, the client reconnects and resnapshots. Then tear the stream on purpose:
@@ -164,7 +164,7 @@ snapshot, live again. Prices correct, no duplicates, no frozen ghosts.
 
 ## v0.0.1
 
-Open <https://fx-ladder-web.onrender.com> on a phone: the page loads, shows
+Open <https://fx-ladder-web-ryry.onrender.com> on a phone: the page loads, shows
 **connected** (`fx.v1`), the heartbeat counter ticks once per second, and the
 healthz line renders the result of a genuinely cross-origin fetch. If the
 free instance was asleep, the page says so and **Wake the server** brings it

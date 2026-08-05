@@ -9,10 +9,10 @@ that lets tests and demos **command** the world instead of waiting for luck.
 Everything deterministic by seed, everything measured, every failure
 demonstrable on purpose.
 
-**Live:** <https://fx-ladder-web.onrender.com> (free instance — the page
+**Live:** <https://fx-ladder-web-ryry.onrender.com> (free instance — the page
 offers **Wake the server** after idle sleep; waking takes up to a minute).
 API docs (OpenAPI + AsyncAPI, generated from the live Zod schemas):
-[/docs](https://fx-ladder-web.onrender.com/docs/).
+[/docs](https://fx-ladder-web-ryry.onrender.com/docs/).
 
 | Document | What it holds |
 |---|---|

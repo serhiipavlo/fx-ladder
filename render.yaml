@@ -3,9 +3,11 @@
 # (New → Blueprint → this repo); afterwards service settings sync from this
 # file on commits to master, so infra changes ride the same git flow as code.
 #
-# The two hostname literals below assume both service names are free on
-# onrender.com. If Render suffixes a name at first sync, correct the literals
-# here and commit — the next sync applies the fix.
+# The two hostname literals below carry the suffixes Render assigned because
+# the plain names were already taken by earlier services. If a service is ever
+# recreated, correct the literals here and commit — the next sync applies the
+# fix to the feed, while VITE_FEED_URL is baked into the bundle and needs a
+# static rebuild before it lands.
 
 services:
   # feed-server: hot/cold/control planes in one container, deployed from the
@@ -24,7 +26,7 @@ services:
       # One env feeds both halves of the defence: CORS on fetch paths and the
       # Origin allowlist on the WS upgrade (architecture §7.1, §9.2).
       - key: FX_ALLOWED_ORIGINS
-        value: https://fx-ladder-web.onrender.com,http://localhost:5173
+        value: https://fx-ladder-web-ryry.onrender.com,http://localhost:5173
 
   # web: static build with CDN and TLS. Render builds it from this repo when
   # the release workflow fires the deploy hook; per-commit auto-deploys stay
@@ -40,4 +42,4 @@ services:
     envVars:
       # Backend origin baked into the bundle at build time (architecture §9.2).
       - key: VITE_FEED_URL
-        value: https://fx-ladder-feed.onrender.com
+        value: https://fx-ladder-feed-91dq.onrender.com

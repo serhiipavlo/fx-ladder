@@ -24,10 +24,14 @@ not in the dashboard (a sync overwrites dashboard edits of managed settings).
    repo → apply. Render creates `fx-ladder-feed` (web service, free,
    Frankfurt) and `fx-ladder-web` (static site) exactly as declared.
 
-3. **Check the hostnames.** The env literals in `render.yaml` assume
-   `fx-ladder-feed.onrender.com` / `fx-ladder-web.onrender.com`. If Render
-   suffixed a name at first sync, correct both literals in `render.yaml` and
-   commit — the next sync applies the fix.
+3. **Check the hostnames.** A service name is not its subdomain: if the plain
+   name is taken anywhere on Render — including by a *suspended* service of
+   your own, which keeps its host — the new service gets a suffix. That
+   happened here, so the literals in `render.yaml` read
+   `fx-ladder-feed-91dq.onrender.com` / `fx-ladder-web-ryry.onrender.com`.
+   After correcting them, the feed picks the change up on the next sync, but
+   `VITE_FEED_URL` is compiled into the bundle — the static site must be
+   **rebuilt** or the page keeps talking to the previous host.
 
 4. Copy both **deploy hook URLs** (each service → Settings → Deploy Hook).
 
@@ -37,8 +41,8 @@ not in the dashboard (a sync overwrites dashboard edits of managed settings).
 |---|---|---|
 | secret | `RENDER_SERVER_DEPLOY_HOOK` | deploy hook URL of `fx-ladder-feed` |
 | secret | `RENDER_WEB_DEPLOY_HOOK` | deploy hook URL of `fx-ladder-web` |
-| variable | `FEED_PUBLIC_URL` | `https://fx-ladder-feed.onrender.com` |
-| variable | `WEB_PUBLIC_URL` | `https://fx-ladder-web.onrender.com` |
+| variable | `FEED_PUBLIC_URL` | `https://fx-ladder-feed-91dq.onrender.com` |
+| variable | `WEB_PUBLIC_URL` | `https://fx-ladder-web-ryry.onrender.com` |
 
 `FEED_PUBLIC_URL` is also the gate: deploy and smoke jobs in `release.yml`
 skip while it is unset, so CI stays green before Render exists. The
@@ -69,7 +73,7 @@ URLs. A red smoke marks the release failed.
 Manual smoke, any time:
 
 ```bash
-node scripts/smoke.mjs https://fx-ladder-feed.onrender.com https://fx-ladder-web.onrender.com
+node scripts/smoke.mjs https://fx-ladder-feed-91dq.onrender.com https://fx-ladder-web-ryry.onrender.com
 ```
 
 ## Free-tier behaviour (accepted deliberately)

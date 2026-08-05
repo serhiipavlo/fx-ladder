@@ -19,7 +19,7 @@ import { z } from 'zod';
 // this file makes that a build guarantee, not a habit. Response shapes that
 // have no runtime validator (healthz, stats) are declared here by hand.
 
-const FEED_HOST = 'fx-ladder-feed.onrender.com';
+const FEED_HOST = 'fx-ladder-feed-91dq.onrender.com';
 const VERSION = '0.1.0';
 
 type JsonSchema = Record<string, unknown>;

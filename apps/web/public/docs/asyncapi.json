@@ -8,7 +8,7 @@
   "defaultContentType": "application/json",
   "servers": {
     "production": {
-      "host": "fx-ladder-feed.onrender.com",
+      "host": "fx-ladder-feed-91dq.onrender.com",
       "protocol": "wss",
       "description": "Live demo backend (free instance — may cold-start ~1 min)."
     },
